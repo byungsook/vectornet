@@ -14,7 +14,7 @@ RESULT_PATH = DATA_PATH + 'result/'
 LOG_PATH = 'log/'
 PATCH_H, PATCH_W = 424, 424
 BATCH_SIZE = 6
-NUM_ITER = 30000
+NUM_ITER = 600000
 
 
 def variable_summaries(var, name):
@@ -211,7 +211,7 @@ def main():
             result_imgs = y_conv.eval(feed_dict={x: batch_x, y_: batch_y})
             result_imgs = np.reshape(result_imgs, [-1, h, w])
             for j in range(BATCH_SIZE):
-                result = result_imgs[j, ...]
+                result = np.clip(result_imgs[j, ...], 0.0, 1.0)
                 # result = np.clip(result_imgs[j, ...], 0, 255).astype(np.uint8)
                 # scipy.misc.imshow(result)
                 scipy.misc.imsave(RESULT_PATH + "result-%d-%d.png" % (step, j), result)

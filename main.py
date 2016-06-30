@@ -10,7 +10,7 @@ from data_set import DataSet
 
 
 DATA_PATH = 'data/'
-RESULT_PATH = DATA_PATH + 'result/'
+RESULT_PATH = DATA_PATH + 'result2/'
 LOG_PATH = 'log/'
 PATCH_H, PATCH_W = 424, 424
 BATCH_SIZE = 6
@@ -195,8 +195,16 @@ def main():
     for step in range(NUM_ITER):
         if step % 100 == 0 or step == NUM_ITER - 1:
             # test
+            # # save cropped patches
+            # batch_x, batch_y = input_data.next_batch(BATCH_SIZE)
+            # bx = np.reshape(batch_x, [-1, PATCH_H, PATCH_W])
+            # by = np.reshape(batch_y, [-1, PATCH_H, PATCH_W])
+            # for j in range(BATCH_SIZE):            
+            #     scipy.misc.imsave(RESULT_PATH+"x-%d-%d.png" % (step, j), bx[j, ...])
+            #     scipy.misc.imsave(RESULT_PATH+"y-%d-%d.png" % (step, j), by[j, ...]) 
+            
             batch_x, batch_y = input_data.test_x, input_data.test_y
-
+            
             # ### !!!!!! TEMP for downscaling
             # bb = np.reshape(batch_y, [-1, PATCH_H, PATCH_W])
             # bbb = np.empty([BATCH_SIZE, h, w])

@@ -122,10 +122,13 @@ def train():
             print('%s: Pre-trained model restored from %s' %
                 (datetime.now(), FLAGS.pretrained_model_checkpoint_path))
 
-
         # Build the summary operation.
         summary_op = tf.merge_all_summaries()
         summary_writer = tf.train.SummaryWriter(FLAGS.log_dir, sess.graph)
+
+        x_summary = tf.image_summary('x', images, max_images=FLAGS.max_images)
+        y_img = tf.placeholder(tf.uint8, shape=[FLAGS.max_images, FLAGS.image_size, FLAGS.image_size, 1])
+        y_summary = tf.image_summary('y', y_img, max_images=FLAGS.max_images)
 
         # Start the queue runners.
         tf.train.start_queue_runners(sess=sess)
@@ -149,21 +152,28 @@ def train():
 
             # Write the summary periodically.
             if step % 100 == 0:
-                summary_str = sess.run(summary_op, feed_dict={phase_train: True})
+                summary_str, x_summary_str, y_eval = sess.run([summary_op, x_summary, logits], # logits=xys
+                                                            feed_dict={phase_train: True})
                 summary_writer.add_summary(summary_str, step)
+                
+                new_y_img = beziernet_data.svg_to_png(y_eval)
+                y_summary_str = sess.run(y_summary, feed_dict={y_img: new_y_img})
 
-                x_eval, y_eval = sess.run([images, logits], feed_dict={phase_train: True}) # logits=xys
-                y_eval = beziernet_data.svg_to_png(y_eval)
-                x_summary = tf.image_summary('%d_x' % step, x_eval, max_images=FLAGS.max_images)
-                y_summary = tf.image_summary('%d_y' % step, y_eval, max_images=FLAGS.max_images)
-                [x_summary_str, y_summary_str] = sess.run([x_summary, y_summary])
-                summary_writer.add_summary(x_summary_str, step)
-                summary_writer.add_summary(y_summary_str, step)
+                x_summary_tmp = tf.Summary()
+                y_summary_tmp = tf.Summary()
+                x_summary_tmp.ParseFromString(x_summary_str)
+                y_summary_tmp.ParseFromString(y_summary_str)
+                for i in xrange(FLAGS.max_images):
+                    x_summary_tmp.value[i].tag = '%d/%d_x' % (step, i)
+                    y_summary_tmp.value[i].tag = '%d/%d_y' % (step, i)
+                summary_writer.add_summary(x_summary_tmp, step)
+                summary_writer.add_summary(y_summary_tmp, step)
 
             # Save the model checkpoint periodically.
             if step % 5000 == 0 or (step + 1) == FLAGS.max_steps:
                 checkpoint_path = os.path.join(FLAGS.log_dir, 'beziernet.ckpt')
                 saver.save(sess, checkpoint_path)
+
         print('done')
 
 

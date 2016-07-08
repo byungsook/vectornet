@@ -140,8 +140,7 @@ def _read_bezier_bin(filename_queue):
 
 
 def svg_to_png(xy):
-    np.clip(xy, a_min=1, a_max=FLAGS.image_size, out=xy)
-    xy = xy.astype(np.int)
+    xy = np.clip(xy, a_min=1, a_max=FLAGS.image_size).astype(np.int)
     png_img = np.empty([FLAGS.max_images, FLAGS.image_size, FLAGS.image_size], dtype=np.uint8)
     for i in xrange(FLAGS.max_images):
         SVG = SVG_TEMPLATE.format(

@@ -30,7 +30,7 @@ tf.app.flags.DEFINE_boolean('log_device_placement', False,
 tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', '', #'log/2016-07-02T21-10-48.358450/beziernet.ckpt-9',
                            """If specified, restore this pretrained model """
                            """before beginning any training.""")
-tf.app.flags.DEFINE_integer('max_steps', 500000,
+tf.app.flags.DEFINE_integer('max_steps', 500000
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_integer('num_epochs_per_decay', 350,
                           """Epochs after which learning rate decays.""")
@@ -40,7 +40,8 @@ tf.app.flags.DEFINE_float('learning_decay_factor', 0.1,
                           """Learning rate decay factor.""")
 tf.app.flags.DEFINE_float('moving_avg_decay', 0.9999,
                           """The decay to use for the moving average.""")
-
+tf.app.flags.DEFINE_float('max_images', 2,
+                          """max # images to save.""")
 
 
 def train():
@@ -52,7 +53,8 @@ def train():
         images, xys = beziernet_data.inputs()
 
         # Build a Graph that computes the logits predictions from the inference model.
-        logits = beziernet_model.inference(images)
+        phase_train = tf.placeholder(tf.bool, name='phase_train')
+        logits = beziernet_model.inference(images, phase_train)
 
         # Calculate loss.
         loss = beziernet_model.loss(logits, xys)
@@ -88,6 +90,7 @@ def train():
         # Compute gradients.
         with tf.control_dependencies([loss_averages_op]):
             opt = tf.train.AdamOptimizer(learning_rate)
+            # opt = tf.train.AdadeltaOptimizer()
             grads = opt.compute_gradients(loss)
 
         apply_gradient_op = opt.apply_gradients(grads, global_step=global_step)
@@ -99,9 +102,9 @@ def train():
 
         # Track the moving averages of all trainable variables.
         variable_averages = tf.train.ExponentialMovingAverage(FLAGS.moving_avg_decay, global_step)
-        variables_averages_op = variable_averages.apply(tf.trainable_variables())
+        variable_averages_op = variable_averages.apply(tf.trainable_variables())
 
-        with tf.control_dependencies([apply_gradient_op, variables_averages_op]):
+        with tf.control_dependencies([apply_gradient_op, variable_averages_op]):
             train_op = tf.no_op(name='train')
         
 
@@ -133,7 +136,7 @@ def train():
         for step in xrange(start_step, FLAGS.max_steps):
             # Train one step.
             start_time = time.time()
-            _, loss_value = sess.run([train_op, loss])
+            _, loss_value = sess.run([train_op, loss], feed_dict={phase_train: True})
             duration = time.time() - start_time
 
             assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
@@ -146,20 +149,29 @@ def train():
 
             # Write the summary periodically.
             if step % 100 == 0:
-                summary_str = sess.run(summary_op)
-                summary_writer.add_summary(summary_str, step)          
+                summary_str = sess.run(summary_op, feed_dict={phase_train: True})
+                summary_writer.add_summary(summary_str, step)
+
+                x_eval, y_eval = sess.run([images, logits], feed_dict={phase_train: True}) # logits=xys
+                y_eval = beziernet_data.svg_to_png(y_eval)
+                x_summary = tf.image_summary('%d_x' % step, x_eval, max_images=FLAGS.max_images)
+                y_summary = tf.image_summary('%d_y' % step, y_eval, max_images=FLAGS.max_images)
+                [x_summary_str, y_summary_str] = sess.run([x_summary, y_summary])
+                summary_writer.add_summary(x_summary_str, step)
+                summary_writer.add_summary(y_summary_str, step)
 
             # Save the model checkpoint periodically.
             if step % 5000 == 0 or (step + 1) == FLAGS.max_steps:
                 checkpoint_path = os.path.join(FLAGS.log_dir, 'beziernet.ckpt')
                 saver.save(sess, checkpoint_path)
+        print('done')
 
 
 def main(_):
     # if release mode, change current path
     current_path = os.getcwd()
     if not current_path.endswith('beziernet'):
-        working_path = current_path + '/beziernet'
+        working_path = os.path.join(current_path, 'vectornet/beziernet')
         os.chdir(working_path)
         
     # create log directory    
@@ -167,7 +179,7 @@ def main(_):
     tf.gfile.MakeDirs(FLAGS.log_dir)
 
     # (optional) generate bezier bin data set or extract 
-    # beziernet_data.generate_bezier_bin()    
+    # beziernet_data.generate_bezier_bin()
     beziernet_data.extract_bezier_bin()
 
     # start training

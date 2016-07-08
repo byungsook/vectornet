@@ -14,9 +14,9 @@ import os
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import numpy as np
 import scipy.misc
-#import matplotlib.pyplot as plt
-#import cairo
-#import rsvg
+import matplotlib.pyplot as plt
+import cairo
+import rsvg
 import tarfile
 import shutil
 
@@ -91,8 +91,8 @@ def _generate_image_and_label_batch(image, xy, min_queue_examples, shuffle):
             num_threads=num_preprocess_threads,
             capacity=min_queue_examples + 3 * FLAGS.batch_size)
 
-    # Display the training images in the visualizer.
-    tf.image_summary('images', images)
+    # # Display the training images in the visualizer.
+    # tf.image_summary('images', images, max_images=FLAGS.max_images)
 
     return images, tf.reshape(xys, [FLAGS.batch_size, FLAGS.xy_size])
 
@@ -117,10 +117,10 @@ def _read_bezier_bin(filename_queue):
     result = BezierRecord()
 
     # Dimensions of the images in the Bezier dataset.
-    result.xy_dim = FLAGS.xy_size 
+    result.xy_dim = FLAGS.xy_size
     xy_bytes = result.xy_dim
     result.height = FLAGS.image_size
-    result.width = FLAGS.image_size    
+    result.width = FLAGS.image_size
     image_bytes = result.height * result.width
     record_bytes = xy_bytes + image_bytes
 
@@ -138,6 +138,34 @@ def _read_bezier_bin(filename_queue):
                            [result.height, result.width, 1])
 
     return result
+
+
+def svg_to_png(xy):
+    np.clip(xy, a_min=1, a_max=FLAGS.image_size, out=xy)
+    xy = xy.astype(np.int)
+    png_img = np.empty([FLAGS.max_images, FLAGS.image_size, FLAGS.image_size], dtype=np.uint8)
+    for i in xrange(FLAGS.max_images):
+        SVG = SVG_TEMPLATE.format(
+                width=FLAGS.image_size,
+                height=FLAGS.image_size,
+                sx=xy[i, 0], sy=xy[i, 1],
+                cx1=xy[i, 2], cy1=xy[i, 3],
+                cx2=xy[i, 4], cy2=xy[i, 5],
+                tx=xy[i, 6], ty=xy[i, 7]
+            )
+
+        # save png
+        img = cairo.ImageSurface(cairo.FORMAT_ARGB32, FLAGS.image_size, FLAGS.image_size)
+        ctx = cairo.Context(img)
+        handle = rsvg.Handle(None, SVG)
+        handle.render_cairo(ctx)
+        png_file_name = 'tmp.png'
+        img.write_to_png(png_file_name)
+
+        png_img[i, ...] = scipy.misc.imread(png_file_name)[:,:,3] 
+        os.remove(png_file_name)
+    
+    return np.reshape(png_img, [-1, FLAGS.image_size, FLAGS.image_size, 1])
 
 
 def inputs(is_train=True):
@@ -164,16 +192,6 @@ def inputs(is_train=True):
     # Read examples from files in the filename queue.
     read_input = _read_bezier_bin(filename_queue)
     normalized_image = tf.image.convert_image_dtype(read_input.uint8image, tf.float32)
-
-
-    # sess = tf.InteractiveSession()
-    # tf.train.start_queue_runners(sess=sess)
-    # print(read_input.xy.eval())
-    # pp = normalized_image.eval()
-    # print(np.amax(pp), np.amin(pp))
-    # plt.imshow(np.reshape(pp, [FLAGS.image_size, FLAGS.image_size]), cmap=plt.cm.gray)
-    # plt.show()
-
 
     # Ensure that the random shuffling has good mixing properties.
     min_fraction_of_examples_in_queue = 0.4
@@ -253,6 +271,19 @@ def generate_bezier_bin():
         bin_f.write(png_img.tobytes())
         if i % FLAGS.num_examples_per_bin == 0:
             bin_f.close()
+
+            # # test binary reading
+            # filename_queue = tf.train.string_input_producer([bin_file_name])            
+            # read_input = _read_bezier_bin(filename_queue)
+            # sess = tf.InteractiveSession()
+            # tf.train.start_queue_runners(sess=sess)            
+            # img_eval, xys_eval = sess.run([read_input.uint8image, read_input.xy])
+            # xys_eval = svg_to_png(np.reshape(xys_eval, [1, 8]))
+            # plt.imshow(np.reshape(img_eval, [FLAGS.image_size, FLAGS.image_size]), cmap=plt.cm.gray)
+            # plt.show()
+            # plt.imshow(np.reshape(xys_eval, [FLAGS.image_size, FLAGS.image_size]), cmap=plt.cm.gray)
+            # plt.show() 
+
             bin_id += 1
             if bin_id < FLAGS.num_bins:
                 bin_file_name = os.path.join(BIN_DIR, '%d.bin' % bin_id)
@@ -262,34 +293,12 @@ def generate_bezier_bin():
             if i < FLAGS.num_examples:
                 bin_f = open(bin_file_name, 'w')
 
-            
-        # # test binary reading
-        # label_bytes = FLAGS.xy_size
-        # image_bytes = FLAGS.image_size * FLAGS.image_size
-        # record_bytes = label_bytes + image_bytes
-        # filename_queue = tf.train.string_input_producer([bin_file_name])
-
-        # reader = tf.FixedLengthRecordReader(record_bytes=record_bytes)
-        # _, value = reader.read(filename_queue)
-
-        # record_bytes = tf.decode_raw(value, tf.uint8)
-        # label = tf.slice(record_bytes, [0], [label_bytes])                
-        # uint8image = tf.reshape(tf.slice(record_bytes, [label_bytes], [image_bytes]),
-        #                         [FLAGS.image_size, FLAGS.image_size])
-        
-        # sess = tf.InteractiveSession()
-        # tf.train.start_queue_runners(sess=sess)
-        # print(label.eval())
-        # pp = uint8image.eval()
-        # plt.imshow(pp, cmap=plt.cm.gray)
-        # plt.show()
-
     label_f.close()
     
     if not os.path.exists(TAR_DIR):
         os.makedirs(TAR_DIR)
     
-    print('tar and remove all bin files')
+    print('tar all bin files')
     with tarfile.open(TAR_BIN_FILE_NAME, 'w:gz') as tar:
         tar.add(BIN_DIR)
 

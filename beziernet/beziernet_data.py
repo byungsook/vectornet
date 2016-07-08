@@ -13,7 +13,7 @@ import os
 
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import numpy as np
-import scipy.misc
+from scipy.misc import imread
 import cairosvg
 import matplotlib.pyplot as plt
 import tarfile
@@ -157,7 +157,7 @@ def svg_to_png(xy):
         png_file_name = 'tmp.png'
         cairosvg.svg2png(bytestring=SVG, write_to=png_file_name)
 
-        png_img[i, ...] = scipy.misc.imread(png_file_name)[:,:,3] 
+        png_img[i, ...] = imread(png_file_name)[:,:,3] 
         os.remove(png_file_name)
     
     return np.reshape(png_img, [-1, FLAGS.image_size, FLAGS.image_size, 1])
@@ -252,7 +252,7 @@ def generate_bezier_bin():
         label_f.write('\n')
 
         # save binary
-        png_img = scipy.misc.imread(png_file_name)[:,:,3]
+        png_img = imread(png_file_name)[:,:,3]
         # print(png_img.shape, png_img.dtype)
         # plt.imshow(png_img, cmap=plt.cm.gray)
         # plt.show()

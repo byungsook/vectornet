@@ -30,7 +30,7 @@ tf.app.flags.DEFINE_boolean('log_device_placement', False,
 tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', '', #'log/2016-07-02T21-10-48.358450/beziernet.ckpt-9',
                            """If specified, restore this pretrained model """
                            """before beginning any training.""")
-tf.app.flags.DEFINE_integer('max_steps', 500000
+tf.app.flags.DEFINE_integer('max_steps', 500000,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_integer('num_epochs_per_decay', 350,
                           """Epochs after which learning rate decays.""")

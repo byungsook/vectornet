@@ -30,7 +30,7 @@ tf.app.flags.DEFINE_boolean('log_device_placement', False,
 tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', '', #'log/2016-07-02T21-10-48.358450/beziernet.ckpt-9',
                            """If specified, restore this pretrained model """
                            """before beginning any training.""")
-tf.app.flags.DEFINE_integer('max_steps', 10, # 200000,
+tf.app.flags.DEFINE_integer('max_steps', 500000,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_integer('num_epochs_per_decay', 350,
                           """Epochs after which learning rate decays.""")
@@ -139,20 +139,20 @@ def train():
             assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
 
             # Print statistics periodically.
-            if step % 1 == 0:
+            if step % 10 == 0:
                 examples_per_sec = FLAGS.batch_size / float(duration)
                 print('%s: step %d, loss = %.2f (%.1f examples/sec; %.3f sec/batch)' % (
                     datetime.now(), step, loss_value, examples_per_sec, duration))
 
             # Write the summary periodically.
-            if step % 1 == 0:
+            if step % 100 == 0:
                 summary_str = sess.run(summary_op)
                 summary_writer.add_summary(summary_str, step)          
 
             # Save the model checkpoint periodically.
-            if step % 1000 == 0 or (step + 1) == FLAGS.max_steps:
+            if step % 5000 == 0 or (step + 1) == FLAGS.max_steps:
                 checkpoint_path = os.path.join(FLAGS.log_dir, 'beziernet.ckpt')
-                saver.save(sess, checkpoint_path, global_step=step)
+                saver.save(sess, checkpoint_path)
 
 
 def main(_):
@@ -168,7 +168,7 @@ def main(_):
 
     # (optional) generate bezier bin data set or extract 
     # beziernet_data.generate_bezier_bin()    
-    # beziernet_data.extract_bezier_bin()
+    beziernet_data.extract_bezier_bin()
 
     # start training
     train()

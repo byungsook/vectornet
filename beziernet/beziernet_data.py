@@ -14,9 +14,9 @@ import os
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import numpy as np
 import scipy.misc
-import matplotlib.pyplot as plt
-import cairo
-import rsvg
+#import matplotlib.pyplot as plt
+#import cairo
+#import rsvg
 import tarfile
 import shutil
 

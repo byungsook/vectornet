@@ -14,9 +14,8 @@ import os
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import numpy as np
 import scipy.misc
+import cairosvg
 import matplotlib.pyplot as plt
-import cairo
-import rsvg
 import tarfile
 import shutil
 
@@ -155,12 +154,8 @@ def svg_to_png(xy):
             )
 
         # save png
-        img = cairo.ImageSurface(cairo.FORMAT_ARGB32, FLAGS.image_size, FLAGS.image_size)
-        ctx = cairo.Context(img)
-        handle = rsvg.Handle(None, SVG)
-        handle.render_cairo(ctx)
         png_file_name = 'tmp.png'
-        img.write_to_png(png_file_name)
+        cairosvg.svg2png(bytestring=SVG, write_to=png_file_name)
 
         png_img[i, ...] = scipy.misc.imread(png_file_name)[:,:,3] 
         os.remove(png_file_name)
@@ -248,12 +243,8 @@ def generate_bezier_bin():
             f.write(SVG)
         
         # save png
-        img = cairo.ImageSurface(cairo.FORMAT_ARGB32, FLAGS.image_size, FLAGS.image_size)
-        ctx = cairo.Context(img)
-        handle = rsvg.Handle(None, SVG)
-        handle.render_cairo(ctx)
         png_file_name = os.path.join(PNG_DIR, '%d.png' % i)
-        img.write_to_png(png_file_name)
+        cairosvg.svg2png(bytestring=SVG, write_to=png_file_name)
         
         # save label
         for l in np.nditer(xy):            

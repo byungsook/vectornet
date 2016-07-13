@@ -14,6 +14,7 @@ from datetime import datetime
 import os
 import time
 
+from six.moves import xrange  # pylint: disable=redefined-builtin
 import numpy as np
 import tensorflow as tf
 
@@ -27,12 +28,12 @@ tf.app.flags.DEFINE_string('log_dir', 'log',
                            """and checkpoint.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
-tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', '', #'log/2016-07-02T21-10-48.358450/beziernet.ckpt-9',
+tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', 'log/second_train/beziernet.ckpt', # 'log/second_train/beziernet.ckpt',
                            """If specified, restore this pretrained model """
                            """before beginning any training.""")
-tf.app.flags.DEFINE_integer('max_steps', 500000,
+tf.app.flags.DEFINE_integer('max_steps', 1000000,
                             """Number of batches to run.""")
-tf.app.flags.DEFINE_integer('num_epochs_per_decay', 350,
+tf.app.flags.DEFINE_integer('num_epochs_per_decay', 237, # 90000/128= 703 steps/epoch, ~166k
                           """Epochs after which learning rate decays.""")
 tf.app.flags.DEFINE_float('initial_learning_rate', 0.1,
                           """Initial learning rate.""")
@@ -48,12 +49,13 @@ def train():
     """Train Vectornet for a number of steps."""
     with tf.Graph().as_default():
         global_step = tf.Variable(0, name='global_step', trainable=False)
-
+        is_train = True
+        phase_train = tf.placeholder(tf.bool, name='phase_train')
+        
         # Get images and xys for BezierNet.
         images, xys = beziernet_data.inputs()
 
         # Build a Graph that computes the logits predictions from the inference model.
-        phase_train = tf.placeholder(tf.bool, name='phase_train')
         logits = beziernet_model.inference(images, phase_train)
 
         # Calculate loss.
@@ -139,7 +141,7 @@ def train():
         for step in xrange(start_step, FLAGS.max_steps):
             # Train one step.
             start_time = time.time()
-            _, loss_value = sess.run([train_op, loss], feed_dict={phase_train: True})
+            _, loss_value = sess.run([train_op, loss], feed_dict={phase_train: is_train})
             duration = time.time() - start_time
 
             assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
@@ -153,7 +155,7 @@ def train():
             # Write the summary periodically.
             if step % 100 == 0:
                 summary_str, x_summary_str, y_eval = sess.run([summary_op, x_summary, logits], # logits=xys
-                                                            feed_dict={phase_train: True})
+                                                            feed_dict={phase_train: is_train})
                 summary_writer.add_summary(summary_str, step)
                 
                 new_y_img = beziernet_data.svg_to_png(y_eval)
@@ -164,8 +166,8 @@ def train():
                 x_summary_tmp.ParseFromString(x_summary_str)
                 y_summary_tmp.ParseFromString(y_summary_str)
                 for i in xrange(FLAGS.max_images):
-                    x_summary_tmp.value[i].tag = '%d/%d_x' % (step, i)
-                    y_summary_tmp.value[i].tag = '%d/%d_y' % (step, i)
+                    x_summary_tmp.value[i].tag = '%07d/%d_x' % (step, i)
+                    y_summary_tmp.value[i].tag = '%07d/%d_y' % (step, i)
                 summary_writer.add_summary(x_summary_tmp, step)
                 summary_writer.add_summary(y_summary_tmp, step)
 

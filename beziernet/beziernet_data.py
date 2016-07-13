@@ -162,14 +162,14 @@ def svg_to_png(xy):
     return np.reshape(png_img, [-1, FLAGS.image_size, FLAGS.image_size, 1])
 
 
-def inputs(is_train=True):
+def inputs(use_train_data=True, batch_shuffle=True):
     """Construct input for Beziernet evaluation using the Reader ops.
 
     Returns:
         images: Images. 4D tensor of [batch_size, FLAGS.image_size, FLAGS.image_size, 1] size.
         xys: Coordinates of bezier curves. 2D tensor of [batch_size, FLAGS.xy_size] size.
     """
-    if is_train:
+    if use_train_data:
         filenames = [os.path.join(BIN_DIR, '%d.bin' % i) for i in xrange(1, FLAGS.num_bins)]
         num_examples_per_epoch = FLAGS.num_examples_per_epoch_for_train
     else:
@@ -194,7 +194,7 @@ def inputs(is_train=True):
 
     # Generate a batch of images and labels by building up a queue of examples.
     return _generate_image_and_label_batch(normalized_image, read_input.xy,
-                                         min_queue_examples, shuffle=False)
+                                         min_queue_examples, shuffle=batch_shuffle)
 
 
 def extract_bezier_bin():

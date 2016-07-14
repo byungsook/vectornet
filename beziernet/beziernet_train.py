@@ -28,7 +28,7 @@ tf.app.flags.DEFINE_string('log_dir', 'log',
                            """and checkpoint.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
-tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', 'log/second_train/beziernet.ckpt', # 'log/second_train/beziernet.ckpt',
+tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', '', # 'log/second_train/beziernet.ckpt',
                            """If specified, restore this pretrained model """
                            """before beginning any training.""")
 tf.app.flags.DEFINE_integer('max_steps', 1000000,
@@ -41,8 +41,8 @@ tf.app.flags.DEFINE_float('learning_decay_factor', 0.1,
                           """Learning rate decay factor.""")
 tf.app.flags.DEFINE_float('moving_avg_decay', 0.9999,
                           """The decay to use for the moving average.""")
-tf.app.flags.DEFINE_float('max_images', 2,
-                          """max # images to save.""")
+tf.app.flags.DEFINE_integer('max_images', 1,
+                            """max # images to save.""")
 
 
 def train():
@@ -53,7 +53,12 @@ def train():
         phase_train = tf.placeholder(tf.bool, name='phase_train')
         
         # Get images and xys for BezierNet.
-        images, xys = beziernet_data.inputs()
+        use_data = False
+        if use_data:
+            images, xys = beziernet_data.inputs()
+        else:
+            custom_runner = beziernet_data.CustomRunner()
+            images, xys = custom_runner.inputs()
 
         # Build a Graph that computes the logits predictions from the inference model.
         logits = beziernet_model.inference(images, phase_train)
@@ -80,10 +85,10 @@ def train():
 
         # Decay the learning rate exponentially based on the number of steps.
         learning_rate = tf.train.exponential_decay(FLAGS.initial_learning_rate,
-                                        global_step,
-                                        decay_steps,
-                                        FLAGS.learning_decay_factor,
-                                        staircase=True)
+                                                   global_step,
+                                                   decay_steps,
+                                                   FLAGS.learning_decay_factor,
+                                                   staircase=True)
         tf.scalar_summary('learning_rate', learning_rate)
         
         # # or use fixed learning rate
@@ -134,6 +139,9 @@ def train():
 
         # Start the queue runners.
         tf.train.start_queue_runners(sess=sess)
+        if not use_data:
+            # start our custom queue runner's threads
+            custom_runner.start_threads(sess)
 
         ####################################################################
         # Start to train.
@@ -149,16 +157,16 @@ def train():
             # Print statistics periodically.
             if step % 10 == 0:
                 examples_per_sec = FLAGS.batch_size / float(duration)
-                print('%s: step %d, loss = %.2f (%.1f examples/sec; %.3f sec/batch)' % (
-                    datetime.now(), step, loss_value, examples_per_sec, duration))
+                print('%s: step %d, loss = %.2f (%.1f examples/sec; %.3f sec/batch)' % 
+                    (datetime.now(), step, loss_value, examples_per_sec, duration))
 
             # Write the summary periodically.
             if step % 100 == 0:
                 summary_str, x_summary_str, y_eval = sess.run([summary_op, x_summary, logits], # logits=xys
-                                                            feed_dict={phase_train: is_train})
+                                                              feed_dict={phase_train: is_train})
                 summary_writer.add_summary(summary_str, step)
                 
-                new_y_img = beziernet_data.svg_to_png(y_eval)
+                new_y_img = beziernet_data.svg_to_png(y_eval, num_image=FLAGS.max_images)
                 y_summary_str = sess.run(y_summary, feed_dict={y_img: new_y_img})
 
                 x_summary_tmp = tf.Summary()
@@ -166,8 +174,8 @@ def train():
                 x_summary_tmp.ParseFromString(x_summary_str)
                 y_summary_tmp.ParseFromString(y_summary_str)
                 for i in xrange(FLAGS.max_images):
-                    x_summary_tmp.value[i].tag = '%07d/%d_x' % (step, i)
-                    y_summary_tmp.value[i].tag = '%07d/%d_y' % (step, i)
+                    x_summary_tmp.value[i].tag = '%07d/%03d_x' % (step, i)
+                    y_summary_tmp.value[i].tag = '%07d/%03d_y' % (step, i)
                 summary_writer.add_summary(x_summary_tmp, step)
                 summary_writer.add_summary(y_summary_tmp, step)
 
@@ -192,7 +200,7 @@ def main(_):
 
     # (optional) generate bezier bin data set or extract 
     # beziernet_data.generate_bezier_bin()
-    beziernet_data.extract_bezier_bin()
+    # beziernet_data.extract_bezier_bin()
 
     # start training
     train()

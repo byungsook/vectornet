@@ -103,7 +103,7 @@ def _conv2d(layer_name, x, k, s, d_next, phase_train):
         _variable_summaries(relu)
         return relu
 
-def _fc(layer_name, x, d_next, phase_train):
+def _fc(layer_name, x, d_next, phase_train, use_activation=True):
     """fully-connected layer"""
     with tf.variable_scope(layer_name):
         batch_size = x.get_shape()[0].value
@@ -113,9 +113,12 @@ def _fc(layer_name, x, d_next, phase_train):
         fc = tf.matmul(x_flat, W, name='2_matmul')
         _variable_summaries(fc)
         batch = _batch_normalization('3_batch_norm', fc, d_next, phase_train, is_conv=False)
-        relu = tf.nn.relu(batch, name='4_relu')
-        _variable_summaries(relu)
-        return relu        
+        if use_activation:
+            relu = tf.nn.relu(batch, name='4_relu')
+            _variable_summaries(relu)
+            return relu
+        else:
+            return batch
 
 
 def inference(images, phase_train):
@@ -152,12 +155,11 @@ def inference(images, phase_train):
     # 5-3 fully-connected layer: d=256
     h_fc53 = _fc('5-3_fc', h_fc52, 256, phase_train)
     # 5-4 fully-connected layer: d=8
-    y_fc = _fc('5-4_fc', h_fc53, 8, phase_train)
+    y_fc = _fc('5-4_fc', h_fc53, 8, phase_train, use_activation=False)
     
     return y_fc
 
 
 def loss(logits, xys):
-    xys = tf.cast(xys, tf.float32)
-    loss_sum = tf.reduce_sum(tf.square(xys - logits), name='loss')
-    return loss_sum
+    loss_mean = tf.reduce_mean(tf.square(xys - logits), name='loss')
+    return loss_mean

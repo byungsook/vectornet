@@ -33,8 +33,8 @@ tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', 'log/second_train
                            """If specified, restore this pretrained model.""")
 tf.app.flags.DEFINE_float('moving_avg_decay', 0.9999,
                           """The decay to use for the moving average.""")
-tf.app.flags.DEFINE_float('max_images', 2,
-                          """max # images to save.""")
+tf.app.flags.DEFINE_integer('max_images', FLAGS.batch_size,
+                            """max # images to save.""")
 
 
 def evaluate():
@@ -109,8 +109,8 @@ def evaluate():
                     x_summary_tmp.ParseFromString(x_summary_str)
                     y_summary_tmp.ParseFromString(y_summary_str)
                     for i in xrange(FLAGS.max_images):
-                        x_summary_tmp.value[i].tag = '%07d/%d_x' % (step, i)
-                        y_summary_tmp.value[i].tag = '%07d/%d_y' % (step, i)
+                        x_summary_tmp.value[i].tag = '%07d/%03d_x' % (step, i)
+                        y_summary_tmp.value[i].tag = '%07d/%03d_y' % (step, i)
                     summary_writer.add_summary(x_summary_tmp, step)
                     summary_writer.add_summary(y_summary_tmp, step)
 

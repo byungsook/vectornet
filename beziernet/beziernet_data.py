@@ -59,6 +59,72 @@ SVG_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
 </g></svg>"""
 
 
+class CustomRunner(object):
+    """
+    This class manages the the background threads needed to fill
+        a queue full of data.
+    """
+    def __init__(self):
+        self.dataX_shape = [FLAGS.image_size, FLAGS.image_size, 1]
+        self.dataY_shape = [FLAGS.xy_size]
+        self.dataX = tf.placeholder(dtype=tf.float32, shape=self.dataX_shape)
+        self.dataY = tf.placeholder(dtype=tf.float32, shape=self.dataY_shape)
+        self.capacity = FLAGS.batch_size * 100
+        # The actual queue of data.
+        self.queue = tf.FIFOQueue(shapes=[self.dataX_shape, self.dataY_shape],
+                                  dtypes=[tf.float32, tf.float32],
+                                  capacity=self.capacity)
+
+        # The symbolic operation to add data to the queue
+        # we could do some preprocessing here or do it in numpy.
+        self.enqueue_op = self.queue.enqueue([self.dataX, self.dataY])
+
+    def inputs(self):
+        """
+        Return's tensors containing a batch of images and labels
+        """
+        images_batch, xys_batch = self.queue.dequeue_many(FLAGS.batch_size)
+        return images_batch, xys_batch
+
+    def data_generator(self):
+        xy = np.random.randint(low=1, high=FLAGS.image_size, size=FLAGS.xy_size)
+        # print(xy.shape, xy.dtype)
+        SVG = SVG_TEMPLATE.format(
+            width=FLAGS.image_size,
+            height=FLAGS.image_size,
+            sx=xy[0], sy=xy[1],
+            cx1=xy[2], cy1=xy[3],
+            cx2=xy[4], cy2=xy[5],
+            tx=xy[6], ty=xy[7]
+        )
+
+        png_tmp = cairosvg.svg2png(bytestring=SVG)
+        with tf.Session() as sess:
+            png_str = tf.constant(png_tmp, dtype=tf.string)
+            png = tf.image.decode_png(png_str)
+            normalized_image = tf.image.convert_image_dtype(png, tf.float32).eval()
+            normalized_image = np.reshape(normalized_image[:,:,3], [FLAGS.image_size, FLAGS.image_size, 1])
+            return normalized_image, xy.astype(np.float)
+
+    def thread_main(self, sess):
+        """
+        Function run on alternate thread. Basically, keep adding data to the queue.
+        """
+        while True:
+            dataX, dataY = self.data_generator()
+            sess.run(self.enqueue_op, feed_dict={self.dataX:dataX, self.dataY:dataY})
+
+    def start_threads(self, sess, n_threads=16):
+        """ Start background threads to feed queue """
+        threads = []
+        for _ in range(n_threads):
+            t = tf.train.threading.Thread(target=self.thread_main, args=(sess,))
+            t.daemon = True # thread will close when parent quits
+            t.start()
+            threads.append(t)
+        return threads
+
+
 def _generate_image_and_label_batch(image, xy, min_queue_examples, shuffle):
     """Construct a queued batch of images and labels.
 
@@ -129,7 +195,7 @@ def _read_bezier_bin(filename_queue):
     # Convert from a string to a vector of uint8 that is record_bytes long.
     record_bytes = tf.decode_raw(value, tf.uint8)
 
-    result.xy = tf.slice(record_bytes, [0], [xy_bytes])
+    result.xy = tf.cast(tf.slice(record_bytes, [0], [xy_bytes]), tf.float32)
 
     # The remaining bytes after the xy represent the image, which we reshape
     # from [height * width] to [height, width, 1].
@@ -139,10 +205,10 @@ def _read_bezier_bin(filename_queue):
     return result
 
 
-def svg_to_png(xy):
+def svg_to_png(xy, num_image):
     xy = np.clip(xy, a_min=1, a_max=FLAGS.image_size).astype(np.int)
-    png_img = np.empty([FLAGS.max_images, FLAGS.image_size, FLAGS.image_size], dtype=np.uint8)
-    for i in xrange(FLAGS.max_images):
+    png_img = np.empty([num_image, FLAGS.image_size, FLAGS.image_size], dtype=np.uint8)
+    for i in xrange(num_image):
         SVG = SVG_TEMPLATE.format(
                 width=FLAGS.image_size,
                 height=FLAGS.image_size,
@@ -155,13 +221,11 @@ def svg_to_png(xy):
         # save png
         png_file_name = 'tmp.png'
         cairosvg.svg2png(bytestring=SVG, write_to=png_file_name)
-
         png_img[i, ...] = imread(png_file_name)[:,:,3] 
         os.remove(png_file_name)
-    
     return np.reshape(png_img, [-1, FLAGS.image_size, FLAGS.image_size, 1])
 
-
+    
 def inputs(use_train_data=True, batch_shuffle=True):
     """Construct input for Beziernet evaluation using the Reader ops.
 
@@ -257,7 +321,7 @@ def generate_bezier_bin():
         # plt.show()
 
         # !! only if FLAGS.image_size < 255, otherwise use uint16
-        bin_f.write(xy.astype(np.uint8).tobytes())  
+        bin_f.write(xy.astype(np.uint8).tobytes())
         bin_f.write(png_img.tobytes())
         if i % FLAGS.num_examples_per_bin == 0:
             bin_f.close()

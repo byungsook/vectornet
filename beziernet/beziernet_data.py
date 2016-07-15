@@ -32,11 +32,11 @@ tf.app.flags.DEFINE_integer('image_size', 96, # 96-48-24-12-6
                             """Image Size.""")
 tf.app.flags.DEFINE_integer('xy_size', 8,
                             """# Coordinates of Bezier Curve.""")
-tf.app.flags.DEFINE_integer('num_examples', 100000,
+tf.app.flags.DEFINE_integer('num_examples', 1000000,
                             """# examples.""")
 tf.app.flags.DEFINE_integer('num_examples_per_bin', 10000,
                             """# examples per bin.""")
-tf.app.flags.DEFINE_integer('num_bins', 10, #int(FLAGS.num_examples / FLAGS.num_examples_per_bin),
+tf.app.flags.DEFINE_integer('num_bins', 100, #int(FLAGS.num_examples / FLAGS.num_examples_per_bin),
                             """# bins.""")
 tf.app.flags.DEFINE_integer('num_examples_per_epoch_for_train', FLAGS.num_examples_per_bin * (FLAGS.num_bins-1),
                             """# examples per epoch for training.""")
@@ -211,7 +211,7 @@ def _read_bezier_bin(filename_queue):
 
 def svg_to_png(xy, num_image):
     xy = np.clip(xy, a_min=1, a_max=FLAGS.image_size).astype(np.int)
-    png_img = np.empty([num_image, FLAGS.image_size, FLAGS.image_size], dtype=np.uint8)
+    png_img = np.empty([num_image, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.uint8)
     for i in xrange(num_image):
         SVG = SVG_TEMPLATE.format(
                 width=FLAGS.image_size,
@@ -225,9 +225,9 @@ def svg_to_png(xy, num_image):
         # save png
         png_file_name = 'tmp.png'
         cairosvg.svg2png(bytestring=SVG, write_to=png_file_name)
-        png_img[i, ...] = imread(png_file_name)[:,:,3] 
-        os.remove(png_file_name)
-    return np.reshape(png_img, [-1, FLAGS.image_size, FLAGS.image_size, 1])
+        png_img[i, ...] = np.reshape(imread(png_file_name)[:,:,3], [FLAGS.image_size, FLAGS.image_size, 1]) 
+        #os.remove(png_file_name)
+    return png_img
 
     
 def inputs(use_train_data=True, batch_shuffle=True):

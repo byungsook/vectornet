@@ -53,7 +53,7 @@ def train():
         phase_train = tf.placeholder(tf.bool, name='phase_train')
         
         # Get images and xys for BezierNet.
-        use_data = False
+        use_data = True
         if use_data:
             images, xys = beziernet_data.inputs()
         else:
@@ -199,7 +199,7 @@ def main(_):
     tf.gfile.MakeDirs(FLAGS.log_dir)
 
     # (optional) generate bezier bin data set or extract 
-    # beziernet_data.generate_bezier_bin()
+    beziernet_data.generate_bezier_bin()
     # beziernet_data.extract_bezier_bin()
 
     # start training

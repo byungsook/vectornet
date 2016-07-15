@@ -53,12 +53,15 @@ def train():
         phase_train = tf.placeholder(tf.bool, name='phase_train')
         
         # Get images and xys for BezierNet.
-        use_data = True
+        use_data = False
         if use_data:
             images, xys = beziernet_data.inputs()
         else:
-            custom_runner = beziernet_data.CustomRunner()
-            images, xys = custom_runner.inputs()
+            # custom_runner = beziernet_data.CustomRunner()
+            # images, xys = custom_runner.inputs()
+            images = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
+            xys = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.xy_size])
+
 
         # Build a Graph that computes the logits predictions from the inference model.
         logits = beziernet_model.inference(images, phase_train)
@@ -139,9 +142,9 @@ def train():
 
         # Start the queue runners.
         tf.train.start_queue_runners(sess=sess)
-        if not use_data:
-            # start our custom queue runner's threads
-            custom_runner.start_threads(sess)
+        # if not use_data:
+        #     # start our custom queue runner's threads
+        #     custom_runner.start_threads(sess)
 
         ####################################################################
         # Start to train.
@@ -149,7 +152,12 @@ def train():
         for step in xrange(start_step, FLAGS.max_steps):
             # Train one step.
             start_time = time.time()
-            _, loss_value = sess.run([train_op, loss], feed_dict={phase_train: is_train})
+            if use_data:
+                _, loss_value = sess.run([train_op, loss], feed_dict={phase_train: is_train})
+            else:
+                image_batch, xys_batch = beziernet_data.data_generator()
+                _, loss_value = sess.run([train_op, loss], feed_dict={phase_train: is_train,
+                                         images: image_batch, xys: xys_batch})
             duration = time.time() - start_time
 
             assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
@@ -162,8 +170,13 @@ def train():
 
             # Write the summary periodically.
             if step % 100 == 0:
-                summary_str, x_summary_str, y_eval = sess.run([summary_op, x_summary, logits], # logits=xys
-                                                              feed_dict={phase_train: is_train})
+                if use_data:
+                    summary_str, x_summary_str, y_eval = sess.run([summary_op, x_summary, logits], # logits=xys
+                                                                feed_dict={phase_train: is_train})
+                else:
+                    summary_str, x_summary_str, y_eval = sess.run([summary_op, x_summary, logits],
+                                                                feed_dict={phase_train: is_train,
+                                                                images: image_batch, xys: xys_batch})
                 summary_writer.add_summary(summary_str, step)
                 
                 new_y_img = beziernet_data.svg_to_png(y_eval, num_image=FLAGS.max_images)
@@ -199,7 +212,7 @@ def main(_):
     tf.gfile.MakeDirs(FLAGS.log_dir)
 
     # (optional) generate bezier bin data set or extract 
-    beziernet_data.generate_bezier_bin()
+    # beziernet_data.generate_bezier_bin()
     # beziernet_data.extract_bezier_bin()
 
     # start training

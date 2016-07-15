@@ -106,11 +106,9 @@ def _conv2d(layer_name, x, k, s, d_next, phase_train):
 def _fc(layer_name, x, d_next, phase_train, use_activation=True):
     """fully-connected layer"""
     with tf.variable_scope(layer_name):
-        batch_size = x.get_shape()[0].value
-        x_flat = tf.reshape(x, [batch_size, -1])
-        num_v_prev = x_flat.get_shape()[1].value
+        num_v_prev = x.get_shape()[1].value
         W = _weight_variable('1_weights', [num_v_prev, d_next])
-        fc = tf.matmul(x_flat, W, name='2_matmul')
+        fc = tf.matmul(x, W, name='2_matmul')
         _variable_summaries(fc)
         batch = _batch_normalization('3_batch_norm', fc, d_next, phase_train, is_conv=False)
         if use_activation:
@@ -147,9 +145,12 @@ def inference(images, phase_train):
     h_conv41 = _conv2d('4-1_down', h_conv32, 3, 2, 512, phase_train)
     # 4-2 flat-convolutional layer: k=3x3, s=1x1, d=512
     h_conv42 = _conv2d('4-2_flat', h_conv41, 3, 1, 512, phase_train)
-
+    
+    h_conv42_dim = h_conv42.get_shape()[1].value*h_conv42.get_shape()[2].value*h_conv42.get_shape()[3].value
+    h_conv42_flat = tf.reshape(h_conv42, [-1, h_conv42_dim])
+        
     # 5-1 fully-connected layer: d=1024
-    h_fc51 = _fc('5-1_fc', h_conv42, 1024, phase_train)
+    h_fc51 = _fc('5-1_fc', h_conv42_flat, 1024, phase_train)
     # 5-2 fully-connected layer: d=512
     h_fc52 = _fc('5-2_fc', h_fc51, 512, phase_train)
     # 5-3 fully-connected layer: d=256

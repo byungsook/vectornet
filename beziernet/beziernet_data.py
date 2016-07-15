@@ -32,11 +32,11 @@ tf.app.flags.DEFINE_integer('image_size', 96, # 96-48-24-12-6
                             """Image Size.""")
 tf.app.flags.DEFINE_integer('xy_size', 8,
                             """# Coordinates of Bezier Curve.""")
-tf.app.flags.DEFINE_integer('num_examples', 1000000,
+tf.app.flags.DEFINE_integer('num_examples', 100000,
                             """# examples.""")
 tf.app.flags.DEFINE_integer('num_examples_per_bin', 10000,
                             """# examples per bin.""")
-tf.app.flags.DEFINE_integer('num_bins', 100, #int(FLAGS.num_examples / FLAGS.num_examples_per_bin),
+tf.app.flags.DEFINE_integer('num_bins', 10, #int(FLAGS.num_examples / FLAGS.num_examples_per_bin),
                             """# bins.""")
 tf.app.flags.DEFINE_integer('num_examples_per_epoch_for_train', FLAGS.num_examples_per_bin * (FLAGS.num_bins-1),
                             """# examples per epoch for training.""")
@@ -57,6 +57,31 @@ SVG_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
 <g fill="none" stroke="black" stroke-width="1">
     <path id="0" d="M {sx} {sy} C {cx1} {cy1} {cx2} {cy2} {tx} {ty}"/>
 </g></svg>"""
+
+def data_generator():    
+    png_batch = np.empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
+    xy_batch = np.empty([FLAGS.batch_size, FLAGS.xy_size], dtype=np.float)
+    for i in xrange(FLAGS.batch_size):
+        xy = np.random.randint(low=1, high=FLAGS.image_size, size=FLAGS.xy_size)
+        # print(xy.shape, xy.dtype)
+        SVG = SVG_TEMPLATE.format(
+            width=FLAGS.image_size,
+            height=FLAGS.image_size,
+            sx=xy[0], sy=xy[1],
+            cx1=xy[2], cy1=xy[3],
+            cx2=xy[4], cy2=xy[5],
+            tx=xy[6], ty=xy[7]
+        )
+
+        # save png
+        png_file_name = 'tmp.png'
+        cairosvg.svg2png(bytestring=SVG, write_to=png_file_name)
+        png = imread(png_file_name)[:,:,3].astype(np.float) / 255.0 
+        #os.remove(png_file_name)
+        png_batch[i, ...] = np.reshape(png, [FLAGS.image_size, FLAGS.image_size, 1])
+        xy_batch[i, ...] = xy.astype(np.float)
+                    
+    return png_batch, xy_batch
 
 
 class CustomRunner(object):
@@ -84,32 +109,6 @@ class CustomRunner(object):
         """
         images_batch, xys_batch = self.queue.dequeue_many(FLAGS.batch_size)
         return images_batch, xys_batch
-
-    def data_generator(self, thread_id):
-        while True:
-            png_batch = np.empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
-            xy_batch = np.empty([FLAGS.batch_size, FLAGS.xy_size], dtype=np.float)
-            for i in xrange(FLAGS.batch_size):
-                xy = np.random.randint(low=1, high=FLAGS.image_size, size=FLAGS.xy_size)
-                # print(xy.shape, xy.dtype)
-                SVG = SVG_TEMPLATE.format(
-                    width=FLAGS.image_size,
-                    height=FLAGS.image_size,
-                    sx=xy[0], sy=xy[1],
-                    cx1=xy[2], cy1=xy[3],
-                    cx2=xy[4], cy2=xy[5],
-                    tx=xy[6], ty=xy[7]
-                )
-
-                # save png
-                png_file_name = 'tmp%d.png' % thread_id
-                cairosvg.svg2png(bytestring=SVG, write_to=png_file_name)
-                png = imread(png_file_name)[:,:,3].astype(np.float) / 255.0 
-                #os.remove(png_file_name)
-                png_batch[i, ...] = np.reshape(png, [FLAGS.image_size, FLAGS.image_size, 1])
-                xy_batch[i, ...] = xy.astype(np.float)
-                            
-            yield png_batch, xy_batch
 
     def thread_main(self, sess, thread_id):
         """

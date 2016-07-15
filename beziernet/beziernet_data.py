@@ -65,19 +65,18 @@ class CustomRunner(object):
         a queue full of data.
     """
     def __init__(self):
-        self.dataX_shape = [FLAGS.image_size, FLAGS.image_size, 1]
-        self.dataY_shape = [FLAGS.xy_size]
-        self.dataX = tf.placeholder(dtype=tf.float32, shape=self.dataX_shape)
-        self.dataY = tf.placeholder(dtype=tf.float32, shape=self.dataY_shape)
+        self.dataX = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
+        self.dataY = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.xy_size])
         self.capacity = FLAGS.batch_size * 100
         # The actual queue of data.
-        self.queue = tf.FIFOQueue(shapes=[self.dataX_shape, self.dataY_shape],
+        self.queue = tf.FIFOQueue(shapes=[[FLAGS.image_size, FLAGS.image_size, 1], [FLAGS.xy_size]],
                                   dtypes=[tf.float32, tf.float32],
                                   capacity=self.capacity)
 
         # The symbolic operation to add data to the queue
         # we could do some preprocessing here or do it in numpy.
-        self.enqueue_op = self.queue.enqueue([self.dataX, self.dataY])
+        # self.enqueue_op = self.queue.enqueue([self.dataX, self.dataY])
+        self.enqueue_op = self.queue.enqueue_many([self.dataX, self.dataY])
 
     def inputs(self):
         """
@@ -86,39 +85,44 @@ class CustomRunner(object):
         images_batch, xys_batch = self.queue.dequeue_many(FLAGS.batch_size)
         return images_batch, xys_batch
 
-    def data_generator(self):
-        xy = np.random.randint(low=1, high=FLAGS.image_size, size=FLAGS.xy_size)
-        # print(xy.shape, xy.dtype)
-        SVG = SVG_TEMPLATE.format(
-            width=FLAGS.image_size,
-            height=FLAGS.image_size,
-            sx=xy[0], sy=xy[1],
-            cx1=xy[2], cy1=xy[3],
-            cx2=xy[4], cy2=xy[5],
-            tx=xy[6], ty=xy[7]
-        )
+    def data_generator(self, thread_id):
+        while True:
+            png_batch = np.empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
+            xy_batch = np.empty([FLAGS.batch_size, FLAGS.xy_size], dtype=np.float)
+            for i in xrange(FLAGS.batch_size):
+                xy = np.random.randint(low=1, high=FLAGS.image_size, size=FLAGS.xy_size)
+                # print(xy.shape, xy.dtype)
+                SVG = SVG_TEMPLATE.format(
+                    width=FLAGS.image_size,
+                    height=FLAGS.image_size,
+                    sx=xy[0], sy=xy[1],
+                    cx1=xy[2], cy1=xy[3],
+                    cx2=xy[4], cy2=xy[5],
+                    tx=xy[6], ty=xy[7]
+                )
 
-        png_tmp = cairosvg.svg2png(bytestring=SVG)
-        with tf.Session() as sess:
-            png_str = tf.constant(png_tmp, dtype=tf.string)
-            png = tf.image.decode_png(png_str)
-            normalized_image = tf.image.convert_image_dtype(png, tf.float32).eval()
-            normalized_image = np.reshape(normalized_image[:,:,3], [FLAGS.image_size, FLAGS.image_size, 1])
-            return normalized_image, xy.astype(np.float)
+                # save png
+                png_file_name = 'tmp%d.png' % thread_id
+                cairosvg.svg2png(bytestring=SVG, write_to=png_file_name)
+                png = imread(png_file_name)[:,:,3].astype(np.float) / 255.0 
+                #os.remove(png_file_name)
+                png_batch[i, ...] = np.reshape(png, [FLAGS.image_size, FLAGS.image_size, 1])
+                xy_batch[i, ...] = xy.astype(np.float)
+                            
+            yield png_batch, xy_batch
 
-    def thread_main(self, sess):
+    def thread_main(self, sess, thread_id):
         """
         Function run on alternate thread. Basically, keep adding data to the queue.
         """
-        while True:
-            dataX, dataY = self.data_generator()
+        for dataX, dataY in self.data_generator(thread_id):
             sess.run(self.enqueue_op, feed_dict={self.dataX:dataX, self.dataY:dataY})
 
     def start_threads(self, sess, n_threads=16):
         """ Start background threads to feed queue """
         threads = []
-        for _ in range(n_threads):
-            t = tf.train.threading.Thread(target=self.thread_main, args=(sess,))
+        for n in range(n_threads):
+            t = tf.train.threading.Thread(target=self.thread_main, args=(sess, n))
             t.daemon = True # thread will close when parent quits
             t.start()
             threads.append(t)

@@ -88,7 +88,7 @@ def evaluate():
 
                 num_iter = int(math.ceil(num_examples_for_evaluation / FLAGS.batch_size))
                 total_loss = 0  # Sum of losses
-                total_sample_count = num_iter * FLAGS.batch_size
+                total_sample_count = num_iter
                 step = 0
                 while step < num_iter and not coord.should_stop():
                     start_time = time.time()
@@ -101,7 +101,7 @@ def evaluate():
 
                     x_summary_str, y_eval = sess.run([x_summary, logits], # logits=xys
                                                     feed_dict={phase_train: is_train})
-                    new_y_img = beziernet_data.svg_to_png(y_eval)
+                    new_y_img = beziernet_data.svg_to_png(y_eval, FLAGS.max_images)
                     y_summary_str = sess.run(y_summary, feed_dict={y_img: new_y_img})
 
                     x_summary_tmp = tf.Summary()

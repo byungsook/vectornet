@@ -140,8 +140,8 @@ def train():
         y_img = tf.placeholder(tf.uint8, shape=[FLAGS.max_images, FLAGS.image_size, FLAGS.image_size, 1])
         y_summary = tf.image_summary('y', y_img, max_images=FLAGS.max_images)
 
-        # Start the queue runners.
-        tf.train.start_queue_runners(sess=sess)
+        # # Start the queue runners.
+        # tf.train.start_queue_runners(sess=sess)
         # if not use_data:
         #     # start our custom queue runner's threads
         #     custom_runner.start_threads(sess)

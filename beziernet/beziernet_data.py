@@ -62,7 +62,7 @@ def data_generator():
     png_batch = np.empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
     xy_batch = np.empty([FLAGS.batch_size, FLAGS.xy_size], dtype=np.float)
     for i in xrange(FLAGS.batch_size):
-        xy = np.random.randint(low=1, high=FLAGS.image_size, size=FLAGS.xy_size)
+        xy = np.random.randint(low=0, high=FLAGS.image_size, size=FLAGS.xy_size)
         # print(xy.shape, xy.dtype)
         SVG = SVG_TEMPLATE.format(
             width=FLAGS.image_size,

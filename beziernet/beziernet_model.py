@@ -119,8 +119,7 @@ def _fc(layer_name, x, d_next, phase_train, use_activation=True):
             return batch
 
 
-def inference(images, phase_train):
-    """Build the Bezier model."""
+def model1(images, phase_train):
     # We instantiate all variables using tf.get_variable() instead of
     # tf.Variable() in order to share variables across multiple GPU training runs.
     # If we only ran this model on a single GPU, we could simplify this function
@@ -156,9 +155,73 @@ def inference(images, phase_train):
     # 5-3 fully-connected layer: d=256
     h_fc53 = _fc('5-3_fc', h_fc52, 256, phase_train)
     # 5-4 fully-connected layer: d=8
-    y_fc = _fc('5-4_fc', h_fc53, 8, phase_train, use_activation=False)
+    y_fc = _fc('5-4_fc', h_fc53, 8, phase_train)
     
     return y_fc
+
+
+def model2(images, phase_train):
+    # We instantiate all variables using tf.get_variable() instead of
+    # tf.Variable() in order to share variables across multiple GPU training runs.
+    # If we only ran this model on a single GPU, we could simplify this function
+    # by replacing all instances of tf.get_variable() with tf.Variable().
+    #   
+    # 1-1 down-convolutional layer: k=3x3, s=2x2, d=64, 96 -> 48
+    h_conv11 = _conv2d('1-1_down', images, 3, 2, 64, phase_train)
+    # 1-2 flat-convolutional layer: k=3x3, s=1x1, d=128
+    h_conv12 = _conv2d('1-2_flat', h_conv11, 3, 1, 128, phase_train)
+    # 1-3 flat-convolutional layer: k=3x3, s=1x1, d=128
+    h_conv13 = _conv2d('1-3_flat', h_conv12, 3, 1, 128, phase_train)
+
+    # 2-1 down-convolutional layer: k=3x3, s=2x2, d=128 -> 24
+    h_conv21 = _conv2d('2-1_down', h_conv13, 3, 2, 128, phase_train)
+    # 2-2 flat-convolutional layer: k=3x3, s=1x1, d=256
+    h_conv22 = _conv2d('2-2_flat', h_conv21, 3, 1, 256, phase_train)
+    # 2-3 flat-convolutional layer: k=3x3, s=1x1, d=256
+    h_conv23 = _conv2d('2-3_flat', h_conv22, 3, 1, 256, phase_train)
+
+    # 3-1 down-convolutional layer: k=3x3, s=2x2, d=256 -> 12
+    h_conv31 = _conv2d('3-1_down', h_conv23, 3, 2, 256, phase_train)
+    # 3-2 flat-convolutional layer: k=3x3, s=1x1, d=512
+    h_conv32 = _conv2d('3-2_flat', h_conv31, 3, 1, 512, phase_train)
+    # 3-3 flat-convolutional layer: k=3x3, s=1x1, d=512
+    h_conv33 = _conv2d('3-3_flat', h_conv32, 3, 1, 512, phase_train)
+
+    # 4-1 down-convolutional layer: k=3x3, s=2x2, d=512 -> 6
+    h_conv41 = _conv2d('4-1_down', h_conv32, 3, 2, 512, phase_train)
+    # 4-2 flat-convolutional layer: k=3x3, s=1x1, d=512
+    h_conv42 = _conv2d('4-2_flat', h_conv41, 3, 1, 512, phase_train)
+    # 4-3 down-convolutional layer: k=3x3, s=1x1, d=512
+    h_conv43 = _conv2d('4-3_flat', h_conv42, 3, 1, 1024, phase_train)
+    # 4-4 flat-convolutional layer: k=3x3, s=1x1, d=512
+    h_conv44 = _conv2d('4-4_flat', h_conv43, 3, 1, 1024, phase_train)
+    # 4-5 down-convolutional layer: k=3x3, s=1x1, d=512
+    h_conv45 = _conv2d('4-5_flat', h_conv44, 3, 1, 512, phase_train)
+    # 4-6 flat-convolutional layer: k=3x3, s=1x1, d=512
+    h_conv46 = _conv2d('4-6_flat', h_conv45, 3, 1, 521, phase_train)
+    
+    h_conv_shape = h_conv46.get_shape()
+    h_conv_dim = h_conv_shape[1].value * h_conv_shape[2].value * h_conv_shape[3].value
+    h_conv_flat = tf.reshape(h_conv, [-1, h_conv_dim])
+        
+    # 5-1 fully-connected layer: d=1024
+    h_fc51 = _fc('5-1_fc', h_conv_flat, 1024, phase_train)
+    # 5-2 fully-connected layer: d=512
+    h_fc52 = _fc('5-2_fc', h_fc51, 512, phase_train)
+    # 5-3 fully-connected layer: d=256
+    h_fc53 = _fc('5-3_fc', h_fc52, 256, phase_train)
+    # 5-4 fully-connected layer: d=8
+    y_fc = _fc('5-4_fc', h_fc53, 8, phase_train)
+    
+    return y_fc
+
+
+def inference(images, phase_train, model_num=1):
+    """Build the Bezier model."""
+    if model_num == 1:
+        return model1(images, phase_train)
+    else:
+        return model2(images, phase_train)
 
 
 def loss(logits, xys):

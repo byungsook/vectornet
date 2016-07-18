@@ -202,7 +202,7 @@ def model2(images, phase_train):
     
     h_conv_shape = h_conv46.get_shape()
     h_conv_dim = h_conv_shape[1].value * h_conv_shape[2].value * h_conv_shape[3].value
-    h_conv_flat = tf.reshape(h_conv, [-1, h_conv_dim])
+    h_conv_flat = tf.reshape(h_conv46, [-1, h_conv_dim])
         
     # 5-1 fully-connected layer: d=1024
     h_fc51 = _fc('5-1_fc', h_conv_flat, 1024, phase_train)

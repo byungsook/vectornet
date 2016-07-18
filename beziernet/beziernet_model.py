@@ -188,7 +188,7 @@ def model2(images, phase_train):
     h_conv33 = _conv2d('3-3_flat', h_conv32, 3, 1, 512, phase_train)
 
     # 4-1 down-convolutional layer: k=3x3, s=2x2, d=512 -> 6
-    h_conv41 = _conv2d('4-1_down', h_conv32, 3, 2, 512, phase_train)
+    h_conv41 = _conv2d('4-1_down', h_conv33, 3, 2, 512, phase_train)
     # 4-2 flat-convolutional layer: k=3x3, s=1x1, d=512
     h_conv42 = _conv2d('4-2_flat', h_conv41, 3, 1, 512, phase_train)
     # 4-3 down-convolutional layer: k=3x3, s=1x1, d=512

@@ -216,9 +216,9 @@ def model2(images, phase_train):
     return y_fc
 
 
-def inference(images, phase_train, model_num=1):
+def inference(images, phase_train, model=1):
     """Build the Bezier model."""
-    if model_num == 1:
+    if model == 1:
         return model1(images, phase_train)
     else:
         return model2(images, phase_train)

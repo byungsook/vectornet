@@ -64,7 +64,7 @@ def train():
 
 
         # Build a Graph that computes the logits predictions from the inference model.
-        logits = beziernet_model.inference(images, phase_train)
+        logits = beziernet_model.inference(images, phase_train, model=2)
 
         # Calculate loss.
         loss = beziernet_model.loss(logits, xys)

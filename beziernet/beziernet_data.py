@@ -74,7 +74,7 @@ def data_generator():
         )
 
         # save png
-        png_file_name = 'tmp.png'
+        png_file_name = os.path.join(FLAGS.log_dir, 'input%d.png' % i)
         cairosvg.svg2png(bytestring=SVG, write_to=png_file_name)
         png = imread(png_file_name)[:,:,3].astype(np.float) / 255.0 
         #os.remove(png_file_name)
@@ -222,7 +222,7 @@ def svg_to_png(xy, num_image):
             )
 
         # save png
-        png_file_name = 'tmp.png'
+        png_file_name = os.path.join(FLAGS.log_dir, 'tmp%d.png' % i)
         cairosvg.svg2png(bytestring=SVG, write_to=png_file_name)
         png_img[i, ...] = np.reshape(imread(png_file_name)[:,:,3], [FLAGS.image_size, FLAGS.image_size, 1]) 
         #os.remove(png_file_name)

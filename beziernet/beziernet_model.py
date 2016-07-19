@@ -216,12 +216,39 @@ def model2(images, phase_train):
     return y_fc
 
 
+def model3(images, phase_train):
+    # 1-1 down-convolutional layer: k=3x3, s=2x2, d=64, 96 -> 48
+    h_conv11 = _conv2d('1-1_down', images, 3, 2, 64, phase_train)
+    # 1-2 flat-convolutional layer: k=3x3, s=1x1, d=128
+    h_conv12 = _conv2d('1-2_flat', h_conv11, 3, 1, 128, phase_train)
+
+    # 2-1 down-convolutional layer: k=3x3, s=2x2, d=128 -> 24
+    h_conv21 = _conv2d('2-1_down', h_conv12, 3, 2, 128, phase_train)
+    # 2-2 flat-convolutional layer: k=3x3, s=1x1, d=256
+    h_conv22 = _conv2d('2-2_flat', h_conv21, 3, 1, 256, phase_train)
+
+    h_conv_shape = h_conv22.get_shape()
+    h_conv_dim = h_conv_shape[1].value * h_conv_shape[2].value * h_conv_shape[3].value
+    h_conv_flat = tf.reshape(h_conv22, [-1, h_conv_dim])
+        
+    # 5-1 fully-connected layer: d=1024
+    h_fc51 = _fc('5-1_fc', h_conv_flat, 1024, phase_train)
+    # 5-2 fully-connected layer: d=512
+    h_fc52 = _fc('5-2_fc', h_fc51, 512, phase_train)
+    # 5-4 fully-connected layer: d=8
+    y_fc = _fc('5-4_fc', h_fc52, 8, phase_train)
+    
+    return y_fc
+
+
 def inference(images, phase_train, model=1):
     """Build the Bezier model."""
-    if model == 1:
-        return model1(images, phase_train)
-    else:
-        return model2(images, phase_train)
+    model_selector = {
+        1: model1,
+        2: model2,
+        3: model3,
+    }
+    return model_selector[model](images, phase_train)
 
 
 def loss(logits, xys):

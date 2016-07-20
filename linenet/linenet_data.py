@@ -26,6 +26,8 @@ tf.app.flags.DEFINE_integer('image_size', 48, # 48-24-12-6
                             """Image Size.""")
 tf.app.flags.DEFINE_integer('xy_size', 8,
                             """# Coordinates of two lines.""")
+tf.app.flags.DEFINE_integer('min_length', 4,
+                            """minimum length of a line.""")
 
 SVG_TWO_LINES_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
@@ -47,12 +49,16 @@ def batch():
     x_batch = np.empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
     y_batch = np.empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
     for i in xrange(FLAGS.batch_size):
-        for _ in xrange(3):
+        while True:
             xy = np.random.randint(low=0, high=FLAGS.image_size, size=FLAGS.xy_size)
-            if xy[0] - xy[2] == 0 and xy[1] - xy[3] == 0:
+            if xy[0] - xy[2] + xy[1] - xy[3] < FLAGS.min_length: 
                 continue  
             break
         # print(xy.shape, xy.dtype)
+
+        # # debug: one-pixel
+        # xy = np.array([28, 43, 29, 43, 46, 22, 6, 32])
+
         SVG_LINE1 = SVG_ONE_LINE_TEMPLATE.format(
             width=FLAGS.image_size,
             height=FLAGS.image_size,
@@ -80,11 +86,11 @@ def batch():
         # plt.show()
 
         # select a random point on line1
-        line_ids = np.argwhere(y > 0.8)
-        if len(line_ids) == 0:
-            print(xy)
-        point_id = np.random.randint(len(line_ids))
-        point_xy = line_ids[point_id]
+        line_ids = np.nonzero(y > 0.4)
+        # if len(line_ids) == 0:
+        #     print(xy)
+        point_id = np.random.randint(len(line_ids[0]))
+        px, py = line_ids[0][point_id], line_ids[1][point_id]
         
         # save x png
         x_name = os.path.join(FLAGS.data_dir, 'x_%d.png' % i)
@@ -93,7 +99,7 @@ def batch():
         
         # load and normalize y to [0, 0.1]
         x = imread(x_name)[:,:,3].astype(np.float) / (255.0 * 10.0)        
-        x[point_xy[0], point_xy[1]] = 100.0
+        x[px, py] = 100.0
         
         # # debug
         # plt.imshow(x, cmap=plt.cm.gray)

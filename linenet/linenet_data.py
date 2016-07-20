@@ -10,6 +10,7 @@ from __future__ import print_function
 
 import os
 
+from six.moves import xrange  # pylint: disable=redefined-builtin
 import numpy as np
 from scipy.misc import imread
 import cairosvg
@@ -46,7 +47,11 @@ def batch():
     x_batch = np.empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
     y_batch = np.empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
     for i in xrange(FLAGS.batch_size):
-        xy = np.random.randint(low=0, high=FLAGS.image_size, size=FLAGS.xy_size)
+        for _ in xrange(3):
+            xy = np.random.randint(low=0, high=FLAGS.image_size, size=FLAGS.xy_size)
+            if xy[0] - xy[2] == 0 and xy[1] - xy[3] == 0:
+                continue  
+            break
         # print(xy.shape, xy.dtype)
         SVG_LINE1 = SVG_ONE_LINE_TEMPLATE.format(
             width=FLAGS.image_size,
@@ -75,7 +80,9 @@ def batch():
         # plt.show()
 
         # select a random point on line1
-        line_ids = np.argwhere(y > 0.5)
+        line_ids = np.argwhere(y > 0.8)
+        if len(line_ids) == 0:
+            print(xy)
         point_id = np.random.randint(len(line_ids))
         point_xy = line_ids[point_id]
         

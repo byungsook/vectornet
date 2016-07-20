@@ -75,7 +75,7 @@ def batch():
         )
 
         # save y png
-        y_name = os.path.join(FLAGS.data_dir, 'y_%d.png' % i)
+        y_name = os.path.join(FLAGS.log_dir, 'y_%d.png' % i)
         cairosvg.svg2png(bytestring=SVG_LINE1, write_to=y_name)
 
         # load and normalize y to [0, 1]
@@ -93,7 +93,7 @@ def batch():
         px, py = line_ids[0][point_id], line_ids[1][point_id]
         
         # save x png
-        x_name = os.path.join(FLAGS.data_dir, 'x_%d.png' % i)
+        x_name = os.path.join(FLAGS.log_dir, 'x_%d.png' % i)
         cairosvg.svg2png(bytestring=SVG_TWO_LINES, write_to=x_name)
 
         

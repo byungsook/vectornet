@@ -21,8 +21,6 @@ import linenet_model
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('data_dir', 'data',
-                            """Path to the data directory.""")
 tf.app.flags.DEFINE_string('log_dir', 'log',
                            """Directory where to write event logs """
                            """and checkpoint.""")
@@ -196,11 +194,6 @@ def main(_):
         working_path = os.path.join(current_path, 'vectornet/linenet')
         os.chdir(working_path)
         
-    # create data directory
-    if tf.gfile.Exists(FLAGS.data_dir):
-        tf.gfile.DeleteRecursively(FLAGS.data_dir)
-    tf.gfile.MakeDirs(FLAGS.data_dir)
-
     # create log directory
     if FLAGS.log_dir.endswith('log'):
         FLAGS.log_dir = os.path.join(FLAGS.log_dir, datetime.now().isoformat().replace(':', '-'))

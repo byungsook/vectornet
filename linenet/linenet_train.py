@@ -166,7 +166,7 @@ def train():
             if step % FLAGS.summary_steps == 0:
                 summary_str, x_summary_str, y_summary_str = sess.run([summary_op, x_summary, y_summary],
                                                                      feed_dict={phase_train: is_train,
-                                                                     x: x_batch, y: y_batch})
+                                                                     x: x_batch, y: y_hat})
                 summary_writer.add_summary(summary_str, step)
                 
                 x_summary_tmp = tf.Summary()

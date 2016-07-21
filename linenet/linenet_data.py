@@ -31,6 +31,8 @@ tf.app.flags.DEFINE_integer('xy_size', 8,
                             """# Coordinates of two lines.""")
 tf.app.flags.DEFINE_integer('min_length', 4,
                             """minimum length of a line.""")
+tf.app.flags.DEFINE_float('intensity_ratio', 10.0,
+                          """intensity ratio of point to lines""")
 
 SVG_TWO_LINES_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
@@ -108,8 +110,8 @@ def train_set(i, x_batch, y_batch):
     cairosvg.svg2png(bytestring=SVG_TWO_LINES, write_to=x_name)
 
     # load and normalize y to [0, 0.1]
-    x = imread(x_name)[:,:,3].astype(np.float) / (255.0 * 10.0)
-    x[px, py] = 100.0 # 0.2 for debug
+    x = imread(x_name)[:,:,3].astype(np.float) / (255.0 * FLAGS.intensity_ratio)
+    x[px, py] = 1.0 # 0.2 for debug
     x_batch[i, 0:FLAGS.image_size, 0:FLAGS.image_size] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
 
 

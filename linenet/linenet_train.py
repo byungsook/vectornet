@@ -58,12 +58,22 @@ def train():
         is_train = True
         phase_train = tf.placeholder(tf.bool, name='phase_train')
         
-        # # debug
+        # debug
+        # start_time = time.time()
         # x_batch, y_batch = linenet_data.batch()
+        # print('duration %0.3f' % (time.time() - start_time))
+
+        # start_time = time.time()
+        # batch_manager = linenet_data.BatchManager()
+        # x_batch, y_batch = batch_manager.batch()
+        # print('duration %0.3f' % (time.time() - start_time))
+        # return
 
         # Get input and output image
         # use_data = False
-        # if not use_data:            
+        # if not use_data:
+        batch_manager = linenet_data.BatchManager()
+
         x = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
         y = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
             
@@ -137,7 +147,7 @@ def train():
         summary_writer = tf.train.SummaryWriter(FLAGS.log_dir, sess.graph)
 
         x_summary = tf.image_summary('x', x, max_images=FLAGS.max_images)
-        y_summary = tf.image_summary('y', y, max_images=FLAGS.max_images)
+        y_summary = tf.image_summary('y', y_hat, max_images=FLAGS.max_images)
 
         # # Start the queue runners.
         # tf.train.start_queue_runners(sess=sess)
@@ -149,9 +159,10 @@ def train():
         for step in xrange(start_step, FLAGS.max_steps):
             # Train one step.
             start_time = time.time()
-            x_batch, y_batch = linenet_data.batch()
+            # x_batch, y_batch = linenet_data.batch()
+            x_batch, y_batch = batch_manager.batch()
             _, loss_value = sess.run([train_op, loss], feed_dict={phase_train: is_train,
-                                     x: x_batch, y: y_batch})
+                                                                  x: x_batch, y: y_batch})
             duration = time.time() - start_time
 
             assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
@@ -165,8 +176,8 @@ def train():
             # Write the summary periodically.
             if step % FLAGS.summary_steps == 0:
                 summary_str, x_summary_str, y_summary_str = sess.run([summary_op, x_summary, y_summary],
-                                                                     feed_dict={phase_train: is_train,
-                                                                     x: x_batch, y: y_hat})
+                                                                     feed_dict={phase_train: is_train, 
+                                                                                x: x_batch, y: y_batch})
                 summary_writer.add_summary(summary_str, step)
                 
                 x_summary_tmp = tf.Summary()

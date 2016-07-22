@@ -65,13 +65,13 @@ def _weight_variable(name, shape):
 
 
 def _batch_normalization(name, x, d_next, phase_train, is_conv=True):
-    """batch_norm/add_1, scale, offset"""
+    """batch_norm/1_scale, 2_offset, 3_batch"""
     if is_conv:
         batch_mean, batch_var = tf.nn.moments(x, [0, 1, 2])
     else:
         batch_mean, batch_var = tf.nn.moments(x, [0])
-    scale = _variable_on_cpu(name + '/scale', [d_next], tf.ones_initializer) # gamma
-    offset = _variable_on_cpu(name + '/offset', [d_next], tf.zeros_initializer) # beta
+    scale = _variable_on_cpu(name+'/1_scale', [d_next], tf.ones_initializer) # gamma
+    offset = _variable_on_cpu(name+'/2_offset', [d_next], tf.zeros_initializer) # beta
     
     ema = tf.train.ExponentialMovingAverage(decay=0.5)
 
@@ -84,7 +84,7 @@ def _batch_normalization(name, x, d_next, phase_train, is_conv=True):
                         _mean_var_with_update,
                         lambda: (ema.average(batch_mean), ema.average(batch_var)))
     
-    n = tf.nn.batch_normalization(x, mean, var, offset, scale, 1e-3, name=name)
+    n = tf.nn.batch_normalization(x, mean, var, offset, scale, 1e-3, name=name+'/3_batch')
     _variable_summaries(scale)
     _variable_summaries(offset)
     _variable_summaries(n)
@@ -95,11 +95,11 @@ def _conv2d(layer_name, x, k, s, d_next, phase_train):
     """down, flat-convolution layer"""
     with tf.variable_scope(layer_name):
         d_prev = x.get_shape()[3].value
-        W = _weight_variable('1_weights', [k, k, d_prev, d_next])
-        conv = tf.nn.conv2d(x, W, strides=[1, s, s, 1], padding='SAME', name='1_conv')
+        W = _weight_variable('1_filter_weights', [k, k, d_prev, d_next])
+        conv = tf.nn.conv2d(x, W, strides=[1, s, s, 1], padding='SAME', name='2_conv_feature')
         _variable_summaries(conv)
-        batch = _batch_normalization('2_batch_norm', conv, d_next, phase_train)
-        relu = tf.nn.relu(batch, name='3_relu')
+        batch = _batch_normalization('3_batch_norm', conv, d_next, phase_train)
+        relu = tf.nn.relu(batch, name='4_relu')
         _variable_summaries(relu)
         return relu
 

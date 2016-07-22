@@ -29,11 +29,11 @@ tf.app.flags.DEFINE_boolean('log_device_placement', False,
 tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', '', # 'log/second_train/linenet.ckpt',
                            """If specified, restore this pretrained model """
                            """before beginning any training.""")
-tf.app.flags.DEFINE_integer('max_steps', 100000,
+tf.app.flags.DEFINE_integer('max_steps', 20000,
                             """Number of batches to run.""")
-tf.app.flags.DEFINE_integer('decay_steps', 25000, 
+tf.app.flags.DEFINE_integer('decay_steps', 15000,
                           """Decay steps""")
-tf.app.flags.DEFINE_float('initial_learning_rate', 0.1,
+tf.app.flags.DEFINE_float('initial_learning_rate', 0.01,
                           """Initial learning rate.""")
 tf.app.flags.DEFINE_float('learning_decay_factor', 0.1,
                           """Learning rate decay factor.""")
@@ -146,6 +146,10 @@ def train():
         summary_op = tf.merge_all_summaries()
         summary_writer = tf.train.SummaryWriter(FLAGS.log_dir, sess.graph)
 
+        summary_x_writer = tf.train.SummaryWriter(FLAGS.log_dir + '/x', sess.graph)
+        summary_y_writer = tf.train.SummaryWriter(FLAGS.log_dir + '/y', sess.graph)
+        summary_y_hat_writer = tf.train.SummaryWriter(FLAGS.log_dir + '/y_hat', sess.graph)
+        x_summary = tf.image_summary('x', x, max_images=FLAGS.max_images)
         y_summary = tf.image_summary('y', y, max_images=FLAGS.max_images)
         y_hat_summary = tf.image_summary('y_hat', y_hat, max_images=FLAGS.max_images)
 
@@ -174,21 +178,28 @@ def train():
                     (datetime.now(), step, loss_value, examples_per_sec, duration))
 
             # Write the summary periodically.
-            if step % FLAGS.summary_steps == 0:
-                summary_str, y_summary_str, y_hat_summary_str = sess.run([summary_op, y_summary, y_hat_summary],
-                                                                         feed_dict={phase_train: is_train, 
-                                                                                    x: x_batch, y: y_batch})
+            if step % FLAGS.summary_steps == 0 or step < 100:
+                summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
+                    [summary_op, x_summary, y_summary, y_hat_summary],
+                    feed_dict={phase_train: is_train, x: x_batch, y: y_batch})
+
                 summary_writer.add_summary(summary_str, step)
                 
+                x_summary_tmp = tf.Summary()
                 y_summary_tmp = tf.Summary()
                 y_hat_summary_tmp = tf.Summary()
+                x_summary_tmp.ParseFromString(x_summary_str)
                 y_summary_tmp.ParseFromString(y_summary_str)
                 y_hat_summary_tmp.ParseFromString(y_hat_summary_str)
                 for i in xrange(FLAGS.max_images):
-                    y_summary_tmp.value[i].tag = '%06d/%03d_y' % (step, i)
-                    y_hat_summary_tmp.value[i].tag = '%06d/%03d_y_hat' % (step, i)
-                summary_writer.add_summary(y_summary_tmp, step)
-                summary_writer.add_summary(y_hat_summary_tmp, step)
+                    new_tag = '%06d/%03d' % (step, i)
+                    x_summary_tmp.value[i].tag = new_tag
+                    y_summary_tmp.value[i].tag = new_tag
+                    y_hat_summary_tmp.value[i].tag = new_tag
+
+                summary_x_writer.add_summary(x_summary_tmp, step)
+                summary_y_writer.add_summary(y_summary_tmp, step)
+                summary_y_hat_writer.add_summary(y_hat_summary_tmp, step)
 
             # Save the model checkpoint periodically.
             if (step + 1) % FLAGS.save_steps == 0 or (step + 1) == FLAGS.max_steps:

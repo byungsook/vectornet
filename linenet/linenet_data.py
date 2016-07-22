@@ -34,20 +34,13 @@ tf.app.flags.DEFINE_integer('min_length', 4,
 tf.app.flags.DEFINE_float('intensity_ratio', 10.0,
                           """intensity ratio of point to lines""")
 
-SVG_TWO_LINES_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
+SVG_START_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
 <svg width="{width}" height="{height}" xmlns="http://www.w3.org/2000/svg" version="1.1">
-<g fill="none" stroke="black" stroke-width="1">
-    <path id="0" d="M {x1} {y1} L{x2} {y2}"/>
-    <path id="1" d="M {x3} {y3} L{x4} {y4}"/>
-</g></svg>"""
-
-SVG_ONE_LINE_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg width="{width}" height="{height}" xmlns="http://www.w3.org/2000/svg" version="1.1">
-<g fill="none" stroke="black" stroke-width="1">
-    <path id="0" d="M {x1} {y1} L{x2} {y2}"/>
-</g></svg>"""
+<g fill="none" stroke="black" stroke-width="1">"""
+SVG_LINE_TEMPLATE = """<path id="{id}" d="M {x1} {y1} L{x2} {y2}"/>"""
+SVG_CUBIC_BEZIER_TEMPLATE = """<path id="{id}" d="M {sx} {sy} C {cx1} {cy1} {cx2} {cy2} {tx} {ty}"/>"""
+SVG_END_TEMPLATE = """</g></svg>"""
 
 
 class BatchManager(object):
@@ -77,20 +70,32 @@ def train_set(i, x_batch, y_batch):
             continue
         break
 
-    SVG_LINE1 = SVG_ONE_LINE_TEMPLATE.format(
-        width=FLAGS.image_size,
-        height=FLAGS.image_size,
-        x1=xy[0], y1=xy[1],
-        x2=xy[2], y2=xy[3]
-    )
-    SVG_TWO_LINES = SVG_TWO_LINES_TEMPLATE.format(
-        width=FLAGS.image_size,
-        height=FLAGS.image_size,
-        x1=xy[0], y1=xy[1],
-        x2=xy[2], y2=xy[3],
-        x3=xy[4], y3=xy[5],
-        x4=xy[6], y4=xy[7]
-    )
+    SVG_LINE1 = SVG_START_TEMPLATE.format(
+            width=FLAGS.image_size,
+            height=FLAGS.image_size
+        ) + SVG_LINE_TEMPLATE.format(
+            id=0,
+            x1=xy[0], y1=xy[1],
+            x2=xy[2], y2=xy[3]
+        ) + SVG_END_TEMPLATE
+
+    SVG_MULTI_LINES = SVG_START_TEMPLATE.format(
+            width=FLAGS.image_size,
+            height=FLAGS.image_size
+        )
+    num_path = 2
+    num_params_per_path = 4 # line
+    # num_params_per_path = 8 # cubic bezier
+    for path_id in range(num_path):
+        start_p = num_params_per_path * path_id
+        SVG_MULTI_LINES = SVG_MULTI_LINES + SVG_LINE_TEMPLATE.format(
+            id=path_id,
+            x1=xy[start_p+0], y1=xy[start_p+1],
+            x2=xy[start_p+2], y2=xy[start_p+3]
+        )
+
+    SVG_MULTI_LINES = SVG_MULTI_LINES + SVG_END_TEMPLATE
+
 
     # save y png
     y_name = os.path.join(FLAGS.log_dir, 'y_%d.png' % i)
@@ -107,7 +112,7 @@ def train_set(i, x_batch, y_batch):
 
     # save x png
     x_name = os.path.join(FLAGS.log_dir, 'x_%d.png' % i)
-    cairosvg.svg2png(bytestring=SVG_TWO_LINES, write_to=x_name)
+    cairosvg.svg2png(bytestring=SVG_MULTI_LINES, write_to=x_name)
 
     # load and normalize y to [0, 0.1]
     x = imread(x_name)[:,:,3].astype(np.float) / (255.0 * FLAGS.intensity_ratio)
@@ -129,20 +134,28 @@ def batch():
         # # debug: one-pixel
         # xy = np.array([28, 43, 29, 43, 46, 22, 6, 32])
 
-        SVG_LINE1 = SVG_ONE_LINE_TEMPLATE.format(
-            width=FLAGS.image_size,
-            height=FLAGS.image_size,
-            x1=xy[0], y1=xy[1],
-            x2=xy[2], y2=xy[3]
-        )        
-        SVG_TWO_LINES = SVG_TWO_LINES_TEMPLATE.format(
-            width=FLAGS.image_size,
-            height=FLAGS.image_size,
-            x1=xy[0], y1=xy[1],
-            x2=xy[2], y2=xy[3],
-            x3=xy[4], y3=xy[5],
-            x4=xy[6], y4=xy[7]
-        )
+        SVG_LINE1 = SVG_START_TEMPLATE.format(
+                width=FLAGS.image_size,
+                height=FLAGS.image_size
+            ) + SVG_LINE_TEMPLATE.format(
+                id=0,
+                x1=xy[0], y1=xy[1],
+                x2=xy[2], y2=xy[3]
+            ) + SVG_END_TEMPLATE
+
+        SVG_TWO_LINES = SVG_START_TEMPLATE.format(
+                width=FLAGS.image_size,
+                height=FLAGS.image_size
+            ) + SVG_LINE_TEMPLATE.format(
+                id=0,
+                x1=xy[0], y1=xy[1],
+                x2=xy[2], y2=xy[3]
+            ) + SVG_LINE_TEMPLATE.format(
+                id=1,
+                x3=xy[4], y3=xy[5],
+                x4=xy[6], y4=xy[7]
+            ) + SVG_END_TEMPLATE
+
 
         # save y png
         y_name = os.path.join(FLAGS.log_dir, 'y_%d.png' % i)
@@ -168,8 +181,8 @@ def batch():
 
         
         # load and normalize y to [0, 0.1]
-        x = imread(x_name)[:,:,3].astype(np.float) / (255.0 * 10.0)        
-        x[px, py] = 100.0 # 0.2 for debug
+        x = imread(x_name)[:,:,3].astype(np.float) / (255.0 * FLAGS.intensity_ratio)
+        x[px, py] = 1.0 # 0.2 for debug
         
         # # debug
         # plt.imshow(x, cmap=plt.cm.gray)

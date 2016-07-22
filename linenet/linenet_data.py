@@ -13,11 +13,14 @@ import os
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import numpy as np
 from scipy.misc import imread
+from scipy.stats import threshold
 import cairosvg
 import matplotlib.pyplot as plt
 from multiprocessing import Process, Pool
 import multiprocessing.managers
 from functools import partial
+from PIL import Image
+import io
 
 import tensorflow as tf
 
@@ -47,7 +50,7 @@ class BatchManager(object):
     """
     Batch Manager using multiprocessing
     """
-    def __init__(self, save_dir):
+    def __init__(self):
         class MPManager(multiprocessing.managers.BaseManager):
             pass
         MPManager.register('np_empty', np.empty, multiprocessing.managers.ArrayProxy)
@@ -57,14 +60,14 @@ class BatchManager(object):
         self._pool = Pool(processes=8)
         self.x_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
         self.y_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
-        self._func = partial(train_set, x_batch=self.x_batch, y_batch=self.y_batch, save_dir=save_dir)        
+        self._func = partial(train_set, x_batch=self.x_batch, y_batch=self.y_batch)
 
     def batch(self):
         self._pool.map(self._func, range(FLAGS.batch_size))
         return self.x_batch, self.y_batch
 
 
-def train_set(i, x_batch, y_batch, save_dir):
+def train_set(i, x_batch, y_batch):
     np.random.seed()
     while True:
         xy = np.random.randint(low=0, high=FLAGS.image_size, size=FLAGS.xy_size)
@@ -100,26 +103,28 @@ def train_set(i, x_batch, y_batch, save_dir):
 
 
     # save y png
-    y_name = os.path.join(save_dir, 'y_%d.png' % i)
-    cairosvg.svg2png(bytestring=SVG_LINE1, write_to=y_name)
+    y_png = cairosvg.svg2png(bytestring=SVG_LINE1)
+    y_img = Image.open(io.BytesIO(y_png))
 
     # load and normalize y to [0, 1]
-    y = imread(y_name)[:,:,3].astype(np.float) / 255.0
-    y_batch[i, 0:FLAGS.image_size, 0:FLAGS.image_size] = np.reshape(y, [FLAGS.image_size, FLAGS.image_size, 1])
+    y = np.array(y_img)[:,:,3].astype(np.float) / 255.0
+    y = threshold(threshold(y, threshmin=0.5), threshmax=0.4, newval=1.0)
+    y_batch[i,:,:] = np.reshape(y, [FLAGS.image_size, FLAGS.image_size, 1])
 
     # select a random point on line1
-    line_ids = np.nonzero(y > 0.4)
+    line_ids = np.nonzero(y)
     point_id = np.random.randint(len(line_ids[0]))
     px, py = line_ids[0][point_id], line_ids[1][point_id]
 
     # save x png
-    x_name = os.path.join(save_dir, 'x_%d.png' % i)
-    cairosvg.svg2png(bytestring=SVG_MULTI_LINES, write_to=x_name)
+    x_png = cairosvg.svg2png(bytestring=SVG_MULTI_LINES)
+    x_img = Image.open(io.BytesIO(x_png))
 
     # load and normalize y to [0, 0.1]
-    x = imread(x_name)[:,:,3].astype(np.float) / (255.0 * FLAGS.intensity_ratio)
+    x = np.array(x_img)[:,:,3].astype(np.float) / 255.0
+    x = threshold(threshold(x, threshmin=0.5), threshmax=0.4, newval=1.0/FLAGS.intensity_ratio)
     x[px, py] = 1.0 # 0.2 for debug
-    x_batch[i, 0:FLAGS.image_size, 0:FLAGS.image_size] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
+    x_batch[i,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
 
 
 def batch():
@@ -154,42 +159,48 @@ def batch():
                 x2=xy[2], y2=xy[3]
             ) + SVG_LINE_TEMPLATE.format(
                 id=1,
-                x3=xy[4], y3=xy[5],
-                x4=xy[6], y4=xy[7]
+                x1=xy[4], y1=xy[5],
+                x2=xy[6], y2=xy[7]
             ) + SVG_END_TEMPLATE
 
 
         # save y png
-        y_name = os.path.join(FLAGS.log_dir, 'y_%d.png' % i)
-        cairosvg.svg2png(bytestring=SVG_LINE1, write_to=y_name)
+        y_png = cairosvg.svg2png(bytestring=SVG_LINE1)
+        y_img = Image.open(io.BytesIO(y_png))
 
         # load and normalize y to [0, 1]
-        y = imread(y_name)[:,:,3].astype(np.float) / 255.0
-        y_batch[i, ...] = np.reshape(y, [FLAGS.image_size, FLAGS.image_size, 1])
+        y = np.array(y_img)[:,:,3].astype(np.float) / 255.0
+        y = threshold(threshold(y, threshmin=0.5), threshmax=0.4, newval=1.0)
+        y_batch[i,:,:] = np.reshape(y, [FLAGS.image_size, FLAGS.image_size, 1])
 
-        # plt.imshow(y, cmap=plt.cm.gray)
-        # plt.show()
+        plt.imshow(y, cmap=plt.cm.gray)
+        plt.show()
 
         # select a random point on line1
-        line_ids = np.nonzero(y > 0.4)
+        line_ids = np.nonzero(y)
         # if len(line_ids) == 0:
         #     print(xy)
         point_id = np.random.randint(len(line_ids[0]))
         px, py = line_ids[0][point_id], line_ids[1][point_id]
         
         # save x png
-        x_name = os.path.join(FLAGS.log_dir, 'x_%d.png' % i)
-        cairosvg.svg2png(bytestring=SVG_TWO_LINES, write_to=x_name)
-
+        x_png = cairosvg.svg2png(bytestring=SVG_TWO_LINES)
+        x_img = Image.open(io.BytesIO(x_png))
         
         # load and normalize y to [0, 0.1]
-        x = imread(x_name)[:,:,3].astype(np.float) / (255.0 * FLAGS.intensity_ratio)
+        x = np.array(x_img)[:,:,3].astype(np.float) / 255.0
+        x = threshold(threshold(x, threshmin=0.5), threshmax=0.4, newval=1.0/FLAGS.intensity_ratio)
         x[px, py] = 1.0 # 0.2 for debug
         
-        # # debug
-        # plt.imshow(x, cmap=plt.cm.gray)
-        # plt.show() 
+        # debug
+        plt.imshow(x, cmap=plt.cm.gray)
+        plt.show()
 
-        x_batch[i, ...] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
+        x_batch[i,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
                     
     return x_batch, y_batch
+
+
+if __name__ == '__main__':
+    # test
+    batch()

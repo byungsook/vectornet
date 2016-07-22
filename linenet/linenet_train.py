@@ -29,9 +29,9 @@ tf.app.flags.DEFINE_boolean('log_device_placement', False,
 tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', '', # 'log/second_train/linenet.ckpt',
                            """If specified, restore this pretrained model """
                            """before beginning any training.""")
-tf.app.flags.DEFINE_integer('max_steps', 20000,
+tf.app.flags.DEFINE_integer('max_steps', 40000,
                             """Number of batches to run.""")
-tf.app.flags.DEFINE_integer('decay_steps', 15000,
+tf.app.flags.DEFINE_integer('decay_steps', 30000,
                           """Decay steps""")
 tf.app.flags.DEFINE_float('initial_learning_rate', 0.01,
                           """Initial learning rate.""")
@@ -72,7 +72,7 @@ def train():
         # Get input and output image
         # use_data = False
         # if not use_data:
-        batch_manager = linenet_data.BatchManager(FLAGS.log_dir)
+        batch_manager = linenet_data.BatchManager()
 
         x = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
         y = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
@@ -220,7 +220,7 @@ def main(_):
     if FLAGS.log_dir.endswith('log'):
         FLAGS.log_dir = os.path.join(FLAGS.log_dir, datetime.now().isoformat().replace(':', '-'))
     elif tf.gfile.Exists(FLAGS.log_dir):
-        tf.gfile.DeleteRecursively(FLAGS.eval_dir)
+        tf.gfile.DeleteRecursively(FLAGS.log_dir)
     tf.gfile.MakeDirs(FLAGS.log_dir)
 
     # start training

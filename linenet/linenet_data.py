@@ -47,7 +47,7 @@ class BatchManager(object):
     """
     Batch Manager using multiprocessing
     """
-    def __init__(self):
+    def __init__(self, save_dir):
         class MPManager(multiprocessing.managers.BaseManager):
             pass
         MPManager.register('np_empty', np.empty, multiprocessing.managers.ArrayProxy)
@@ -57,13 +57,15 @@ class BatchManager(object):
         self._pool = Pool(processes=8)
         self.x_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
         self.y_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
-        self._func = partial(train_set, x_batch=self.x_batch, y_batch=self.y_batch)
+        self._func = partial(train_set, x_batch=self.x_batch, y_batch=self.y_batch, save_dir=save_dir)        
 
     def batch(self):
-        list_of_results = self._pool.map(self._func, range(FLAGS.batch_size))
+        self._pool.map(self._func, range(FLAGS.batch_size))
         return self.x_batch, self.y_batch
 
-def train_set(i, x_batch, y_batch):
+
+def train_set(i, x_batch, y_batch, save_dir):
+    np.random.seed()
     while True:
         xy = np.random.randint(low=0, high=FLAGS.image_size, size=FLAGS.xy_size)
         if xy[0] - xy[2] + xy[1] - xy[3] < FLAGS.min_length:
@@ -98,7 +100,7 @@ def train_set(i, x_batch, y_batch):
 
 
     # save y png
-    y_name = os.path.join(FLAGS.log_dir, 'y_%d.png' % i)
+    y_name = os.path.join(save_dir, 'y_%d.png' % i)
     cairosvg.svg2png(bytestring=SVG_LINE1, write_to=y_name)
 
     # load and normalize y to [0, 1]
@@ -111,7 +113,7 @@ def train_set(i, x_batch, y_batch):
     px, py = line_ids[0][point_id], line_ids[1][point_id]
 
     # save x png
-    x_name = os.path.join(FLAGS.log_dir, 'x_%d.png' % i)
+    x_name = os.path.join(save_dir, 'x_%d.png' % i)
     cairosvg.svg2png(bytestring=SVG_MULTI_LINES, write_to=x_name)
 
     # load and normalize y to [0, 0.1]

@@ -18,20 +18,20 @@ import numpy as np
 import tensorflow as tf
 
 import linenet_data
-import linenet_model
+import linenet_model_old
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('eval_dir', 'eval/ratio_test/ratio100.0',
+tf.app.flags.DEFINE_string('eval_dir', 'eval',
                            """Directory where to write event logs """
                            """and checkpoint.""")
-tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', 'log/ratio_test/100_40000_30000_0.01/linenet.ckpt',
+tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', 'log/ratio10.0/linenet.ckpt',
                            """If specified, restore this pretrained model.""")
 tf.app.flags.DEFINE_float('moving_avg_decay', 0.9999,
                           """The decay to use for the moving average.""")
 tf.app.flags.DEFINE_integer('max_images', FLAGS.batch_size,
                             """max # images to save.""")
-tf.app.flags.DEFINE_integer('num_eval', 12800,
+tf.app.flags.DEFINE_integer('num_eval', 10000,
                             """# images for evaluation""")
 
 
@@ -47,17 +47,15 @@ def evaluate():
 
 
         # Build a Graph that computes the logits predictions from the inference model.
-        y_hat = linenet_model.inference(x, phase_train)
+        y_hat = linenet_model_old.inference(x, phase_train)
 
         # Calculate loss.
-        loss = linenet_model.loss(y_hat, y)
+        loss = linenet_model_old.loss(y_hat, y)
 
-        # # Restore the moving average version of the learned variables for eval.
-        # variable_averages = tf.train.ExponentialMovingAverage(FLAGS.moving_avg_decay)
-        # variables_to_restore = variable_averages.variables_to_restore()
-        # saver = tf.train.Saver(variables_to_restore)
-        saver = tf.train.Saver()
-
+        # Restore the moving average version of the learned variables for eval.
+        variable_averages = tf.train.ExponentialMovingAverage(FLAGS.moving_avg_decay)
+        variables_to_restore = variable_averages.variables_to_restore()
+        saver = tf.train.Saver(variables_to_restore)
 
         # Build the summary writer
         summary_writer = tf.train.SummaryWriter(FLAGS.eval_dir, g)
@@ -122,7 +120,7 @@ def evaluate():
                 summary_y_hat_writer.add_summary(y_hat_summary_tmp, step)
 
             # Compute precision
-            loss_avg_ = total_loss / num_iter
+            loss_avg_ = total_loss / (num_iter * FLAGS.batch_size)
             print('%s: loss avg = %.3f' % (datetime.now(), loss_avg_))
 
             loss_avg_summary_str = sess.run(loss_avg_summary, feed_dict={loss_avg: loss_avg_})

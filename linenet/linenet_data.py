@@ -60,14 +60,19 @@ class BatchManager(object):
         self._pool = Pool(processes=8)
         self.x_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
         self.y_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
-        self._func = partial(train_set, x_batch=self.x_batch, y_batch=self.y_batch)
+        # self.x_no_p_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
+        self._func = partial(train_set, x_batch=self.x_batch, y_batch=self.y_batch) #, x_no_p_batch=self.x_no_p_batch)
+
+    def __del__(self):
+        self._pool.terminate() # or close
+        self._pool.join()
 
     def batch(self):
         self._pool.map(self._func, range(FLAGS.batch_size))
         return self.x_batch, self.y_batch
 
 
-def train_set(i, x_batch, y_batch):
+def train_set(i, x_batch, y_batch): #, x_no_p_batch):
     np.random.seed()
     while True:
         xy = np.random.randint(low=0, high=FLAGS.image_size, size=FLAGS.xy_size)
@@ -105,26 +110,68 @@ def train_set(i, x_batch, y_batch):
     # save y png
     y_png = cairosvg.svg2png(bytestring=SVG_LINE1)
     y_img = Image.open(io.BytesIO(y_png))
+    # y_img.save('log/ratio_test/10_5002/%d_y_img%d.png' % (step, i))
+    # y_img = Image.open('log/ratio_test/png/%d_y_img%d.png' % (step, i))
 
     # load and normalize y to [0, 1]
     y = np.array(y_img)[:,:,3].astype(np.float) / 255.0
-    y = threshold(threshold(y, threshmin=0.5), threshmax=0.4, newval=1.0)
+    # y = threshold(threshold(y, threshmin=0.5), threshmax=0.4, newval=1.0)
     y_batch[i,:,:] = np.reshape(y, [FLAGS.image_size, FLAGS.image_size, 1])
 
     # select a random point on line1
-    line_ids = np.nonzero(y)
+    line_ids = np.nonzero(y > 0.4)
     point_id = np.random.randint(len(line_ids[0]))
     px, py = line_ids[0][point_id], line_ids[1][point_id]
 
     # save x png
     x_png = cairosvg.svg2png(bytestring=SVG_MULTI_LINES)
     x_img = Image.open(io.BytesIO(x_png))
+    # x_img.save('log/ratio_test/10_5002/%d_x_img%d.png' % (step, i))
+    # x_img = Image.open('log/ratio_test/png/%d_x_img%d.png' % (step, i))
 
     # load and normalize y to [0, 0.1]
     x = np.array(x_img)[:,:,3].astype(np.float) / 255.0
-    x = threshold(threshold(x, threshmin=0.5), threshmax=0.4, newval=1.0/FLAGS.intensity_ratio)
+    # x = threshold(threshold(x, threshmin=0.5), threshmax=0.4, newval=1.0/FLAGS.intensity_ratio)
+    x = x / FLAGS.intensity_ratio
+    # x_no_p_batch[i,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
+
     x[px, py] = 1.0 # 0.2 for debug
     x_batch[i,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
+
+
+def read_batch(step):
+    x_batch = np.empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
+    y_batch = np.empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
+    for i in xrange(FLAGS.batch_size):
+        y_img = Image.open('log/png/%d_y_img%d.png' % (step, i))
+
+        # load and normalize y to [0, 1]
+        y = np.array(y_img)[:,:,3].astype(np.float) / 255.0
+        # y = threshold(threshold(y, threshmin=0.5), threshmax=0.4, newval=1.0)
+        y_batch[i,:,:] = np.reshape(y, [FLAGS.image_size, FLAGS.image_size, 1])
+
+        # # debug
+        # plt.imshow(y, cmap=plt.cm.gray)
+        # plt.show()
+
+        # select a random point on line1
+        line_ids = np.nonzero(y)
+        px, py = line_ids[0][0], line_ids[1][0]
+        x_img = Image.open('log/png/%d_x_img%d.png' % (step, i))
+
+        # load and normalize y to [0, 0.1]
+        x = np.array(x_img)[:,:,3].astype(np.float) / 255.0
+        # x = threshold(threshold(x, threshmin=0.5), threshmax=0.4, newval=1.0/FLAGS.intensity_ratio)
+        x = x / FLAGS.intensity_ratio
+        x[px, py] = 1.0 # 0.2 for debug
+
+        # # debug
+        # plt.imshow(x, cmap=plt.cm.gray)
+        # plt.show()
+
+        x_batch[i,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
+
+    return x_batch, y_batch
 
 
 def batch():

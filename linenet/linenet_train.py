@@ -29,7 +29,7 @@ tf.app.flags.DEFINE_boolean('log_device_placement', False,
 tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', '', # 'log/second_train/linenet.ckpt',
                            """If specified, restore this pretrained model """
                            """before beginning any training.""")
-tf.app.flags.DEFINE_integer('max_steps', 40000,
+tf.app.flags.DEFINE_integer('max_steps', 100000,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_integer('decay_steps', 30000,
                           """Decay steps""")
@@ -70,8 +70,6 @@ def train():
         # return
 
         # Get input and output image
-        # use_data = False
-        # if not use_data:
         batch_manager = linenet_data.BatchManager()
 
         x = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
@@ -111,9 +109,9 @@ def train():
             opt = tf.train.AdamOptimizer(learning_rate)            
             grads = opt.compute_gradients(loss)
             max_grad = FLAGS.clip_gradients / learning_rate
-            clipped_grads = [(tf.clip_by_value(grad, -max_grad, max_grad), var) for grad, var in grads]
+            # grads = [(tf.clip_by_value(grad, -max_grad, max_grad), var) for grad, var in grads]
 
-        apply_gradient_op = opt.apply_gradients(clipped_grads, global_step=global_step)
+        apply_gradient_op = opt.apply_gradients(grads, global_step=global_step)
 
         # Add histograms for gradients.
         for grad, var in grads:
@@ -132,7 +130,6 @@ def train():
         # Start running operations on the Graph. 
         sess = tf.Session(config=tf.ConfigProto(
             log_device_placement=FLAGS.log_device_placement))
-        sess.run(tf.initialize_all_variables())
 
         # Create a saver (restorer).
         saver = tf.train.Saver()
@@ -141,6 +138,8 @@ def train():
             saver.restore(sess, FLAGS.pretrained_model_checkpoint_path)
             print('%s: Pre-trained model restored from %s' %
                 (datetime.now(), FLAGS.pretrained_model_checkpoint_path))
+        else:
+            sess.run(tf.initialize_all_variables())
 
         # Build the summary operation.
         summary_op = tf.merge_all_summaries()

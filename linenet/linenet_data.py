@@ -134,10 +134,10 @@ def train_set(i, x_batch, y_batch, x_no_p_batch, num_path):
 
     # load and normalize y to [0, 0.1]
     x = np.array(x_img)[:,:,3].astype(np.float) / 255.0
-    # x = threshold(threshold(x, threshmin=0.5), threshmax=0.4, newval=1.0/FLAGS.intensity_ratio)
-    x = x / FLAGS.intensity_ratio
     x_no_p_batch[i,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
 
+    # x = threshold(threshold(x, threshmin=0.5), threshmax=0.4, newval=1.0/FLAGS.intensity_ratio)
+    x = x / FLAGS.intensity_ratio
     x[px, py] = 1.0 # 0.2 for debug
     x_batch[i,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
 

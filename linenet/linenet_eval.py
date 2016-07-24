@@ -41,7 +41,7 @@ def evaluate():
         is_train = False
         phase_train = tf.placeholder(tf.bool, name='phase_train')
 
-        batch_manager = linenet_data.BatchManager(num_path=FLAGS.num_path)
+        batch_manager = linenet_data.BatchManager()
         x = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
         y = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
         x_no_p = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])

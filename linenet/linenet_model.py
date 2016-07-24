@@ -104,7 +104,60 @@ def _conv2d(layer_name, x, k, s, d_next, phase_train):
         return relu
 
 
-def model1(x, phase_train):
+def _res_unit(layer_name, x, k, s, d_next, phase_train, use_elu=True, use_res=True):
+    with tf.variable_scope(layer_name):
+        d_prev = x.get_shape()[3].value
+        W = _weight_variable('1_filter_weights', [k, k, d_prev, d_next])
+        conv = tf.nn.conv2d(x, W, strides=[1, s, s, 1], padding='SAME', name='2_conv_feature')
+        _variable_summaries(conv)
+        if use_elu:
+            elu = tf.nn.elu(conv, name='3_elu')
+            _variable_summaries(elu)
+            return elu
+        else:
+            batch = _batch_normalization('3_batch_norm', conv, d_next, phase_train)
+            if use_res:
+                return x + batch
+            else:
+                return batch
+
+
+def model3(x, x_no_p, phase_train):
+    y_hat = tf.mul(model1(x, x_no_p, phase_train), x_no_p, name='21_mul')
+    _variable_summaries(y_hat)
+    return y_hat
+
+
+def model2(x, x_no_p, phase_train):
+    layer01 = _res_unit('01_res', x,       3, 1, 64, phase_train)
+    layer02 = _res_unit('02_res', layer01, 3, 1, 64, phase_train, use_elu=False)
+    layer03 = _res_unit('03_res', layer02, 3, 1, 64, phase_train)
+    layer04 = _res_unit('04_res', layer03, 3, 1, 64, phase_train, use_elu=False)
+    layer05 = _res_unit('05_res', layer04, 3, 1, 64, phase_train)
+    layer06 = _res_unit('06_res', layer05, 3, 1, 64, phase_train, use_elu=False)
+    layer07 = _res_unit('07_res', layer06, 3, 1, 64, phase_train)
+    layer08 = _res_unit('08_res', layer07, 3, 1, 64, phase_train, use_elu=False)
+    layer09 = _res_unit('09_res', layer08, 3, 1, 64, phase_train)
+    layer10 = _res_unit('10_res', layer09, 3, 1, 64, phase_train, use_elu=False)
+    layer11 = _res_unit('11_res', layer10, 3, 1, 64, phase_train)
+    layer12 = _res_unit('12_res', layer11, 3, 1, 64, phase_train, use_elu=False)
+    layer13 = _res_unit('13_res', layer12, 3, 1, 64, phase_train)
+    layer14 = _res_unit('14_res', layer13, 3, 1, 64, phase_train, use_elu=False)
+    layer15 = _res_unit('15_res', layer14, 3, 1, 64, phase_train)
+    layer16 = _res_unit('16_res', layer15, 3, 1, 64, phase_train, use_elu=False)
+    layer17 = _res_unit('17_res', layer16, 3, 1, 64, phase_train)
+    layer18 = _res_unit('18_res', layer17, 3, 1, 64, phase_train, use_elu=False)
+    layer19 = _res_unit('19_res', layer18, 3, 1, 64, phase_train)
+    layer20 = _res_unit('20_res', layer19, 3, 1,  1, phase_train, use_elu=False, use_res=False)
+    #layer21 = tf.nn.sigmoid(layer20, name='21_sig')
+    layer21 = tf.nn.relu(layer20, name='21_relu')
+    _variable_summaries(layer21)
+    y_hat = tf.mul(layer21, x_no_p, name='22_mul')
+    _variable_summaries(y_hat)
+    return y_hat
+
+
+def model1(x, x_no_p, phase_train):
     # all flat-convolutional layer: k=3x3, s=1x1, d=64
     h_conv01 = _conv2d('01_flat', x,        3, 1, 64, phase_train)
     h_conv02 = _conv2d('02_flat', h_conv01, 3, 1, 64, phase_train)
@@ -125,16 +178,17 @@ def model1(x, phase_train):
     h_conv17 = _conv2d('17_flat', h_conv16, 3, 1, 64, phase_train)
     h_conv18 = _conv2d('18_flat', h_conv17, 3, 1, 64, phase_train)
     h_conv19 = _conv2d('19_flat', h_conv18, 3, 1, 64, phase_train)
-    h_conv20 = _conv2d('20_flat', h_conv19, 3, 1,  1, phase_train)
-    
+    h_conv20 = _conv2d('20_flat', h_conv19, 3, 1,  1, phase_train)    
     return h_conv20
 
 
-def inference(x, phase_train, model=1):
+def inference(x, x_no_p, phase_train, model=1):
     model_selector = {
         1: model1,
+        2: model2,
+        3: model3,
     }
-    return model_selector[model](x, phase_train)
+    return model_selector[model](x, x_no_p, phase_train)
 
 
 def loss(y_hat, y):

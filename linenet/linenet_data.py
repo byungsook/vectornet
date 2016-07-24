@@ -36,6 +36,9 @@ tf.app.flags.DEFINE_integer('min_length', 4,
                             """minimum length of a line.""")
 tf.app.flags.DEFINE_float('intensity_ratio', 10.0,
                           """intensity ratio of point to lines""")
+tf.app.flags.DEFINE_integer('num_path', 2,
+                            """# paths for batch generation""")
+
 
 SVG_START_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
@@ -50,7 +53,7 @@ class BatchManager(object):
     """
     Batch Manager using multiprocessing
     """
-    def __init__(self):
+    def __init__(self, num_path):
         class MPManager(multiprocessing.managers.BaseManager):
             pass
         MPManager.register('np_empty', np.empty, multiprocessing.managers.ArrayProxy)
@@ -60,8 +63,9 @@ class BatchManager(object):
         self._pool = Pool(processes=8)
         self.x_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
         self.y_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
-        # self.x_no_p_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
-        self._func = partial(train_set, x_batch=self.x_batch, y_batch=self.y_batch) #, x_no_p_batch=self.x_no_p_batch)
+        self.x_no_p_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
+        self._func = partial(train_set, x_batch=self.x_batch, y_batch=self.y_batch, x_no_p_batch=self.x_no_p_batch,
+                             num_path=num_path)
 
     def __del__(self):
         self._pool.terminate() # or close
@@ -69,10 +73,10 @@ class BatchManager(object):
 
     def batch(self):
         self._pool.map(self._func, range(FLAGS.batch_size))
-        return self.x_batch, self.y_batch
+        return self.x_batch, self.y_batch, self.x_no_p_batch
 
 
-def train_set(i, x_batch, y_batch): #, x_no_p_batch):
+def train_set(i, x_batch, y_batch, x_no_p_batch, num_path):
     np.random.seed()
     while True:
         xy = np.random.randint(low=0, high=FLAGS.image_size, size=FLAGS.xy_size)
@@ -93,7 +97,6 @@ def train_set(i, x_batch, y_batch): #, x_no_p_batch):
             width=FLAGS.image_size,
             height=FLAGS.image_size
         )
-    num_path = 2
     num_params_per_path = 4 # line
     # num_params_per_path = 8 # cubic bezier
     for path_id in range(num_path):
@@ -110,8 +113,8 @@ def train_set(i, x_batch, y_batch): #, x_no_p_batch):
     # save y png
     y_png = cairosvg.svg2png(bytestring=SVG_LINE1)
     y_img = Image.open(io.BytesIO(y_png))
-    # y_img.save('log/ratio_test/10_5002/%d_y_img%d.png' % (step, i))
-    # y_img = Image.open('log/ratio_test/png/%d_y_img%d.png' % (step, i))
+    # y_img.save('log/png/y_img%d.png' % i)
+    # y_img = Image.open('log/png/%d_y_img%d.png' % (step, i))
 
     # load and normalize y to [0, 1]
     y = np.array(y_img)[:,:,3].astype(np.float) / 255.0
@@ -126,14 +129,14 @@ def train_set(i, x_batch, y_batch): #, x_no_p_batch):
     # save x png
     x_png = cairosvg.svg2png(bytestring=SVG_MULTI_LINES)
     x_img = Image.open(io.BytesIO(x_png))
-    # x_img.save('log/ratio_test/10_5002/%d_x_img%d.png' % (step, i))
+    # x_img.save('log/png/x_img%d.png' % i)
     # x_img = Image.open('log/ratio_test/png/%d_x_img%d.png' % (step, i))
 
     # load and normalize y to [0, 0.1]
     x = np.array(x_img)[:,:,3].astype(np.float) / 255.0
     # x = threshold(threshold(x, threshmin=0.5), threshmax=0.4, newval=1.0/FLAGS.intensity_ratio)
     x = x / FLAGS.intensity_ratio
-    # x_no_p_batch[i,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
+    x_no_p_batch[i,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
 
     x[px, py] = 1.0 # 0.2 for debug
     x_batch[i,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])

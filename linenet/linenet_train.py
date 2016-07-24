@@ -21,7 +21,7 @@ import linenet_model
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('log_dir', 'log',
+tf.app.flags.DEFINE_string('log_dir', 'log/test_model2',
                            """Directory where to write event logs """
                            """and checkpoint.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
@@ -33,7 +33,7 @@ tf.app.flags.DEFINE_integer('max_steps', 100000,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_integer('decay_steps', 30000,
                           """Decay steps""")
-tf.app.flags.DEFINE_float('initial_learning_rate', 0.01,
+tf.app.flags.DEFINE_float('initial_learning_rate', 0.1,
                           """Initial learning rate.""")
 tf.app.flags.DEFINE_float('learning_decay_factor', 0.1,
                           """Learning rate decay factor.""")
@@ -74,9 +74,10 @@ def train():
 
         x = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
         y = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
+        x_no_p = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
             
         # Build a Graph that computes the logits predictions from the inference model.
-        y_hat = linenet_model.inference(x, phase_train)
+        y_hat = linenet_model.inference(x, x_no_p, phase_train, model=3)
 
         # Calculate loss.
         loss = linenet_model.loss(y_hat, y)
@@ -163,9 +164,10 @@ def train():
             # Train one step.
             start_time = time.time()
             # x_batch, y_batch = linenet_data.batch()
-            x_batch, y_batch = batch_manager.batch()
+            x_batch, y_batch, x_no_p_batch = batch_manager.batch()
             _, loss_value = sess.run([train_op, loss], feed_dict={phase_train: is_train,
-                                                                  x: x_batch, y: y_batch})
+                                                                  x: x_batch, y: y_batch,
+                                                                  x_no_p: x_no_p_batch})
             duration = time.time() - start_time
 
             assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
@@ -180,7 +182,7 @@ def train():
             if step % FLAGS.summary_steps == 0 or step < 100:
                 summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
                     [summary_op, x_summary, y_summary, y_hat_summary],
-                    feed_dict={phase_train: is_train, x: x_batch, y: y_batch})
+                    feed_dict={phase_train: is_train, x: x_batch, y: y_batch, x_no_p: x_no_p_batch})
 
                 summary_writer.add_summary(summary_str, step)
                 

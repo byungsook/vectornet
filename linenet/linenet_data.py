@@ -34,9 +34,10 @@ tf.app.flags.DEFINE_integer('min_length', 4,
                             """minimum length of a line.""")
 tf.app.flags.DEFINE_float('intensity_ratio', 10.0,
                           """intensity ratio of point to lines""")
-tf.app.flags.DEFINE_integer('num_path', 2,
+tf.app.flags.DEFINE_integer('num_path', 4,
                             """# paths for batch generation""")
-
+tf.app.flags.DEFINE_integer('path_type', 2,
+                            """path type 0: line, 1: curve, 2: both""")
 
 SVG_START_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
@@ -73,48 +74,57 @@ class BatchManager(object):
         return self.x_batch, self.y_batch, self.x_no_p_batch
 
 
-def train_set(i, x_batch, y_batch, x_no_p_batch):
-    num_params_per_path = 4 # line
-    # num_params_per_path = 8 # cubic bezier
-
-    np.random.seed()
+def _create_a_line():
     while True:
-        xy = np.random.randint(low=0, high=FLAGS.image_size, size=num_params_per_path)
+        xy = np.random.randint(low=0, high=FLAGS.image_size, size=4)
         if xy[0] - xy[2] + xy[1] - xy[3] < FLAGS.min_length:
             continue
         break
 
+    return SVG_LINE_TEMPLATE.format(
+        id=0,
+        x1=xy[0], y1=xy[1],
+        x2=xy[2], y2=xy[3]
+    )
+
+
+def _create_a_cubic_bezier_curve():
+    xy = np.random.randint(low=0, high=FLAGS.image_size, size=8)
+    return SVG_CUBIC_BEZIER_TEMPLATE.format(
+        id=0,
+        sx=xy[0], sy=xy[1],
+        cx1=xy[2], cy1=xy[3],
+        cx2=xy[4], cy2=xy[5],
+        tx=xy[6], ty=xy[7]
+    )
+
+
+def _create_a_path(path_type):
+    if path_type == 2:
+        path_type = np.random.randint(2)
+
+    path_selector = {
+        0: _create_a_line,
+        1: _create_a_cubic_bezier_curve
+    }
+    return path_selector[path_type]()
+
+
+def train_set(i, x_batch, y_batch, x_no_p_batch):
+    np.random.seed()
+    LINE1 = _create_a_path(FLAGS.path_type)
     SVG_LINE1 = SVG_START_TEMPLATE.format(
             width=FLAGS.image_size,
             height=FLAGS.image_size
-        ) + SVG_LINE_TEMPLATE.format(
-            id=0,
-            x1=xy[0], y1=xy[1],
-            x2=xy[2], y2=xy[3]
-        ) + SVG_END_TEMPLATE
+        ) + LINE1 + SVG_END_TEMPLATE
 
     SVG_MULTI_LINES = SVG_START_TEMPLATE.format(
             width=FLAGS.image_size,
             height=FLAGS.image_size
         )
-    SVG_MULTI_LINES = SVG_MULTI_LINES + SVG_LINE_TEMPLATE.format(
-        id=0,
-        x1=xy[0], y1=xy[1],
-        x2=xy[2], y2=xy[3]
-    )
+    SVG_MULTI_LINES = SVG_MULTI_LINES + LINE1
     for path_id in range(1, FLAGS.num_path):
-        while True:
-            xy = np.random.randint(low=0, high=FLAGS.image_size, size=num_params_per_path)
-            if xy[0] - xy[2] + xy[1] - xy[3] < FLAGS.min_length:
-                continue
-            break
-
-        SVG_MULTI_LINES = SVG_MULTI_LINES + SVG_LINE_TEMPLATE.format(
-            id=path_id,
-            x1=xy[0], y1=xy[1],
-            x2=xy[2], y2=xy[3]
-        )
-
+        SVG_MULTI_LINES = SVG_MULTI_LINES + _create_a_path(FLAGS.path_type)
     SVG_MULTI_LINES = SVG_MULTI_LINES + SVG_END_TEMPLATE
 
 
@@ -150,86 +160,24 @@ def train_set(i, x_batch, y_batch, x_no_p_batch):
     x_batch[i,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
 
 
-def read_batch(step):
-    x_batch = np.empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
-    y_batch = np.empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
-    for i in xrange(FLAGS.batch_size):
-        y_img = Image.open('log/png/%d_y_img%d.png' % (step, i))
-
-        # load and normalize y to [0, 1]
-        y = np.array(y_img)[:,:,3].astype(np.float) / 255.0
-        # y = threshold(threshold(y, threshmin=0.5), threshmax=0.4, newval=1.0)
-        y_batch[i,:,:] = np.reshape(y, [FLAGS.image_size, FLAGS.image_size, 1])
-
-        # # debug
-        # plt.imshow(y, cmap=plt.cm.gray)
-        # plt.show()
-
-        # select a random point on line1
-        line_ids = np.nonzero(y)
-        px, py = line_ids[0][0], line_ids[1][0]
-        x_img = Image.open('log/png/%d_x_img%d.png' % (step, i))
-
-        # load and normalize y to [0, 0.1]
-        x = np.array(x_img)[:,:,3].astype(np.float) / 255.0
-        # x = threshold(threshold(x, threshmin=0.5), threshmax=0.4, newval=1.0/FLAGS.intensity_ratio)
-        x = x / FLAGS.intensity_ratio
-        x[px, py] = 1.0 # 0.2 for debug
-
-        # # debug
-        # plt.imshow(x, cmap=plt.cm.gray)
-        # plt.show()
-
-        x_batch[i,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
-
-    return x_batch, y_batch
-
-
 def batch():
     x_batch = np.empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
     y_batch = np.empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
     for i in xrange(FLAGS.batch_size):
-        num_params_per_path = 4 # line
-        # num_params_per_path = 8 # cubic bezier
-
-        # np.random.seed()
-        while True:
-            xy = np.random.randint(low=0, high=FLAGS.image_size, size=num_params_per_path)
-            if xy[0] - xy[2] + xy[1] - xy[3] < FLAGS.min_length:
-                continue
-            break
-
+        np.random.seed()
+        LINE1 = _create_a_path(FLAGS.path_type)
         SVG_LINE1 = SVG_START_TEMPLATE.format(
                 width=FLAGS.image_size,
                 height=FLAGS.image_size
-            ) + SVG_LINE_TEMPLATE.format(
-                id=0,
-                x1=xy[0], y1=xy[1],
-                x2=xy[2], y2=xy[3]
-            ) + SVG_END_TEMPLATE
+            ) + LINE1 + SVG_END_TEMPLATE
 
         SVG_MULTI_LINES = SVG_START_TEMPLATE.format(
                 width=FLAGS.image_size,
                 height=FLAGS.image_size
             )
-        SVG_MULTI_LINES = SVG_MULTI_LINES + SVG_LINE_TEMPLATE.format(
-            id=0,
-            x1=xy[0], y1=xy[1],
-            x2=xy[2], y2=xy[3]
-        )
+        SVG_MULTI_LINES = SVG_MULTI_LINES + LINE1
         for path_id in range(1, FLAGS.num_path):
-            while True:
-                xy = np.random.randint(low=0, high=FLAGS.image_size, size=num_params_per_path)
-                if xy[0] - xy[2] + xy[1] - xy[3] < FLAGS.min_length:
-                    continue
-                break
-
-            SVG_MULTI_LINES = SVG_MULTI_LINES + SVG_LINE_TEMPLATE.format(
-                id=path_id,
-                x1=xy[0], y1=xy[1],
-                x2=xy[2], y2=xy[3]
-            )
-
+            SVG_MULTI_LINES = SVG_MULTI_LINES + _create_a_path(FLAGS.path_type)
         SVG_MULTI_LINES = SVG_MULTI_LINES + SVG_END_TEMPLATE
 
 

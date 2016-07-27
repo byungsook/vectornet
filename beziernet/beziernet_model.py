@@ -12,8 +12,6 @@ from __future__ import print_function
 
 import tensorflow as tf
 
-import beziernet_data
-
 
 def _variable_summaries(x):
     """Helper to create summaries for activations.
@@ -51,6 +49,10 @@ def _variable_on_cpu(name, shape, initializer):
         Variable Tensor
     """
     with tf.device('/cpu:0'):
+        # We instantiate all variables using tf.get_variable() instead of
+        # tf.Variable() in order to share variables across multiple GPU training runs.
+        # If we only ran this model on a single GPU, we could simplify this function
+        # by replacing all instances of tf.get_variable() with tf.Variable().
         var = tf.get_variable(name, shape, initializer=initializer)
     return var
     
@@ -65,13 +67,13 @@ def _weight_variable(name, shape):
 
 
 def _batch_normalization(name, x, d_next, phase_train, is_conv=True):
-    """batch_norm/add_1, scale, offset"""
+    """batch_norm/1_scale, 2_offset, 3_batch"""
     if is_conv:
         batch_mean, batch_var = tf.nn.moments(x, [0, 1, 2])
     else:
         batch_mean, batch_var = tf.nn.moments(x, [0])
-    scale = _variable_on_cpu(name + '/scale', [d_next], tf.ones_initializer) # gamma    
-    offset = _variable_on_cpu(name + '/offset', [d_next], tf.zeros_initializer) # beta
+    scale = _variable_on_cpu(name+'/1_scale', [d_next], tf.ones_initializer) # gamma
+    offset = _variable_on_cpu(name+'/2_offset', [d_next], tf.zeros_initializer) # beta
     
     ema = tf.train.ExponentialMovingAverage(decay=0.5)
 
@@ -84,7 +86,7 @@ def _batch_normalization(name, x, d_next, phase_train, is_conv=True):
                         _mean_var_with_update,
                         lambda: (ema.average(batch_mean), ema.average(batch_var)))
     
-    n = tf.nn.batch_normalization(x, mean, var, offset, scale, 1e-3, name=name)
+    n = tf.nn.batch_normalization(x, mean, var, offset, scale, 1e-3, name=name+'/3_batch')
     _variable_summaries(scale)
     _variable_summaries(offset)
     _variable_summaries(n)
@@ -95,11 +97,11 @@ def _conv2d(layer_name, x, k, s, d_next, phase_train):
     """down, flat-convolution layer"""
     with tf.variable_scope(layer_name):
         d_prev = x.get_shape()[3].value
-        W = _weight_variable('1_weights', [k, k, d_prev, d_next])
-        conv = tf.nn.conv2d(x, W, strides=[1, s, s, 1], padding='SAME', name='1_conv')
+        W = _weight_variable('1_filter_weights', [k, k, d_prev, d_next])
+        conv = tf.nn.conv2d(x, W, strides=[1, s, s, 1], padding='SAME', name='2_conv_feature')
         _variable_summaries(conv)
-        batch = _batch_normalization('2_batch_norm', conv, d_next, phase_train)
-        relu = tf.nn.relu(batch, name='3_relu')
+        batch = _batch_normalization('3_batch_norm', conv, d_next, phase_train)
+        relu = tf.nn.relu(batch, name='4_relu')
         _variable_summaries(relu)
         return relu
 
@@ -117,6 +119,45 @@ def _fc(layer_name, x, d_next, phase_train, use_activation=True):
             return relu
         else:
             return batch
+
+
+def model4(x, phase_train):
+    # 1-1 down-convolutional layer: k=3x3, s=2x2, d=64, 96 -> 48
+    h_conv11 = _conv2d('1-1_down', x,        3, 2,  64, phase_train)
+    # 1-2 flat-convolutional layer: k=3x3, s=1x1, d=128
+    h_conv12 = _conv2d('1-2_flat', h_conv11, 3, 1, 128, phase_train)
+    # 1-3 flat-convolutional layer: k=3x3, s=1x1, d=128
+    h_conv13 = _conv2d('1-3_flat', h_conv12, 3, 1, 128, phase_train)
+
+    # 2-1 down-convolutional layer: k=3x3, s=2x2, d=128 -> 24
+    h_conv21 = _conv2d('2-1_down', h_conv13, 3, 2, 128, phase_train)
+    # 2-2 flat-convolutional layer: k=3x3, s=1x1, d=256
+    h_conv22 = _conv2d('2-2_flat', h_conv21, 3, 1, 256, phase_train)
+    # 2-3 flat-convolutional layer: k=3x3, s=1x1, d=256
+    h_conv23 = _conv2d('2-3_flat', h_conv22, 3, 1, 256, phase_train)
+
+    # 3-1 down-convolutional layer: k=3x3, s=2x2, d=256 -> 12
+    h_conv31 = _conv2d('3-1_down', h_conv23, 3, 2, 256, phase_train)
+    # 3-2 flat-convolutional layer: k=3x3, s=1x1, d=512
+    h_conv32 = _conv2d('3-2_flat', h_conv31, 3, 1, 512, phase_train)
+    # 3-3 flat-convolutional layer: k=3x3, s=1x1, d=512
+    h_conv33 = _conv2d('3-3_flat', h_conv32, 3, 1, 512, phase_train)
+
+    h_conv_shape = h_conv33.get_shape()
+    h_conv_dim = h_conv_shape[1].value * h_conv_shape[2].value * h_conv_shape[3].value
+    h_conv_flat = tf.reshape(h_conv33, [-1, h_conv_dim])
+        
+    # 4-1 fully-connected layer: d=1024
+    h_fc41 = _fc('4-1_fc', h_conv_flat, 1024, phase_train)
+    # 4-2 fully-connected layer: d=512
+    h_fc42 = _fc('4-2_fc', h_fc41, 512, phase_train)
+    # 4-3 fully-connected layer: d=256
+    h_fc43 = _fc('4-3_fc', h_fc42, 256, phase_train)
+    # 4-4 fully-connected layer: d=8
+    y_fc = _fc('4-4_fc', h_fc43, 8, phase_train)
+    
+    return y_fc
+
 
 
 def model1(images, phase_train):
@@ -247,10 +288,16 @@ def inference(images, phase_train, model=1):
         1: model1,
         2: model2,
         3: model3,
+        4: model4,
     }
     return model_selector[model](images, phase_train)
 
 
-def loss(logits, xys):
-    loss_mean = tf.reduce_mean(tf.square(xys - logits), name='loss')
-    return loss_mean
+def loss(y_hat, y):
+    # y_hat: estimate, y: training set
+    l2_loss = tf.nn.l2_loss(y_hat - y, name='l2_loss')
+    return l2_loss
+
+# def loss(logits, xys):
+#     loss_mean = tf.reduce_mean(tf.square(xys - logits), name='loss')
+#     return loss_mean

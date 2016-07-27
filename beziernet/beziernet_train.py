@@ -23,7 +23,7 @@ import beziernet_model
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('log_dir', 'log',
+tf.app.flags.DEFINE_string('log_dir', 'log/test',
                            """Directory where to write event logs """
                            """and checkpoint.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
@@ -31,10 +31,10 @@ tf.app.flags.DEFINE_boolean('log_device_placement', False,
 tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', '', # 'log/second_train/beziernet.ckpt',
                            """If specified, restore this pretrained model """
                            """before beginning any training.""")
-tf.app.flags.DEFINE_integer('max_steps', 1000000,
+tf.app.flags.DEFINE_integer('max_steps', 100000,
                             """Number of batches to run.""")
-tf.app.flags.DEFINE_integer('num_epochs_per_decay', 237, # 90000/128= 703 steps/epoch, ~166k
-                          """Epochs after which learning rate decays.""")
+tf.app.flags.DEFINE_integer('decay_steps', 30000,
+                          """Decay steps""")
 tf.app.flags.DEFINE_float('initial_learning_rate', 0.1,
                           """Initial learning rate.""")
 tf.app.flags.DEFINE_float('learning_decay_factor', 0.1,
@@ -43,31 +43,33 @@ tf.app.flags.DEFINE_float('moving_avg_decay', 0.9999,
                           """The decay to use for the moving average.""")
 tf.app.flags.DEFINE_integer('max_images', 1,
                             """max # images to save.""")
+tf.app.flags.DEFINE_integer('stat_steps', 10,
+                            """statistics steps.""")
+tf.app.flags.DEFINE_integer('summary_steps', 100,
+                            """summary steps.""")
+tf.app.flags.DEFINE_integer('save_steps', 5000,
+                            """save steps""")
 
 
 def train():
-    """Train Vectornet for a number of steps."""
+    """Train Beziernet for a number of steps."""
     with tf.Graph().as_default():
         global_step = tf.Variable(0, name='global_step', trainable=False)
         is_train = True
         phase_train = tf.placeholder(tf.bool, name='phase_train')
         
-        # Get images and xys for BezierNet.
-        use_data = False
-        if use_data:
-            images, xys = beziernet_data.inputs()
-        else:
-            # custom_runner = beziernet_data.CustomRunner()
-            # images, xys = custom_runner.inputs()
-            images = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
-            xys = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.xy_size])
+        # Get input and output image
+        batch_manager = beziernet_data.BatchManager()
 
+        x = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
+        y = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.xy_size])
+        
 
         # Build a Graph that computes the logits predictions from the inference model.
-        logits = beziernet_model.inference(images, phase_train, model=3)
+        y_hat = beziernet_model.inference(x, phase_train, model=4)
 
         # Calculate loss.
-        loss = beziernet_model.loss(logits, xys)
+        loss = beziernet_model.loss(y_hat, y)
 
         ###############################################################################
         # Build a Graph that trains the model with one batch of examples and
@@ -81,27 +83,23 @@ def train():
         # as the original loss name.
         tf.scalar_summary(loss.op.name + ' (raw)', loss)
         tf.scalar_summary(loss.op.name, loss_averages.average(loss))
-        
-        # Variables that affect learning rate.
-        num_batches_per_epoch = FLAGS.num_examples_per_epoch_for_train / FLAGS.batch_size
-        decay_steps = int(num_batches_per_epoch * FLAGS.num_epochs_per_decay)
 
         # Decay the learning rate exponentially based on the number of steps.
         learning_rate = tf.train.exponential_decay(FLAGS.initial_learning_rate,
                                                    global_step,
-                                                   decay_steps,
+                                                   FLAGS.decay_steps,
                                                    FLAGS.learning_decay_factor,
                                                    staircase=True)
-        tf.scalar_summary('learning_rate', learning_rate)
-        
+        tf.scalar_summary('learning_rate', learning_rate)        
         # # or use fixed learning rate
         # learning_rate = 1e-3
         
         # Compute gradients.
         with tf.control_dependencies([loss_averages_op]):
-            opt = tf.train.AdamOptimizer(learning_rate)
-            # opt = tf.train.AdadeltaOptimizer()
+            opt = tf.train.AdamOptimizer(learning_rate)            
             grads = opt.compute_gradients(loss)
+            # max_grad = FLAGS.clip_gradients / learning_rate
+            # grads = [(tf.clip_by_value(grad, -max_grad, max_grad), var) for grad, var in grads]
 
         apply_gradient_op = opt.apply_gradients(grads, global_step=global_step)
 
@@ -122,8 +120,7 @@ def train():
         # Start running operations on the Graph. 
         sess = tf.Session(config=tf.ConfigProto(
             log_device_placement=FLAGS.log_device_placement))
-        sess.run(tf.initialize_all_variables())
-
+        
         # Create a saver (restorer).
         saver = tf.train.Saver()
         if FLAGS.pretrained_model_checkpoint_path:
@@ -131,52 +128,46 @@ def train():
             saver.restore(sess, FLAGS.pretrained_model_checkpoint_path)
             print('%s: Pre-trained model restored from %s' %
                 (datetime.now(), FLAGS.pretrained_model_checkpoint_path))
+        else:
+            sess.run(tf.initialize_all_variables())
 
         # Build the summary operation.
         summary_op = tf.merge_all_summaries()
         summary_writer = tf.train.SummaryWriter(FLAGS.log_dir, sess.graph)
 
-        x_summary = tf.image_summary('x', images, max_images=FLAGS.max_images)
-        y_img = tf.placeholder(tf.uint8, shape=[FLAGS.max_images, FLAGS.image_size, FLAGS.image_size, 1])
+        summary_x_writer = tf.train.SummaryWriter(FLAGS.log_dir + '/x', sess.graph)
+        summary_y_writer = tf.train.SummaryWriter(FLAGS.log_dir + '/y', sess.graph)
+        x_summary = tf.image_summary('x', x, max_images=FLAGS.max_images)
+        y_img = tf.placeholder(tf.uint8, shape=[FLAGS.max_images, FLAGS.image_size, FLAGS.image_size, 1])        
         y_summary = tf.image_summary('y', y_img, max_images=FLAGS.max_images)
-
-        # # Start the queue runners.
-        # tf.train.start_queue_runners(sess=sess)
-        # if not use_data:
-        #     # start our custom queue runner's threads
-        #     custom_runner.start_threads(sess)
+        
 
         ####################################################################
         # Start to train.
+        print('start to train')
         start_step = tf.train.global_step(sess, global_step)
         for step in xrange(start_step, FLAGS.max_steps):
             # Train one step.
             start_time = time.time()
-            if use_data:
-                _, loss_value = sess.run([train_op, loss], feed_dict={phase_train: is_train})
-            else:
-                image_batch, xys_batch = beziernet_data.data_generator()
-                _, loss_value = sess.run([train_op, loss], feed_dict={phase_train: is_train,
-                                         images: image_batch, xys: xys_batch})
+            x_batch, y_batch = batch_manager.batch()
+            # x_batch, y_batch = beziernet_data.batch()            
+            _, loss_value = sess.run([train_op, loss], feed_dict={phase_train: is_train,
+                                                                  x: x_batch, y: y_batch})
             duration = time.time() - start_time
 
             assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
 
             # Print statistics periodically.
-            if step % 10 == 0:
+            if step % FLAGS.stat_steps == 0:
                 examples_per_sec = FLAGS.batch_size / float(duration)
                 print('%s: step %d, loss = %.2f (%.1f examples/sec; %.3f sec/batch)' % 
                     (datetime.now(), step, loss_value, examples_per_sec, duration))
 
             # Write the summary periodically.
-            if step % 100 == 0:
-                if use_data:
-                    summary_str, x_summary_str, y_eval = sess.run([summary_op, x_summary, logits], # logits=xys
-                                                                feed_dict={phase_train: is_train})
-                else:
-                    summary_str, x_summary_str, y_eval = sess.run([summary_op, x_summary, logits],
-                                                                feed_dict={phase_train: is_train,
-                                                                images: image_batch, xys: xys_batch})
+            if step % FLAGS.summary_steps == 0 or step < 100:
+                summary_str, x_summary_str, y_eval = sess.run([summary_op, x_summary, y_hat],
+                                                               feed_dict={phase_train: is_train,
+                                                                          x: x_batch, y: y_batch})
                 summary_writer.add_summary(summary_str, step)
                 
                 new_y_img = beziernet_data.svg_to_png(y_eval, num_image=FLAGS.max_images)
@@ -187,13 +178,15 @@ def train():
                 x_summary_tmp.ParseFromString(x_summary_str)
                 y_summary_tmp.ParseFromString(y_summary_str)
                 for i in xrange(FLAGS.max_images):
-                    x_summary_tmp.value[i].tag = '%07d/%03d_x' % (step, i)
-                    y_summary_tmp.value[i].tag = '%07d/%03d_y' % (step, i)
-                summary_writer.add_summary(x_summary_tmp, step)
-                summary_writer.add_summary(y_summary_tmp, step)
+                    new_tag = '%06d/%03d' % (step, i)
+                    x_summary_tmp.value[i].tag = new_tag
+                    y_summary_tmp.value[i].tag = new_tag
 
+                summary_x_writer.add_summary(x_summary_tmp, step)
+                summary_y_writer.add_summary(y_summary_tmp, step)
+                
             # Save the model checkpoint periodically.
-            if step % 5000 == 0 or (step + 1) == FLAGS.max_steps:
+            if (step + 1) % FLAGS.save_steps == 0 or (step + 1) == FLAGS.max_steps:
                 checkpoint_path = os.path.join(FLAGS.log_dir, 'beziernet.ckpt')
                 saver.save(sess, checkpoint_path)
 
@@ -207,13 +200,12 @@ def main(_):
         working_path = os.path.join(current_path, 'vectornet/beziernet')
         os.chdir(working_path)
         
-    # create log directory    
-    FLAGS.log_dir = os.path.join(FLAGS.log_dir, datetime.now().isoformat().replace(':', '-'))
+    # create log directory
+    if FLAGS.log_dir.endswith('log'):
+        FLAGS.log_dir = os.path.join(FLAGS.log_dir, datetime.now().isoformat().replace(':', '-'))
+    elif tf.gfile.Exists(FLAGS.log_dir):
+        tf.gfile.DeleteRecursively(FLAGS.log_dir)
     tf.gfile.MakeDirs(FLAGS.log_dir)
-
-    # (optional) generate bezier bin data set or extract 
-    # beziernet_data.generate_bezier_bin()
-    # beziernet_data.extract_bezier_bin()
 
     # start training
     train()

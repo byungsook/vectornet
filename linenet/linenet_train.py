@@ -77,7 +77,7 @@ def train():
         x_no_p = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
             
         # Build a Graph that computes the logits predictions from the inference model.
-        y_hat = linenet_model.inference(x, x_no_p, phase_train, model=3)
+        y_hat = linenet_model.inference(x, x_no_p, phase_train)
 
         # Calculate loss.
         loss = linenet_model.loss(y_hat, y)

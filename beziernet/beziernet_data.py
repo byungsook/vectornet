@@ -61,7 +61,7 @@ class BatchManager(object):
 
         self._mpmanager = MPManager()
         self._mpmanager.start()
-        self._pool = Pool(processes=8)
+        self._pool = Pool(processes=16)
         self.x_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
         self.y_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.xy_size], dtype=np.float)
         self._func = partial(train_set, x_batch=self.x_batch, y_batch=self.y_batch)

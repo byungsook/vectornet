@@ -31,6 +31,8 @@ tf.app.flags.DEFINE_boolean('log_device_placement', False,
 tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', '', # 'log/second_train/beziernet.ckpt',
                            """If specified, restore this pretrained model """
                            """before beginning any training.""")
+tf.app.flags.DEFINE_integer('model', 4,
+                            """model""")
 tf.app.flags.DEFINE_integer('max_steps', 100000,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_integer('decay_steps', 30000,
@@ -66,7 +68,7 @@ def train():
         
 
         # Build a Graph that computes the logits predictions from the inference model.
-        y_hat = beziernet_model.inference(x, phase_train, model=4)
+        y_hat = beziernet_model.inference(x, phase_train, model=FLAGS.model)
 
         # Calculate loss.
         loss = beziernet_model.loss(y_hat, y)

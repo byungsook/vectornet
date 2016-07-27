@@ -32,14 +32,15 @@ import tensorflow as tf
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_integer('batch_size', 128,
                             """Number of images to process in a batch.""")
-tf.app.flags.DEFINE_string('data_dir', 'data',
-                            """Path to the Beziernet data directory.""")
+tf.app.flags.DEFINE_integer('process_num', 16,
+                            """# processes for generating a batch""")
+# tf.app.flags.DEFINE_string('data_dir', 'data',
+#                             """Path to the Beziernet data directory.""")
 
 tf.app.flags.DEFINE_integer('image_size', 96, # 96-48-24-12-6
                             """Image Size.""")
 tf.app.flags.DEFINE_integer('xy_size', 8,
                             """# Coordinates of Bezier Curve.""")
-
 
 SVG_START_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
@@ -61,7 +62,7 @@ class BatchManager(object):
 
         self._mpmanager = MPManager()
         self._mpmanager.start()
-        self._pool = Pool(processes=16)
+        self._pool = Pool(processes=FLAGS.process_num)
         self.x_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
         self.y_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.xy_size], dtype=np.float)
         self._func = partial(train_set, x_batch=self.x_batch, y_batch=self.y_batch)

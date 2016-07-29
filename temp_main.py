@@ -154,7 +154,7 @@ def main():
 
     # 5-1 up-convolutional layer: k=4x4, s=0.5x0.5, d=128
     up_h, up_w = up_h*2, up_w*2
-    h_conv51 = up_conv2d('5-1_up', h_conv43, 4, 2, 256, up_h, up_w)
+    h_conv51 = up_conv2d('5-1_up', h_conv43, 4, 2, 128, up_h, up_w)
     # 5-2 flat-convolutional layer: k=3x3, s=1x1, d=128
     h_conv52 = conv2d('5-2_flat', h_conv51, 3, 1, 128)
     # 5-3 flat-convolutional layer: k=3x3, s=1x1, d=48

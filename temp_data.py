@@ -4,7 +4,6 @@ import numpy as np
 import scipy.misc
 import scipy.stats
 
-
 class DataSet(object):
     """ class for batch data 
     1-1. with a probability of 10%, use target image as input
@@ -47,12 +46,12 @@ class DataSet(object):
             x_img = scipy.misc.imread(x_file_name)
             y_img = scipy.misc.imread(y_file_name)
             self.test_x[i, ...] = scipy.stats.threshold(
-                                    scipy.misc.imresize(x_img, (self._patch_h, self._patch_w)).astype(np.float32) / 255.0,
+                                    scipy.misc.imresize(x_img, (self._patch_h, self._patch_w)) / 255.0,
                                     threshmin=0.9, newval=0.0)
-            self.test_y[i, ...] = scipy.misc.imresize(y_img, (self._patch_h, self._patch_w)).astype(np.float32) / 255.0
+            self.test_y[i, ...] = scipy.misc.imresize(y_img, (self._patch_h, self._patch_w)) / 255.0
 
-        self.test_x = np.reshape(self.test_x, [-1, self._patch_h, self._patch_w, 1])
-        self.test_y = np.reshape(self.test_y, [-1, self._patch_h, self._patch_w, 1])
+        self.test_x = np.reshape(self.test_x, [-1, self._patch_h, self._patch_w, 1]).astype(np.float32)
+        self.test_y = np.reshape(self.test_y, [-1, self._patch_h, self._patch_w, 1]).astype(np.float32)
 
 
     def next_batch(self, batch_size):
@@ -76,9 +75,9 @@ class DataSet(object):
             max_h0, max_w0 = x_img.shape[0] - self._patch_h + 1, x_img.shape[1] - self._patch_w + 1
             for _ in range(20):
                 h0, w0 = np.random.randint(max_h0), np.random.randint(max_w0)
-                batch_x[i, ...] = scipy.stats.threshold(x_img[h0:h0+self._patch_h, w0:w0+self._patch_w]
-                                                        .astype(np.float32) / 255.0, threshmin=0.9, newval=0.0)
-                batch_y[i, ...] = y_img[h0:h0+self._patch_h, w0:w0+self._patch_w].astype(np.float32) / 255.0
+                batch_x[i, ...] = scipy.stats.threshold(x_img[h0:h0+self._patch_h, w0:w0+self._patch_w] / 255.0,
+                                                        threshmin=0.9, newval=0.0)
+                batch_y[i, ...] = y_img[h0:h0+self._patch_h, w0:w0+self._patch_w] / 255.0
                 if np.amin(batch_x[i, ...]) == 1.0:
                     continue
                 break
@@ -87,6 +86,6 @@ class DataSet(object):
             # scipy.misc.imshow(batch_x[i, ...])
             # scipy.misc.imshow(batch_y[i, ...])
 
-        batch_x = np.reshape(batch_x, [-1, self._patch_h, self._patch_w, 1])
-        batch_y = np.reshape(batch_y, [-1, self._patch_h, self._patch_w, 1])
+        batch_x = np.reshape(batch_x, [-1, self._patch_h, self._patch_w, 1]).astype(np.float32)
+        batch_y = np.reshape(batch_y, [-1, self._patch_h, self._patch_w, 1]).astype(np.float32)
         return batch_x, batch_y

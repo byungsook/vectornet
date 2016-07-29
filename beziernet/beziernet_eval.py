@@ -72,8 +72,8 @@ def evaluate():
         loss_avg = tf.placeholder(tf.float32)
         loss_avg_summary = tf.scalar_summary('l2 loss (avg)', loss_avg)
 
-        summary_x_writer = tf.train.SummaryWriter(FLAGS.log_dir + '/x', g)
-        summary_y_writer = tf.train.SummaryWriter(FLAGS.log_dir + '/y', g)
+        summary_x_writer = tf.train.SummaryWriter(FLAGS.eval_dir + '/x', g)
+        summary_y_writer = tf.train.SummaryWriter(FLAGS.eval_dir + '/y', g)
         x_summary = tf.image_summary('x', x, max_images=FLAGS.max_images)
         y_img = tf.placeholder(tf.uint8, shape=[FLAGS.max_images, FLAGS.image_size, FLAGS.image_size, 1])        
         y_summary = tf.image_summary('y', y_img, max_images=FLAGS.max_images)

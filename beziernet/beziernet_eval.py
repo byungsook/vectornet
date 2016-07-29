@@ -104,7 +104,7 @@ def evaluate():
 
                 new_y_img = beziernet_data.svg_to_png(y_hat_value, num_image=FLAGS.max_images)
                 loss_summary_str, x_summary_str, y_summary_str = sess.run([loss_summary, x_summary, y_summary],
-                    feed_dict={loss_ph: loss_value, x: x_batch, y: new_y_img})
+                    feed_dict={loss_ph: loss_value, x: x_batch, y_img: new_y_img})
 
                 summary_writer.add_summary(loss_summary_str, step)
 

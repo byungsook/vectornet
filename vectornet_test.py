@@ -188,8 +188,8 @@ def test():
         for file in files:
             if not file.lower().endswith('png'):
                 continue
-            elif file.lower().endswith('_rec.png'):
-                continue
+            # elif file.lower().endswith('_rec.png'):
+            #     continue
             
             vectorize(os.path.join(root, file))
 

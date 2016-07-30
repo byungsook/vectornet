@@ -32,9 +32,9 @@ tf.app.flags.DEFINE_string('log_dir', 'log/test',
 tf.app.flags.DEFINE_string('data_dir', 'data/test1', # sketches/sketches_png/airplane',
                            """Directory where to write event logs """
                            """and checkpoint.""")
-tf.app.flags.DEFINE_integer('max_lines', 100,
+tf.app.flags.DEFINE_integer('max_lines', 10,
                            """maximum number of line to extract""")
-tf.app.flags.DEFINE_integer('extract_iter', 2,
+tf.app.flags.DEFINE_integer('extract_iter', 1,
                            """iteration number for line extraction""")
 tf.app.flags.DEFINE_string('linenet_ckpt', 'linenet/log/r10p2/linenet.ckpt',
                            """linenet checkpoint file path.""")                           
@@ -117,17 +117,17 @@ def vectorize(img_file_name):
     
     img_line_file_name = os.path.join(FLAGS.log_dir, os.path.splitext(img_base_name)[0] + '_line_%d.svg')
 
-    img_extract_file_name = os.path.join(FLAGS.log_dir, os.path.splitext(img_base_name)[0] + '_extract_%d_%d.png')
-        
+    # intermediate restuls
+    img_extract_x_file_name = os.path.join(FLAGS.log_dir, os.path.splitext(img_base_name)[0] + '_extract_x_%d_%d.png')
+    img_extract_y_file_name = os.path.join(FLAGS.log_dir, os.path.splitext(img_base_name)[0] + '_extract_y_%d_%d.png')
+
     # # debug
-    # plt.imshow(img_rec, cmap=plt.cm.gray)
-    # plt.show()
     # img_rec_name = 'data/test1/machine_rec.PNG'
     # img_rec = _imread(img_rec_name, inv=True)
     # plt.imshow(img_rec, cmap=plt.cm.gray)
     # plt.show()
 
-    # # create managers
+    # create managers
     start_time = time.time()
     linenet_manager = LinenetManager(img.shape, FLAGS.linenet_ckpt)
     beziernet_manager = BeziernetManager(FLAGS.beziernet_ckpt)
@@ -149,15 +149,11 @@ def vectorize(img_file_name):
         img_line = img_simple
         for i in xrange(FLAGS.extract_iter):
             start_time = time.time()
-            img_line = linenet_manager.extract_line(img_line, px, py)
-            Image.fromarray(img_line).convert('L').save(img_extract_file_name % (num_line, i))
+            img_x, img_line = linenet_manager.extract_line(img_line, px, py)
+            Image.fromarray(np.uint8(img_x*255)).convert('L').save(img_extract_x_file_name % (num_line, i))
+            Image.fromarray(np.uint8(img_line*255)).convert('L').save(img_extract_y_file_name % (num_line, i))
             duration = time.time() - start_time
             print('%s: line %d, extract line, iter %d (%.3f sec)' % (datetime.now(), num_line, i, duration))
-
-        # # debug
-        # plt.imshow(img_line, cmap=plt.cm.gray)
-        # plt.show()
-        
 
         # line fitting
         start_time = time.time()                

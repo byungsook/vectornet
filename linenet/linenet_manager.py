@@ -49,22 +49,21 @@ class LinenetManager(object):
         x[px, py] = 1.0 # 0.2 for debug
         
         # # debug
-        scipy.misc.imsave('./tmp.png', x)
         # plt.imshow(x, cmap=plt.cm.gray)
         # plt.show()
         
         x_shape = x.shape
-        x = np.reshape(x, [1, x_shape[0], x_shape[1], 1])
+        x_ = np.reshape(x, [1, x_shape[0], x_shape[1], 1])
 
         with self._graph.as_default():
-            y = self._sess.run(self._y_hat, feed_dict={self._phase_train: False, self._x: x})
+            y = self._sess.run(self._y_hat, feed_dict={self._phase_train: False, self._x: x_})
             y = np.reshape(y, [x_shape[0], x_shape[1]])
             
             # # debug
             # plt.imshow(y, cmap=plt.cm.gray)
             # plt.show()        
             
-            return y
+            return x, y
         
 
         

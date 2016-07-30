@@ -32,9 +32,9 @@ tf.app.flags.DEFINE_string('log_dir', 'log/test',
 tf.app.flags.DEFINE_string('data_dir', 'data/test1', # sketches/sketches_png/airplane',
                            """Directory where to write event logs """
                            """and checkpoint.""")
-tf.app.flags.DEFINE_integer('max_lines', 10,
+tf.app.flags.DEFINE_integer('max_lines', 20,
                            """maximum number of line to extract""")
-tf.app.flags.DEFINE_integer('extract_iter', 1,
+tf.app.flags.DEFINE_integer('extract_iter', 3,
                            """iteration number for line extraction""")
 tf.app.flags.DEFINE_string('linenet_ckpt', 'linenet/log/r10p2/linenet.ckpt',
                            """linenet checkpoint file path.""")                           
@@ -115,11 +115,11 @@ def vectorize(img_file_name):
     img_rec_name = os.path.join(FLAGS.log_dir, os.path.splitext(img_base_name)[0] + '_rec_%d.png')
     img_rec = np.empty(shape=img.shape)
     
-    img_line_file_name = os.path.join(FLAGS.log_dir, os.path.splitext(img_base_name)[0] + '_line_%d.svg')
+    img_line_file_name = os.path.join(FLAGS.log_dir, os.path.splitext(img_base_name)[0] + '_rec_%d.svg')
 
     # intermediate restuls
-    img_extract_x_file_name = os.path.join(FLAGS.log_dir, os.path.splitext(img_base_name)[0] + '_extract_x_%d_%d.png')
-    img_extract_y_file_name = os.path.join(FLAGS.log_dir, os.path.splitext(img_base_name)[0] + '_extract_y_%d_%d.png')
+    img_extract_x_file_name = os.path.join(FLAGS.log_dir, os.path.splitext(img_base_name)[0] + '_extract_%d_%d_x.png')
+    img_extract_y_file_name = os.path.join(FLAGS.log_dir, os.path.splitext(img_base_name)[0] + '_extract_%d_%d_y.png')
 
     # # debug
     # img_rec_name = 'data/test1/machine_rec.PNG'

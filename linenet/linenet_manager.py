@@ -13,6 +13,7 @@ from datetime import datetime
 import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
+import scipy.misc
 
 import linenet.linenet_model
 
@@ -48,6 +49,7 @@ class LinenetManager(object):
         x[px, py] = 1.0 # 0.2 for debug
         
         # # debug
+        scipy.misc.imsave('./tmp.png', x)
         # plt.imshow(x, cmap=plt.cm.gray)
         # plt.show()
         

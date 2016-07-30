@@ -116,6 +116,8 @@ def vectorize(img_file_name):
     img_rec = np.empty(shape=img.shape)
     
     img_line_file_name = os.path.join(FLAGS.log_dir, os.path.splitext(img_base_name)[0] + '_line_%d.svg')
+
+    img_extract_file_name = os.path.join(FLAGS.log_dir, os.path.splitext(img_base_name)[0] + '_extract_%d_%d.png')
         
     # # debug
     # plt.imshow(img_rec, cmap=plt.cm.gray)
@@ -148,6 +150,7 @@ def vectorize(img_file_name):
         for i in xrange(FLAGS.extract_iter):
             start_time = time.time()
             img_line = linenet_manager.extract_line(img_line, px, py)
+            Image.fromarray(img_line).convert('L').save(img_extract_file_name % (num_line, i))
             duration = time.time() - start_time
             print('%s: line %d, extract line, iter %d (%.3f sec)' % (datetime.now(), num_line, i, duration))
 

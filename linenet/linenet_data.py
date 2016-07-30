@@ -163,60 +163,15 @@ def train_set(i, x_batch, y_batch, x_no_p_batch):
 def batch():
     x_batch = np.empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
     y_batch = np.empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
+    x_no_p_batch = np.empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
     for i in xrange(FLAGS.batch_size):
-        np.random.seed()
-        LINE1 = _create_a_path(FLAGS.path_type)
-        SVG_LINE1 = SVG_START_TEMPLATE.format(
-                width=FLAGS.image_size,
-                height=FLAGS.image_size
-            ) + LINE1 + SVG_END_TEMPLATE
+        train_set(i, x_batch, y_batch, x_no_p_batch)
 
-        SVG_MULTI_LINES = SVG_START_TEMPLATE.format(
-                width=FLAGS.image_size,
-                height=FLAGS.image_size
-            )
-        SVG_MULTI_LINES = SVG_MULTI_LINES + LINE1
-        for path_id in range(1, FLAGS.num_path):
-            SVG_MULTI_LINES = SVG_MULTI_LINES + _create_a_path(FLAGS.path_type)
-        SVG_MULTI_LINES = SVG_MULTI_LINES + SVG_END_TEMPLATE
+    x = np.reshape(x_batch[0,:,:], [FLAGS.image_size, FLAGS.image_size])
+    plt.imshow(x, cmap=plt.cm.gray)
+    plt.show()
 
-
-        # save y png
-        y_png = cairosvg.svg2png(bytestring=SVG_LINE1)
-        y_img = Image.open(io.BytesIO(y_png))
-
-        # load and normalize y to [0, 1]
-        y = np.array(y_img)[:,:,3].astype(np.float) / 255.0
-        # y = threshold(threshold(y, threshmin=0.5), threshmax=0.4, newval=1.0)
-        y_batch[i,:,:] = np.reshape(y, [FLAGS.image_size, FLAGS.image_size, 1])
-
-        plt.imshow(y, cmap=plt.cm.gray)
-        plt.show()
-
-        # select a random point on line1
-        line_ids = np.nonzero(y > 0.4)
-        # if len(line_ids) == 0:
-        #     print(xy)
-        point_id = np.random.randint(len(line_ids[0]))
-        px, py = line_ids[0][point_id], line_ids[1][point_id]
-        
-        # save x png
-        x_png = cairosvg.svg2png(bytestring=SVG_MULTI_LINES)
-        x_img = Image.open(io.BytesIO(x_png))
-        
-        # load and normalize y to [0, 0.1]
-        x = np.array(x_img)[:,:,3].astype(np.float) / 255.0
-        #x = threshold(threshold(x, threshmin=0.5), threshmax=0.4, newval=1.0/FLAGS.intensity_ratio)
-        x = x / FLAGS.intensity_ratio
-        x[px, py] = 1.0 # 0.2 for debug
-        
-        # debug
-        plt.imshow(x, cmap=plt.cm.gray)
-        plt.show()
-
-        x_batch[i,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
-                    
-    return x_batch, y_batch
+    return x_batch, y_batch, x_no_p_batch
 
 
 if __name__ == '__main__':

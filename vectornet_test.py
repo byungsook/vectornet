@@ -104,7 +104,9 @@ def sketch_simplify(img):
     return img
 
 
-def vectorize(img_file_name):
+def vectorize(linenet_manager, beziernet_manager, img_file_name):
+    print('%s: start to vectorize %s' % (datetime.now(), img_file_name))
+    
     # read a image and normalize
     img = _imread(img_file_name, inv=True)
     # # debug
@@ -126,13 +128,6 @@ def vectorize(img_file_name):
     # img_rec = _imread(img_rec_name, inv=True)
     # plt.imshow(img_rec, cmap=plt.cm.gray)
     # plt.show()
-
-    # create managers
-    start_time = time.time()
-    linenet_manager = LinenetManager(img.shape, FLAGS.linenet_ckpt)
-    beziernet_manager = BeziernetManager(FLAGS.beziernet_ckpt)
-    duration = time.time() - start_time
-    print('%s: manager loading (%.3f sec)' % (datetime.now(), duration))
 
     # vectorized lines
     lines = []
@@ -183,6 +178,13 @@ def vectorize(img_file_name):
 
 
 def test():
+    # create managers
+    start_time = time.time()
+    linenet_manager = LinenetManager(img.shape, FLAGS.linenet_ckpt)
+    beziernet_manager = BeziernetManager(FLAGS.beziernet_ckpt)
+    duration = time.time() - start_time
+    print('%s: manager loading (%.3f sec)' % (datetime.now(), duration))
+    
     for root, _, files in os.walk(FLAGS.data_dir):
         for file in files:
             if not file.lower().endswith('png'):
@@ -190,7 +192,7 @@ def test():
             # elif file.lower().endswith('_rec.png'):
             #     continue
             
-            vectorize(os.path.join(root, file))
+            vectorize(linenet_manager, beziernet_manager, os.path.join(root, file))
 
 
 def main(_):

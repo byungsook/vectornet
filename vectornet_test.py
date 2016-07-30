@@ -32,6 +32,10 @@ tf.app.flags.DEFINE_string('log_dir', 'log/test',
 tf.app.flags.DEFINE_string('data_dir', 'data/test1', # sketches/sketches_png/airplane',
                            """Directory where to write event logs """
                            """and checkpoint.""")
+tf.app.flags.DEFINE_integer('max_lines', 100,
+                           """maximum number of line to extract""")
+tf.app.flags.DEFINE_integer('extract_iter', 2,
+                           """iteration number for line extraction""")
 tf.app.flags.DEFINE_string('linenet_ckpt', 'linenet/log/r10p2/linenet.ckpt',
                            """linenet checkpoint file path.""")                           
 tf.app.flags.DEFINE_string('beziernet_ckpt', 'beziernet/log/bz_m1/beziernet.ckpt',
@@ -133,17 +137,19 @@ def vectorize(img_file_name):
 
     # (optional)
     img_simple = sketch_simplify(img)
-    for num_line in range(100):
+    for num_line in xrange(FLAGS.max_lines):
         start_time = time.time()                
         px, py = sample_pixel(img_simple, img_rec)
         duration = time.time() - start_time
         print('%s: line %d, sample pixel (%.3f sec)' % (datetime.now(), num_line, duration))
 
         # line extraction
-        start_time = time.time()                
-        img_line = linenet_manager.extract_line(img_simple, px, py)
-        duration = time.time() - start_time
-        print('%s: line %d, extract line (%.3f sec)' % (datetime.now(), num_line, duration))
+        img_line = img_simple
+        for i in xrange(FLAGS.extract_iter):
+            start_time = time.time()
+            img_line = linenet_manager.extract_line(img_line, px, py)
+            duration = time.time() - start_time
+            print('%s: line %d, extract line, iter %d (%.3f sec)' % (datetime.now(), num_line, i, duration))
 
         # # debug
         # plt.imshow(img_line, cmap=plt.cm.gray)

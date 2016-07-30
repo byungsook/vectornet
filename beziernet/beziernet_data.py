@@ -34,9 +34,6 @@ tf.app.flags.DEFINE_integer('batch_size', 128,
                             """Number of images to process in a batch.""")
 tf.app.flags.DEFINE_integer('process_num', 16,
                             """# processes for generating a batch""")
-# tf.app.flags.DEFINE_string('data_dir', 'data',
-#                             """Path to the Beziernet data directory.""")
-
 tf.app.flags.DEFINE_integer('image_size', 96, # 96-48-24-12-6
                             """Image Size.""")
 tf.app.flags.DEFINE_integer('xy_size', 8,

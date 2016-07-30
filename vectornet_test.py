@@ -161,7 +161,7 @@ def vectorize(img_file_name):
         line = beziernet_manager.fit_line(img_line)
         lines.append(line)
         duration = time.time() - start_time
-        print('%s: line %d, fit line (%.3f sec)' % (datetime.now(), num_line, duration))
+        print('%s: line %d, fit line, %s (%.3f sec)' % (datetime.now(), num_line, line, duration))
 
         # debug
         # xy = np.random.randint(low=0, high=min(img_simple.shape[0], img_simple.shape[1]), size=8)

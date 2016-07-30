@@ -58,7 +58,7 @@ class BeziernetManager(object):
 
         x = np.reshape(x, [1, FLAGS.image_size, FLAGS.image_size, 1])
         with self._graph.as_default():
-            y = self._sess.run(self._y_hat, feed_dict={self._phase_train: False, self._x: x})
+            y = self._sess.run(self._y_hat, feed_dict={self._phase_train: False, self._x: x})[0]
             
             y[0::2] *= scale_x
             y[1::2] *= scale_y

@@ -34,9 +34,9 @@ tf.app.flags.DEFINE_integer('min_length', 4,
                             """minimum length of a line.""")
 tf.app.flags.DEFINE_float('intensity_ratio', 10.0,
                           """intensity ratio of point to lines""")
-tf.app.flags.DEFINE_integer('num_path', 4,
+tf.app.flags.DEFINE_integer('num_path', 2,
                             """# paths for batch generation""")
-tf.app.flags.DEFINE_integer('path_type', 2,
+tf.app.flags.DEFINE_integer('path_type', 0,
                             """path type 0: line, 1: curve, 2: both""")
 
 SVG_START_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
@@ -63,7 +63,9 @@ class BatchManager(object):
         self.x_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
         self.y_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
         self.x_no_p_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
-        self._func = partial(train_set, x_batch=self.x_batch, y_batch=self.y_batch, x_no_p_batch=self.x_no_p_batch)
+        self.p_batch = self._mpmanager.np_empty([FLAGS.batch_size, 2], dtype=np.int)
+        self._func = partial(train_set, x_batch=self.x_batch, y_batch=self.y_batch, 
+                             x_no_p_batch=self.x_no_p_batch, p_batch=self.p_batch)
 
     def __del__(self):
         self._pool.terminate() # or close
@@ -71,7 +73,7 @@ class BatchManager(object):
 
     def batch(self):
         self._pool.map(self._func, range(FLAGS.batch_size))
-        return self.x_batch, self.y_batch, self.x_no_p_batch
+        return self.x_batch, self.y_batch, self.x_no_p_batch, self.p_batch
 
 
 def _create_a_line():
@@ -110,7 +112,18 @@ def _create_a_path(path_type):
     return path_selector[path_type]()
 
 
-def train_set(i, x_batch, y_batch, x_no_p_batch):
+def new_x_from_y_with_p(x_batch, y_batch, p_batch):
+    """ generate new x_batch from y_bath with p_batch """
+    for i in xrange(FLAGS.batch_size):
+        x = np.reshape(y_batch[i,:,:], [FLAGS.image_size, FLAGS.image_size])
+        x = x / FLAGS.intensity_ratio
+        x[p_batch[i,0],p_batch[i,1]] = 1.0
+        # plt.imshow(x, cmap=plt.cm.gray)
+        # plt.show()
+        x_batch[i,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
+
+
+def train_set(i, x_batch, y_batch, x_no_p_batch, p_batch):
     np.random.seed()
     LINE1 = _create_a_path(FLAGS.path_type)
     SVG_LINE1 = SVG_START_TEMPLATE.format(
@@ -159,19 +172,23 @@ def train_set(i, x_batch, y_batch, x_no_p_batch):
     x[px, py] = 1.0 # 0.2 for debug
     x_batch[i,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
 
+    p_batch[i,:] = [px, py]
 
-def batch():
+
+def batch(check_result=False):
     x_batch = np.empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
     y_batch = np.empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
     x_no_p_batch = np.empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
+    p_batch = np.empty([FLAGS.batch_size, 2], dtype=np.int)
     for i in xrange(FLAGS.batch_size):
-        train_set(i, x_batch, y_batch, x_no_p_batch)
+        train_set(i, x_batch, y_batch, x_no_p_batch, p_batch)
 
-    x = np.reshape(x_batch[0,:,:], [FLAGS.image_size, FLAGS.image_size])
-    plt.imshow(x, cmap=plt.cm.gray)
-    plt.show()
+    if check_result:
+        x = np.reshape(x_batch[0,:,:], [FLAGS.image_size, FLAGS.image_size])
+        plt.imshow(x, cmap=plt.cm.gray)
+        plt.show()
 
-    return x_batch, y_batch, x_no_p_batch
+    return x_batch, y_batch, x_no_p_batch, p_batch
 
 
 if __name__ == '__main__':

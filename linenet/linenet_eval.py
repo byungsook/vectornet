@@ -92,7 +92,7 @@ def evaluate():
             total_loss = 0
             for step in range(num_iter):
                 start_time = time.time()
-                x_batch, y_batch, x_no_p_batch = batch_manager.batch()
+                x_batch, y_batch, x_no_p_batch, _ = batch_manager.batch()
                 y_hat_value, loss_value = sess.run([y_hat, loss], feed_dict={phase_train: is_train,
                                                                              x: x_batch, y: y_batch,
                                                                              x_no_p: x_no_p_batch})

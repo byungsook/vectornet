@@ -22,7 +22,7 @@ import linenet_model
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('test_dir', 'test/test_p2_i10_n6400',
+tf.app.flags.DEFINE_string('test_dir', 'test/tmp',
                            """Directory where to write event logs """
                            """and checkpoint.""")
 tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', 'log/ratio_test/10_100000_30000_0.01/linenet.ckpt',
@@ -106,7 +106,7 @@ def test_iter():
                         summary_writer[i].add_summary(y_summary_str, step)
                         summary_writer[i].add_summary(y_hat_summary_str, step)
 
-
+                    # generate new x_batch from y_hat with p_batch
                     linenet_data.new_x_from_y_with_p(x_batch, y_hat_value, p_batch)
 
             for i in xrange(FLAGS.num_line_ext):
@@ -116,10 +116,6 @@ def test_iter():
 
                 loss_avg_summary_str = sess.run(loss_avg_summary, feed_dict={loss_avg: loss_avg_})
                 summary_writer[0].add_summary(loss_avg_summary_str, i)
-                
-                #loss_avg_summary_str = sess.run(loss_avg_summary[i], feed_dict={loss_avg[i]: loss_avg_})
-                #g_step = tf.train.global_step(sess, global_step)
-                #summary_writer[i].add_summary(loss_avg_summary_str, g_step)
 
     print('done')
 
@@ -137,7 +133,8 @@ def main(_):
     tf.gfile.MakeDirs(FLAGS.test_dir)
 
 
-    test_iter()
+    # test_iter()
+    test_intersect()
     
 
 if __name__ == '__main__':

@@ -112,6 +112,81 @@ def _create_a_path(path_type):
     return path_selector[path_type]()
 
 
+def batch_for_intersection_test():
+    center = [FLAGS.image_size*0.5] * 2
+    test_range = 5
+    
+    x_batch = np.empty([test_range*4+1, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
+    y_batch = np.empty([test_range*4+1, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
+    x_no_p_batch = np.empty([test_range*4+1, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
+    p_batch = np.empty([test_range*4+1, 2], dtype=np.int)
+
+    xy1 = [FLAGS.image_size*0.25, FLAGS.image_size*0.25, FLAGS.image_size*0.75, FLAGS.image_size*0.75]
+    xy2 = [FLAGS.image_size*0.25, FLAGS.image_size*0.75, FLAGS.image_size*0.75, FLAGS.image_size*0.25]
+
+    LINE1 = SVG_LINE_TEMPLATE.format(
+        id=0,
+        x1=xy1[0], y1=xy1[1],
+        x2=xy1[2], y2=xy1[3]
+    )
+
+    LINE2 = SVG_LINE_TEMPLATE.format(
+        id=1,
+        x1=xy2[0], y1=xy2[1],
+        x2=xy2[2], y2=xy2[3]
+    )
+
+    SVG_LINE1 = SVG_START_TEMPLATE.format(
+            width=FLAGS.image_size,
+            height=FLAGS.image_size
+    ) + LINE1 + SVG_END_TEMPLATE
+
+    SVG_LINE2 = SVG_START_TEMPLATE.format(
+            width=FLAGS.image_size,
+            height=FLAGS.image_size
+    ) + LINE2 + SVG_END_TEMPLATE
+
+    SVG_LINES = SVG_START_TEMPLATE.format(
+            width=FLAGS.image_size,
+            height=FLAGS.image_size
+    ) + LINE1 + LINE2 + SVG_END_TEMPLATE
+
+    y1_png = cairosvg.svg2png(bytestring=SVG_LINE1)
+    y1_img = Image.open(io.BytesIO(y1_png))
+    y1 = np.array(y1_img)[:,:,3].astype(np.float) / 255.0
+
+    y2_png = cairosvg.svg2png(bytestring=SVG_LINE2)
+    y2_img = Image.open(io.BytesIO(y2_png))
+    y2 = np.array(y2_img)[:,:,3].astype(np.float) / 255.0
+
+    x_png = cairosvg.svg2png(bytestring=SVG_LINES)
+    x_img = Image.open(io.BytesIO(x_png))
+    x_no_p = np.array(x_img)[:,:,3].astype(np.float) / 255.0
+    x = x_no_p / FLAGS.intensity_ratio
+    
+    j = 0
+    for r in xrange(-test_range, test_range+1):
+        y_batch[j,:,:] = np.reshape(y1, [FLAGS.image_size, FLAGS.image_size, 1])
+        x_no_p_batch[j,:,:] = np.reshape(x_no_p, [FLAGS.image_size, FLAGS.image_size, 1])
+        p_batch[j] = [center[0]+r, center[1]+r]
+        tmp = x[p_batch[j,0],p_batch[j,1]]
+        x[p_batch[j,0],p_batch[j,1]] = 1.0
+        x_batch[j,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
+        x[p_batch[j,0],p_batch[j,1]] = tmp
+
+        j = j + 1
+        if r != 0:
+            y_batch[j,:,:] = np.reshape(y2, [FLAGS.image_size, FLAGS.image_size, 1])
+            x_no_p_batch[j,:,:] = np.reshape(x_no_p, [FLAGS.image_size, FLAGS.image_size, 1])
+            p_batch[j] = [center[0]+r, center[1]-r]
+            tmp = x[p_batch[j,0],p_batch[j,1]]
+            x[p_batch[j,0],p_batch[j,1]] = 1.0
+            x_batch[j,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
+            x[p_batch[j,0],p_batch[j,1]] = tmp
+    
+    return x_batch, y_batch, x_no_p_batch, p_batch
+
+
 def new_x_from_y_with_p(x_batch, y_batch, p_batch):
     """ generate new x_batch from y_bath with p_batch """
     for i in xrange(FLAGS.batch_size):

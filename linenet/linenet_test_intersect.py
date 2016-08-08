@@ -103,8 +103,8 @@ def test_intersect():
             x_summary_tmp.ParseFromString(x_summary_str)
             y_summary_tmp.ParseFromString(y_summary_str)
             y_hat_summary_tmp.ParseFromString(y_hat_summary_str)
-            for i in xrange(FLAGS.max_images):
-                new_tag = '%06d/%03d' % (step, i)
+            for i in xrange(num_images):
+                new_tag = '%02d' % i
                 x_no_p_summary_tmp.value[i].tag = new_tag
                 x_summary_tmp.value[i].tag = new_tag
                 y_summary_tmp.value[i].tag = new_tag

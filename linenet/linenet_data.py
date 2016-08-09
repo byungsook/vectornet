@@ -13,6 +13,8 @@ import os
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import numpy as np
 from scipy.misc import imread
+from scipy import ndimage
+from scipy.misc import face
 from scipy.stats import threshold
 import cairosvg
 import matplotlib.pyplot as plt
@@ -28,7 +30,7 @@ import tensorflow as tf
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_integer('batch_size', 64,
                             """Number of images to process in a batch.""")
-tf.app.flags.DEFINE_integer('image_size', 48, # 48-24-12-6
+tf.app.flags.DEFINE_integer('image_size', 96, # 48-24-12-6
                             """Image Size.""")
 tf.app.flags.DEFINE_integer('min_length', 4,
                             """minimum length of a line.""")
@@ -52,7 +54,7 @@ class BatchManager(object):
     """
     Batch Manager using multiprocessing
     """
-    def __init__(self):
+    def __init__(self, noise_on=False):
         class MPManager(multiprocessing.managers.BaseManager):
             pass
         MPManager.register('np_empty', np.empty, multiprocessing.managers.ArrayProxy)
@@ -65,7 +67,8 @@ class BatchManager(object):
         self.x_no_p_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
         self.p_batch = self._mpmanager.np_empty([FLAGS.batch_size, 2], dtype=np.int)
         self._func = partial(train_set, x_batch=self.x_batch, y_batch=self.y_batch, 
-                             x_no_p_batch=self.x_no_p_batch, p_batch=self.p_batch)
+                             x_no_p_batch=self.x_no_p_batch, p_batch=self.p_batch,
+                             noise_on=noise_on)
 
     def __del__(self):
         self._pool.terminate() # or close
@@ -110,6 +113,46 @@ def _create_a_path(path_type):
         1: _create_a_cubic_bezier_curve
     }
     return path_selector[path_type]()
+
+
+def slur_image(img):
+    # img = face(gray=True)
+    # plt.imshow(img, cmap=plt.cm.gray)
+    # plt.show()
+
+    # gaussian blur
+    gauss_denoised = ndimage.gaussian_filter(img, 0.1)
+    # plt.imshow(gauss_denoised, cmap=plt.cm.gray)
+    # plt.show()
+
+    # duplicate 2-6 randomly
+    num_duplicates = np.random.randint(low=2, high=7)
+    weight = 1.0 / num_duplicates
+
+    blend = np.empty(img.shape)
+    for i in xrange(num_duplicates):
+        # translate
+        shift_pixel = 2
+        rnd_offset = np.random.rand(2) * 2.0 - 1.0
+        shifted_face = ndimage.shift(gauss_denoised, rnd_offset * shift_pixel)
+        
+        # rotate
+        rotate_degree = 2
+        rnd_offset = np.random.rand(1) * 2.0 - 1.0
+        rotated_face = ndimage.rotate(shifted_face, rnd_offset * rotate_degree, reshape=False)        
+
+        # blend duplicates
+        blend = blend + weight * rotated_face
+        
+    # add noise
+    noise_intensity = 20.0
+    noisy = blend + noise_intensity * np.random.randn(*blend.shape)
+
+    noisy = np.clip(noisy, a_min=0.0, a_max=255.0) / 255.0
+    plt.imshow(noisy, cmap=plt.cm.gray)
+    plt.show()    
+    
+    return noisy
 
 
 def batch_for_intersection_test():
@@ -199,7 +242,7 @@ def new_x_from_y_with_p(x_batch, y_batch, p_batch):
         x_batch[i,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
 
 
-def train_set(i, x_batch, y_batch, x_no_p_batch, p_batch):
+def train_set(i, x_batch, y_batch, x_no_p_batch, p_batch, noise_on):
     np.random.seed()
     LINE1 = _create_a_path(FLAGS.path_type)
     SVG_LINE1 = SVG_START_TEMPLATE.format(
@@ -240,7 +283,10 @@ def train_set(i, x_batch, y_batch, x_no_p_batch, p_batch):
     # x_img = Image.open('log/ratio_test/png/%d_x_img%d.png' % (step, i))
 
     # load and normalize y to [0, 0.1]
-    x = np.array(x_img)[:,:,3].astype(np.float) / 255.0
+    if noise_on:
+        x = slur_image(np.array(x_img)[:,:,3])
+    else:
+        x = np.array(x_img)[:,:,3].astype(np.float) / 255.0
     x_no_p_batch[i,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
 
     # x = threshold(threshold(x, threshmin=0.5), threshmax=0.4, newval=1.0/FLAGS.intensity_ratio)
@@ -256,8 +302,9 @@ def batch(check_result=False):
     y_batch = np.empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
     x_no_p_batch = np.empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
     p_batch = np.empty([FLAGS.batch_size, 2], dtype=np.int)
+    noise_on = True
     for i in xrange(FLAGS.batch_size):
-        train_set(i, x_batch, y_batch, x_no_p_batch, p_batch)
+        train_set(i, x_batch, y_batch, x_no_p_batch, p_batch, noise_on)
 
     if check_result:
         x = np.reshape(x_batch[0,:,:], [FLAGS.image_size, FLAGS.image_size])

@@ -70,7 +70,7 @@ def train():
         # return
 
         # Get input and output image
-        batch_manager = linenet_data.BatchManager()
+        batch_manager = linenet_data.BatchManager(noise_on=True)
 
         x = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
         y = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])

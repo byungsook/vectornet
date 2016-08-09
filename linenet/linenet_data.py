@@ -12,9 +12,8 @@ import os
 
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import numpy as np
-from scipy.misc import imread
 from scipy import ndimage
-from scipy.misc import face
+from scipy.misc import imread
 from scipy.stats import threshold
 import cairosvg
 import matplotlib.pyplot as plt
@@ -40,6 +39,9 @@ tf.app.flags.DEFINE_integer('num_path', 2,
                             """# paths for batch generation""")
 tf.app.flags.DEFINE_integer('path_type', 0,
                             """path type 0: line, 1: curve, 2: both""")
+tf.app.flags.DEFINE_boolean('noise_on', False,
+                            """noise on/off""")
+
 
 SVG_START_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
@@ -54,7 +56,7 @@ class BatchManager(object):
     """
     Batch Manager using multiprocessing
     """
-    def __init__(self, noise_on=False):
+    def __init__(self):
         class MPManager(multiprocessing.managers.BaseManager):
             pass
         MPManager.register('np_empty', np.empty, multiprocessing.managers.ArrayProxy)
@@ -68,7 +70,7 @@ class BatchManager(object):
         self.p_batch = self._mpmanager.np_empty([FLAGS.batch_size, 2], dtype=np.int)
         self._func = partial(train_set, x_batch=self.x_batch, y_batch=self.y_batch, 
                              x_no_p_batch=self.x_no_p_batch, p_batch=self.p_batch,
-                             noise_on=noise_on)
+                             noise_on=FLAGS.noise_on)
 
     def __del__(self):
         self._pool.terminate() # or close
@@ -149,8 +151,8 @@ def slur_image(img):
     noisy = blend + noise_intensity * np.random.randn(*blend.shape)
 
     noisy = np.clip(noisy, a_min=0.0, a_max=255.0) / 255.0
-    plt.imshow(noisy, cmap=plt.cm.gray)
-    plt.show()    
+    # plt.imshow(noisy, cmap=plt.cm.gray)
+    # plt.show()    
     
     return noisy
 

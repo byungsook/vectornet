@@ -29,7 +29,7 @@ import tensorflow as tf
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_integer('batch_size', 64,
                             """Number of images to process in a batch.""")
-tf.app.flags.DEFINE_integer('image_size', 96, # 48-24-12-6
+tf.app.flags.DEFINE_integer('image_size', 48, # 48-24-12-6
                             """Image Size.""")
 tf.app.flags.DEFINE_integer('min_length', 4,
                             """minimum length of a line.""")
@@ -152,7 +152,7 @@ def slur_image(img):
 
     noisy = np.clip(noisy, a_min=0.0, a_max=255.0) / 255.0
     # plt.imshow(noisy, cmap=plt.cm.gray)
-    # plt.show()    
+    # plt.show()
     
     return noisy
 

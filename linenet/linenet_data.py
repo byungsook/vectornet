@@ -29,6 +29,8 @@ import tensorflow as tf
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_integer('batch_size', 64,
                             """Number of images to process in a batch.""")
+tf.app.flags.DEFINE_integer('num_processors', 16,
+                            """# of processors for batch generation.""")
 tf.app.flags.DEFINE_integer('image_size', 48, # 48-24-12-6
                             """Image Size.""")
 tf.app.flags.DEFINE_integer('min_length', 4,
@@ -41,6 +43,16 @@ tf.app.flags.DEFINE_integer('path_type', 0,
                             """path type 0: line, 1: curve, 2: both""")
 tf.app.flags.DEFINE_boolean('noise_on', False,
                             """noise on/off""")
+tf.app.flags.DEFINE_integer('noise_rot_deg', 5,
+                            """rotation degree for noise generation""")
+tf.app.flags.DEFINE_integer('noise_trans_pix', 3,
+                            """translation pixel for noise generation""")
+tf.app.flags.DEFINE_integer('noise_duplicate_min', 2,
+                            """min # duplicates for noise generation""")
+tf.app.flags.DEFINE_integer('noise_duplicate_max', 6,
+                            """max # duplicates for noise generation""")
+tf.app.flags.DEFINE_float('noise_intensity', 30,
+                          """unifor noise intensity""")
 
 
 SVG_START_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
@@ -63,7 +75,7 @@ class BatchManager(object):
 
         self._mpmanager = MPManager()
         self._mpmanager.start()
-        self._pool = Pool(processes=8)
+        self._pool = Pool(processes=FLAGS.num_processors)
         self.x_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
         self.y_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
         self.x_no_p_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
@@ -127,29 +139,25 @@ def slur_image(img):
     # plt.imshow(gauss_denoised, cmap=plt.cm.gray)
     # plt.show()
 
-    # duplicate 2-6 randomly
-    num_duplicates = np.random.randint(low=2, high=7)
+    # duplicate
+    num_duplicates = np.random.randint(low=FLAGS.noise_duplicate_min, high=FLAGS.noise_duplicate_max+1)
     weight = 1.0 / num_duplicates
 
-    blend = np.empty(img.shape)
+    blend = gauss_denoised
     for i in xrange(num_duplicates):
-        # translate
-        shift_pixel = 2
-        rnd_offset = np.random.rand(2) * 2.0 - 1.0
-        shifted_face = ndimage.shift(gauss_denoised, rnd_offset * shift_pixel)
-        
         # rotate
-        rotate_degree = 2
         rnd_offset = np.random.rand(1) * 2.0 - 1.0
-        rotated_face = ndimage.rotate(shifted_face, rnd_offset * rotate_degree, reshape=False)        
-
-        # blend duplicates
-        blend = blend + weight * rotated_face
+        rotated_face = ndimage.rotate(gauss_denoised, rnd_offset * FLAGS.noise_rot_deg, reshape=False)
         
-    # add noise
-    noise_intensity = 20.0
-    noisy = blend + noise_intensity * np.random.randn(*blend.shape)
+        # translate
+        rnd_offset = np.random.rand(2) * 2.0 - 1.0
+        shifted_face = ndimage.shift(rotated_face, rnd_offset * FLAGS.noise_trans_pix)
+        
+        # blend duplicates
+        blend = blend + weight * shifted_face
 
+    # add noise
+    noisy = blend + FLAGS.noise_intensity * np.random.randn(*blend.shape)
     noisy = np.clip(noisy, a_min=0.0, a_max=255.0) / 255.0
     # plt.imshow(noisy, cmap=plt.cm.gray)
     # plt.show()
@@ -295,6 +303,9 @@ def train_set(i, x_batch, y_batch, x_no_p_batch, p_batch, noise_on):
     x = x / FLAGS.intensity_ratio
     x[px, py] = 1.0 # 0.2 for debug
     x_batch[i,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
+
+    # plt.imshow(x, cmap=plt.cm.gray)
+    # plt.show()
 
     p_batch[i,:] = [px, py]
 

@@ -149,6 +149,7 @@ def train():
         summary_x_writer = tf.train.SummaryWriter(FLAGS.log_dir + '/x', sess.graph)
         summary_y_writer = tf.train.SummaryWriter(FLAGS.log_dir + '/y', sess.graph)
         summary_y_hat_writer = tf.train.SummaryWriter(FLAGS.log_dir + '/y_hat', sess.graph)
+        x_no_p_summary = tf.image_summary('x_no_p', x_no_p, max_images=FLAGS.max_images)
         x_summary = tf.image_summary('x', x, max_images=FLAGS.max_images)
         y_summary = tf.image_summary('y', y, max_images=FLAGS.max_images)
         y_hat_summary = tf.image_summary('y_hat', y_hat, max_images=FLAGS.max_images)
@@ -180,24 +181,28 @@ def train():
 
             # Write the summary periodically.
             if step % FLAGS.summary_steps == 0 or step < 100:
-                summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
-                    [summary_op, x_summary, y_summary, y_hat_summary],
+                summary_str, x_no_p_summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
+                    [summary_op, x_no_p_summary, x_summary, y_summary, y_hat_summary],
                     feed_dict={phase_train: is_train, x: x_batch, y: y_batch, x_no_p: x_no_p_batch})
 
                 summary_writer.add_summary(summary_str, step)
                 
+                x_no_p_summary_tmp = tf.Summary()
                 x_summary_tmp = tf.Summary()
                 y_summary_tmp = tf.Summary()
                 y_hat_summary_tmp = tf.Summary()
+                x_no_p_summary_tmp.ParseFromString(x_no_p_summary_str)
                 x_summary_tmp.ParseFromString(x_summary_str)
                 y_summary_tmp.ParseFromString(y_summary_str)
                 y_hat_summary_tmp.ParseFromString(y_hat_summary_str)
                 for i in xrange(FLAGS.max_images):
                     new_tag = '%06d/%03d' % (step, i)
+                    x_no_p_summary_tmp.value[i].tag = new_tag
                     x_summary_tmp.value[i].tag = new_tag
                     y_summary_tmp.value[i].tag = new_tag
                     y_hat_summary_tmp.value[i].tag = new_tag
 
+                summary_writer.add_summary(x_no_p_summary_tmp, step)
                 summary_x_writer.add_summary(x_summary_tmp, step)
                 summary_y_writer.add_summary(y_summary_tmp, step)
                 summary_y_hat_writer.add_summary(y_hat_summary_tmp, step)

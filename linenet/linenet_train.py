@@ -21,7 +21,7 @@ import linenet_model
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('log_dir', 'log/test_model2',
+tf.app.flags.DEFINE_string('log_dir', 'log/test',
                            """Directory where to write event logs """
                            """and checkpoint.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
@@ -57,7 +57,7 @@ def train():
         global_step = tf.Variable(0, name='global_step', trainable=False)
         is_train = True
         phase_train = tf.placeholder(tf.bool, name='phase_train')
-        
+
         # debug
         # start_time = time.time()
         # x_batch, y_batch = linenet_data.batch()
@@ -67,12 +67,18 @@ def train():
         # batch_manager = linenet_data.BatchManager()
         # x_batch, y_batch = batch_manager.batch()
         # print('duration %0.3f' % (time.time() - start_time))
+        # x_batch, _, _, _ = batch_manager.batch()
+        # t = np.concatenate((x_batch, np.zeros([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1])), axis=3)
+        # import matplotlib.pyplot as plt
+        # plt.imshow(t[0,:,:,:], cmap=plt.cm.gray)
+        # plt.show()
         # return
 
         # Get input and output image
         batch_manager = linenet_data.BatchManager()
 
-        x = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
+        input_depth = 2 if FLAGS.use_two_channels else 1
+        x = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, input_depth])
         y = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
         x_no_p = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
             
@@ -150,7 +156,12 @@ def train():
         summary_y_writer = tf.train.SummaryWriter(FLAGS.log_dir + '/y', sess.graph)
         summary_y_hat_writer = tf.train.SummaryWriter(FLAGS.log_dir + '/y_hat', sess.graph)
         x_no_p_summary = tf.image_summary('x_no_p', x_no_p, max_images=FLAGS.max_images)
-        x_summary = tf.image_summary('x', x, max_images=FLAGS.max_images)
+        if FLAGS.use_two_channels:
+            p = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 3])
+            x_summary = tf.image_summary('x', p, max_images=FLAGS.max_images)
+            b_channel = np.zeros([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1]) # to make x RGB
+        else:
+            x_summary = tf.image_summary('x', x, max_images=FLAGS.max_images)
         y_summary = tf.image_summary('y', y, max_images=FLAGS.max_images)
         y_hat_summary = tf.image_summary('y_hat', y_hat, max_images=FLAGS.max_images)
 
@@ -181,9 +192,15 @@ def train():
 
             # Write the summary periodically.
             if step % FLAGS.summary_steps == 0 or step < 100:
-                summary_str, x_no_p_summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
-                    [summary_op, x_no_p_summary, x_summary, y_summary, y_hat_summary],
-                    feed_dict={phase_train: is_train, x: x_batch, y: y_batch, x_no_p: x_no_p_batch})
+                if FLAGS.use_two_channels:
+                    summary_str, x_no_p_summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
+                        [summary_op, x_no_p_summary, x_summary, y_summary, y_hat_summary],
+                        feed_dict={phase_train: is_train, x: x_batch, y: y_batch, x_no_p: x_no_p_batch, 
+                        p: np.concatenate((x_batch, b_channel), axis=3)})
+                else:
+                    summary_str, x_no_p_summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
+                        [summary_op, x_no_p_summary, x_summary, y_summary, y_hat_summary],
+                        feed_dict={phase_train: is_train, x: x_batch, y: y_batch, x_no_p: x_no_p_batch})
 
                 summary_writer.add_summary(summary_str, step)
                 

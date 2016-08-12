@@ -53,6 +53,8 @@ tf.app.flags.DEFINE_integer('noise_duplicate_max', 6,
                             """max # duplicates for noise generation""")
 tf.app.flags.DEFINE_float('noise_intensity', 30,
                           """unifor noise intensity""")
+tf.app.flags.DEFINE_boolean('use_two_channels', False,
+                            """use two channels for input""")
 
 
 SVG_START_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
@@ -76,13 +78,13 @@ class BatchManager(object):
         self._mpmanager = MPManager()
         self._mpmanager.start()
         self._pool = Pool(processes=FLAGS.num_processors)
-        self.x_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
+        input_depth = 2 if FLAGS.use_two_channels else 1
+        self.x_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, input_depth], dtype=np.float)
         self.y_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
         self.x_no_p_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
         self.p_batch = self._mpmanager.np_empty([FLAGS.batch_size, 2], dtype=np.int)
         self._func = partial(train_set, x_batch=self.x_batch, y_batch=self.y_batch, 
-                             x_no_p_batch=self.x_no_p_batch, p_batch=self.p_batch,
-                             noise_on=FLAGS.noise_on)
+                             x_no_p_batch=self.x_no_p_batch, p_batch=self.p_batch)
 
     def __del__(self):
         self._pool.terminate() # or close
@@ -304,7 +306,7 @@ def new_x_from_y_with_p(x_batch, y_batch, p_batch):
         x_batch[i,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
 
 
-def train_set(i, x_batch, y_batch, x_no_p_batch, p_batch, noise_on):
+def train_set(i, x_batch, y_batch, x_no_p_batch, p_batch):
     np.random.seed()
     LINE1 = _create_a_path(FLAGS.path_type)
     SVG_LINE1 = SVG_START_TEMPLATE.format(
@@ -344,41 +346,55 @@ def train_set(i, x_batch, y_batch, x_no_p_batch, p_batch, noise_on):
     # x_img.save('log/png/x_img%d.png' % i)
     # x_img = Image.open('log/ratio_test/png/%d_x_img%d.png' % (step, i))
 
-    # load and normalize y to [0, 0.1]
-    if noise_on:
-        x = slur_image(np.array(x_img)[:,:,3])
-    else:
+    if FLAGS.use_two_channels:
         x = np.array(x_img)[:,:,3].astype(np.float) / 255.0
-    x_no_p_batch[i,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
+        x_no_p_batch[i,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1]) 
+        x_batch[i,:,:,0] = x
 
-    # x = threshold(threshold(x, threshmin=0.5), threshmax=0.4, newval=1.0/FLAGS.intensity_ratio)
-    x = x / FLAGS.intensity_ratio
-    x[px, py] = 1.0 # 0.2 for debug
-    x_batch[i,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
+        x_point = np.zeros(x.shape)
+        x_point[px, py] = 1.0
+        x_batch[i,:,:,1] = x_point
+    else:
+        # load and normalize y to [0, 0.1]
+        if FLAGS.noise_on:
+            x = slur_image(np.array(x_img)[:,:,3])
+        else:
+            x = np.array(x_img)[:,:,3].astype(np.float) / 255.0
+        x_no_p_batch[i,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
 
-    # plt.imshow(x, cmap=plt.cm.gray)
-    # plt.show()
+        # x = threshold(threshold(x, threshmin=0.5), threshmax=0.4, newval=1.0/FLAGS.intensity_ratio)
+        x = x / FLAGS.intensity_ratio
+        x[px, py] = 1.0 # 0.2 for debug
+        x_batch[i,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
+
+        # plt.imshow(x, cmap=plt.cm.gray)
+        # plt.show()
 
     p_batch[i,:] = [px, py]
 
 
 def batch(check_result=False):
-    x_batch = np.empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
+    input_depth = 2 if FLAGS.use_two_channels else 1
+    x_batch = np.empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, input_depth], dtype=np.float)
     y_batch = np.empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
     x_no_p_batch = np.empty([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
     p_batch = np.empty([FLAGS.batch_size, 2], dtype=np.int)
-    noise_on = True
     for i in xrange(FLAGS.batch_size):
-        train_set(i, x_batch, y_batch, x_no_p_batch, p_batch, noise_on)
+        train_set(i, x_batch, y_batch, x_no_p_batch, p_batch)
 
     if check_result:
-        x = np.reshape(x_batch[0,:,:], [FLAGS.image_size, FLAGS.image_size])
-        plt.imshow(x, cmap=plt.cm.gray)
-        plt.show()
+        if FLAGS.use_two_channels:
+            t = np.concatenate((x_batch, np.zeros([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1])), axis=3)
+            plt.imshow(t[0,:,:,:], cmap=plt.cm.gray)
+            plt.show()
+        else:
+            x = np.reshape(x_batch[0,:,:], [FLAGS.image_size, FLAGS.image_size])
+            plt.imshow(x, cmap=plt.cm.gray)
+            plt.show()
 
     return x_batch, y_batch, x_no_p_batch, p_batch
 
 
 if __name__ == '__main__':
     # test
-    batch()
+    batch(True)

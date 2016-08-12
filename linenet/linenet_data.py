@@ -178,8 +178,8 @@ def batch_for_intersection_test():
     # / \ - |
     xy1 = [FLAGS.image_size*0.25, FLAGS.image_size*0.25, FLAGS.image_size*0.75, FLAGS.image_size*0.75]
     xy2 = [FLAGS.image_size*0.25, FLAGS.image_size*0.75, FLAGS.image_size*0.75, FLAGS.image_size*0.25]
-    xy3 = [                    0, FLAGS.image_size*0.50, FLAGS.image_size,      FLAGS.image_size*0.50]
-    xy4 = [FLAGS.image_size*0.50,                     0, FLAGS.image_size*0.50, FLAGS.image_size]
+    xy3 = [FLAGS.image_size*0.25, FLAGS.image_size*0.50, FLAGS.image_size*0.75, FLAGS.image_size*0.50]
+    xy4 = [FLAGS.image_size*0.50, FLAGS.image_size*0.25, FLAGS.image_size*0.50, FLAGS.image_size*0.75]
 
     LINE1 = SVG_LINE_TEMPLATE.format(
         id=1,

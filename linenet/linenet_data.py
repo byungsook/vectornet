@@ -239,7 +239,7 @@ def batch_for_intersection_test():
 
     y3_png = cairosvg.svg2png(bytestring=SVG_LINE3)
     y3_img = Image.open(io.BytesIO(y3_png))
-    y3 = np.array(y4_img)[:,:,3].astype(np.float) / 255.0
+    y3 = np.array(y3_img)[:,:,3].astype(np.float) / 255.0
 
     y4_png = cairosvg.svg2png(bytestring=SVG_LINE4)
     y4_img = Image.open(io.BytesIO(y4_png))

@@ -274,7 +274,7 @@ def batch_for_intersection_test():
 
             y_batch[j,:,:] = np.reshape(y3, [FLAGS.image_size, FLAGS.image_size, 1])
             x_no_p_batch[j,:,:] = np.reshape(x_no_p, [FLAGS.image_size, FLAGS.image_size, 1])
-            p_batch[j] = [center[0]+r, center[1]]
+            p_batch[j] = [center[0], center[1]+r]
             tmp = x[p_batch[j,0],p_batch[j,1]]
             x[p_batch[j,0],p_batch[j,1]] = 1.0
             x_batch[j,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
@@ -283,7 +283,7 @@ def batch_for_intersection_test():
 
             y_batch[j,:,:] = np.reshape(y4, [FLAGS.image_size, FLAGS.image_size, 1])
             x_no_p_batch[j,:,:] = np.reshape(x_no_p, [FLAGS.image_size, FLAGS.image_size, 1])
-            p_batch[j] = [center[0], center[1]-r]
+            p_batch[j] = [center[0]+r, center[1]]
             tmp = x[p_batch[j,0],p_batch[j,1]]
             x[p_batch[j,0],p_batch[j,1]] = 1.0
             x_batch[j,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])

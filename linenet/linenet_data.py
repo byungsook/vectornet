@@ -174,19 +174,34 @@ def batch_for_intersection_test():
     x_no_p_batch = np.empty([test_range*4+1, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
     p_batch = np.empty([test_range*4+1, 2], dtype=np.int)
 
+    # / \ - |
     xy1 = [FLAGS.image_size*0.25, FLAGS.image_size*0.25, FLAGS.image_size*0.75, FLAGS.image_size*0.75]
     xy2 = [FLAGS.image_size*0.25, FLAGS.image_size*0.75, FLAGS.image_size*0.75, FLAGS.image_size*0.25]
+    xy3 = [                    0, FLAGS.image_size*0.50, FLAGS.image_size,      FLAGS.image_size*0.50]
+    xy4 = [FLAGS.image_size*0.50,                     0, FLAGS.image_size*0.50, FLAGS.image_size]
 
     LINE1 = SVG_LINE_TEMPLATE.format(
-        id=0,
+        id=1,
         x1=xy1[0], y1=xy1[1],
         x2=xy1[2], y2=xy1[3]
     )
 
     LINE2 = SVG_LINE_TEMPLATE.format(
-        id=1,
+        id=2,
         x1=xy2[0], y1=xy2[1],
         x2=xy2[2], y2=xy2[3]
+    )
+
+    LINE3 = SVG_LINE_TEMPLATE.format(
+        id=3,
+        x1=xy3[0], y1=xy3[1],
+        x2=xy3[2], y2=xy3[3]
+    )
+
+    LINE4 = SVG_LINE_TEMPLATE.format(
+        id=4,
+        x1=xy4[0], y1=xy4[1],
+        x2=xy4[2], y2=xy4[3]
     )
 
     SVG_LINE1 = SVG_START_TEMPLATE.format(
@@ -199,10 +214,20 @@ def batch_for_intersection_test():
             height=FLAGS.image_size
     ) + LINE2 + SVG_END_TEMPLATE
 
+    SVG_LINE3 = SVG_START_TEMPLATE.format(
+            width=FLAGS.image_size,
+            height=FLAGS.image_size
+    ) + LINE3 + SVG_END_TEMPLATE
+
+    SVG_LINE4 = SVG_START_TEMPLATE.format(
+            width=FLAGS.image_size,
+            height=FLAGS.image_size
+    ) + LINE4 + SVG_END_TEMPLATE
+
     SVG_LINES = SVG_START_TEMPLATE.format(
             width=FLAGS.image_size,
             height=FLAGS.image_size
-    ) + LINE1 + LINE2 + SVG_END_TEMPLATE
+    ) + LINE1 + LINE2 + LINE3 + LINE4 + SVG_END_TEMPLATE
 
     y1_png = cairosvg.svg2png(bytestring=SVG_LINE1)
     y1_img = Image.open(io.BytesIO(y1_png))
@@ -211,6 +236,14 @@ def batch_for_intersection_test():
     y2_png = cairosvg.svg2png(bytestring=SVG_LINE2)
     y2_img = Image.open(io.BytesIO(y2_png))
     y2 = np.array(y2_img)[:,:,3].astype(np.float) / 255.0
+
+    y3_png = cairosvg.svg2png(bytestring=SVG_LINE3)
+    y3_img = Image.open(io.BytesIO(y3_png))
+    y3 = np.array(y4_img)[:,:,3].astype(np.float) / 255.0
+
+    y4_png = cairosvg.svg2png(bytestring=SVG_LINE4)
+    y4_img = Image.open(io.BytesIO(y4_png))
+    y4 = np.array(y4_img)[:,:,3].astype(np.float) / 255.0
 
     x_png = cairosvg.svg2png(bytestring=SVG_LINES)
     x_img = Image.open(io.BytesIO(x_png))
@@ -232,6 +265,24 @@ def batch_for_intersection_test():
             y_batch[j,:,:] = np.reshape(y2, [FLAGS.image_size, FLAGS.image_size, 1])
             x_no_p_batch[j,:,:] = np.reshape(x_no_p, [FLAGS.image_size, FLAGS.image_size, 1])
             p_batch[j] = [center[0]+r, center[1]-r-1]
+            tmp = x[p_batch[j,0],p_batch[j,1]]
+            x[p_batch[j,0],p_batch[j,1]] = 1.0
+            x_batch[j,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
+            x[p_batch[j,0],p_batch[j,1]] = tmp
+            j = j + 1
+
+            y_batch[j,:,:] = np.reshape(y3, [FLAGS.image_size, FLAGS.image_size, 1])
+            x_no_p_batch[j,:,:] = np.reshape(x_no_p, [FLAGS.image_size, FLAGS.image_size, 1])
+            p_batch[j] = [center[0]+r, center[1]]
+            tmp = x[p_batch[j,0],p_batch[j,1]]
+            x[p_batch[j,0],p_batch[j,1]] = 1.0
+            x_batch[j,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
+            x[p_batch[j,0],p_batch[j,1]] = tmp
+            j = j + 1
+
+            y_batch[j,:,:] = np.reshape(y4, [FLAGS.image_size, FLAGS.image_size, 1])
+            x_no_p_batch[j,:,:] = np.reshape(x_no_p, [FLAGS.image_size, FLAGS.image_size, 1])
+            p_batch[j] = [center[0], center[1]-r]
             tmp = x[p_batch[j,0],p_batch[j,1]]
             x[p_batch[j,0],p_batch[j,1]] = 1.0
             x_batch[j,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])

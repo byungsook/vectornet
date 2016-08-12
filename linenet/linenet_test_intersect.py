@@ -35,7 +35,6 @@ def test_intersect():
         is_train = False
         phase_train = tf.placeholder(tf.bool, name='phase_train')
         
-        batch_manager = linenet_data.BatchManager()
         x = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
         y = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
         x_no_p = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
@@ -55,12 +54,11 @@ def test_intersect():
         loss_ph = tf.placeholder(tf.float32)
         loss_summary = tf.scalar_summary('l2 loss (raw)', loss_ph)
         
-        summary_x_no_p_writer = tf.train.SummaryWriter(FLAGS.test_dir + '/x_no_p', g)
         summary_x_writer = tf.train.SummaryWriter(FLAGS.test_dir + '/x', g)
         summary_y_writer = tf.train.SummaryWriter(FLAGS.test_dir + '/y', g)
         summary_y_hat_writer = tf.train.SummaryWriter(FLAGS.test_dir + '/y_hat', g)
 
-        num_images = 21
+        num_images = 41
         x_no_p_summary = tf.image_summary('x_no_p', x_no_p, max_images=num_images)
         x_summary = tf.image_summary('x', x, max_images=num_images)
         y_summary = tf.image_summary('y', y, max_images=num_images)
@@ -110,7 +108,7 @@ def test_intersect():
                 y_summary_tmp.value[i].tag = new_tag
                 y_hat_summary_tmp.value[i].tag = new_tag
 
-            summary_x_no_p_writer.add_summary(x_no_p_summary_tmp, step)
+            summary_writer.add_summary(x_no_p_summary_tmp, step)
             summary_x_writer.add_summary(x_summary_tmp, step)
             summary_y_writer.add_summary(y_summary_tmp, step)
             summary_y_hat_writer.add_summary(y_hat_summary_tmp, step)            

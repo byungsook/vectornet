@@ -168,11 +168,12 @@ def slur_image(img):
 def batch_for_intersection_test():
     center = [FLAGS.image_size*0.5] * 2
     test_range = 5
-    
-    x_batch = np.empty([test_range*4+1, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
-    y_batch = np.empty([test_range*4+1, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
-    x_no_p_batch = np.empty([test_range*4+1, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
-    p_batch = np.empty([test_range*4+1, 2], dtype=np.int)
+    num_lines = 4
+
+    x_batch = np.empty([test_range*2*num_lines+1, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
+    y_batch = np.empty([test_range*2*num_lines+1, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
+    x_no_p_batch = np.empty([test_range*2*num_lines+1, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
+    p_batch = np.empty([test_range*2*num_lines+1, 2], dtype=np.int)
 
     # / \ - |
     xy1 = [FLAGS.image_size*0.25, FLAGS.image_size*0.25, FLAGS.image_size*0.75, FLAGS.image_size*0.75]

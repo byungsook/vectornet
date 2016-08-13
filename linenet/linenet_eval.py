@@ -42,7 +42,9 @@ def evaluate():
         phase_train = tf.placeholder(tf.bool, name='phase_train')
 
         batch_manager = linenet_data.BatchManager()
-        x = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
+
+        input_depth = 2 if FLAGS.use_two_channels else 1
+        x = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, input_depth])
         y = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
         x_no_p = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
 
@@ -68,12 +70,16 @@ def evaluate():
         loss_avg = tf.placeholder(tf.float32)
         loss_avg_summary = tf.scalar_summary('l2 loss (avg)', loss_avg)
 
-        summary_x_no_p_writer = tf.train.SummaryWriter(FLAGS.eval_dir + '/x_no_p', g)
         summary_x_writer = tf.train.SummaryWriter(FLAGS.eval_dir + '/x', g)
         summary_y_writer = tf.train.SummaryWriter(FLAGS.eval_dir + '/y', g)
         summary_y_hat_writer = tf.train.SummaryWriter(FLAGS.eval_dir + '/y_hat', g)
         x_no_p_summary = tf.image_summary('x_no_p', x_no_p, max_images=FLAGS.max_images)
-        x_summary = tf.image_summary('x', x, max_images=FLAGS.max_images)
+        if FLAGS.use_two_channels:
+            p = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 3])
+            x_summary = tf.image_summary('x', p, max_images=FLAGS.max_images)
+            b_channel = np.zeros([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1]) # to make x RGB
+        else:
+            x_summary = tf.image_summary('x', x, max_images=FLAGS.max_images)        
         y_summary = tf.image_summary('y', y, max_images=FLAGS.max_images)
         y_hat_ph = tf.placeholder(tf.float32)
         y_hat_summary = tf.image_summary('y_hat_ph', y_hat_ph, max_images=FLAGS.max_images)
@@ -102,10 +108,17 @@ def evaluate():
                 print('%s: step %d, loss = %.2f (%.1f examples/sec; %.3f sec/batch)' % (
                         datetime.now(), step, loss_value, examples_per_sec, duration))
 
-                loss_summary_str, x_no_p_summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
-                    [loss_summary, x_no_p_summary, x_summary, y_summary, y_hat_summary],
-                    feed_dict={loss_ph: loss_value,
-                               x_no_p: x_no_p_batch, x: x_batch, y: y_batch, y_hat_ph: y_hat_value})
+                if FLAGS.use_two_channels:
+                    loss_summary_str, x_no_p_summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
+                        [loss_summary, x_no_p_summary, x_summary, y_summary, y_hat_summary],
+                        feed_dict={loss_ph: loss_value,
+                                x_no_p: x_no_p_batch, x: x_batch, y: y_batch, y_hat_ph: y_hat_value,
+                                p: np.concatenate((x_batch, b_channel), axis=3)})
+                else:
+                    loss_summary_str, x_no_p_summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
+                        [loss_summary, x_no_p_summary, x_summary, y_summary, y_hat_summary],
+                        feed_dict={loss_ph: loss_value,
+                                x_no_p: x_no_p_batch, x: x_batch, y: y_batch, y_hat_ph: y_hat_value})
 
                 summary_writer.add_summary(loss_summary_str, step)
 
@@ -124,7 +137,7 @@ def evaluate():
                     y_summary_tmp.value[i].tag = new_tag
                     y_hat_summary_tmp.value[i].tag = new_tag
 
-                summary_x_no_p_writer.add_summary(x_no_p_summary_tmp, step)
+                summary_writer.add_summary(x_no_p_summary_tmp, step)
                 summary_x_writer.add_summary(x_summary_tmp, step)
                 summary_y_writer.add_summary(y_summary_tmp, step)
                 summary_y_hat_writer.add_summary(y_hat_summary_tmp, step)

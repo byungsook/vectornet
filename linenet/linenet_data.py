@@ -43,9 +43,9 @@ tf.app.flags.DEFINE_integer('path_type', 0,
                             """path type 0: line, 1: curve, 2: both""")
 tf.app.flags.DEFINE_boolean('noise_on', False,
                             """noise on/off""")
-tf.app.flags.DEFINE_integer('noise_rot_deg', 5,
+tf.app.flags.DEFINE_integer('noise_rot_deg', 3,
                             """rotation degree for noise generation""")
-tf.app.flags.DEFINE_integer('noise_trans_pix', 3,
+tf.app.flags.DEFINE_integer('noise_trans_pix', 2,
                             """translation pixel for noise generation""")
 tf.app.flags.DEFINE_integer('noise_duplicate_min', 2,
                             """min # duplicates for noise generation""")
@@ -143,9 +143,7 @@ def slur_image(img):
 
     # duplicate
     num_duplicates = np.random.randint(low=FLAGS.noise_duplicate_min, high=FLAGS.noise_duplicate_max+1)
-    weight = 1.0 / num_duplicates
-
-    blend = gauss_denoised
+    blend = np.zeros(gauss_denoised.shape)
     for i in xrange(num_duplicates):
         # rotate
         rnd_offset = np.random.rand(1) * 2.0 - 1.0
@@ -156,11 +154,15 @@ def slur_image(img):
         shifted_face = ndimage.shift(rotated_face, rnd_offset * FLAGS.noise_trans_pix)
         
         # blend duplicates
+        weight_min = 0.75
+        weight = np.random.rand() * (1.0 - weight_min) + weight_min
         blend = blend + weight * shifted_face
 
     # add noise
     noisy = blend + FLAGS.noise_intensity * np.random.randn(*blend.shape)
     noisy = np.clip(noisy, a_min=0.0, a_max=255.0) / 255.0
+    
+    # # debug
     # plt.imshow(noisy, cmap=plt.cm.gray)
     # plt.show()
     

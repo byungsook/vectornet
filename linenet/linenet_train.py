@@ -29,6 +29,8 @@ tf.app.flags.DEFINE_boolean('log_device_placement', False,
 tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', '', # 'log/second_train/linenet.ckpt',
                            """If specified, restore this pretrained model """
                            """before beginning any training.""")
+tf.app.flags.DEFINE_integer('train_model', 1,
+                            """train model type [1-2]""")
 tf.app.flags.DEFINE_integer('max_steps', 100000,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_integer('decay_steps', 30000,

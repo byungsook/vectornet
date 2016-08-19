@@ -46,10 +46,9 @@ def evaluate():
         input_depth = 2 if FLAGS.use_two_channels else 1
         x = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, input_depth])
         y = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
-        x_no_p = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
-
+        
         # Build a Graph that computes the logits predictions from the inference model.
-        y_hat = linenet_model.inference(x, x_no_p, phase_train)
+        y_hat = linenet_model.inference(x, phase_train)
 
         # Calculate loss.
         loss = linenet_model.loss(y_hat, y)
@@ -73,6 +72,7 @@ def evaluate():
         summary_x_writer = tf.train.SummaryWriter(FLAGS.eval_dir + '/x', g)
         summary_y_writer = tf.train.SummaryWriter(FLAGS.eval_dir + '/y', g)
         summary_y_hat_writer = tf.train.SummaryWriter(FLAGS.eval_dir + '/y_hat', g)
+        x_no_p = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
         x_no_p_summary = tf.image_summary('x_no_p', x_no_p, max_images=FLAGS.max_images)
         if FLAGS.use_two_channels:
             p = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 3])
@@ -100,8 +100,7 @@ def evaluate():
                 start_time = time.time()
                 x_batch, y_batch, x_no_p_batch, _ = batch_manager.batch()
                 y_hat_value, loss_value = sess.run([y_hat, loss], feed_dict={phase_train: is_train,
-                                                                             x: x_batch, y: y_batch,
-                                                                             x_no_p: x_no_p_batch})
+                                                                             x: x_batch, y: y_batch})
                 total_loss += loss_value
                 duration = time.time() - start_time
                 examples_per_sec = FLAGS.batch_size / float(duration)

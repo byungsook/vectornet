@@ -80,10 +80,9 @@ def train():
         input_depth = 2 if FLAGS.use_two_channels else 1
         x = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, input_depth])
         y = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
-        x_no_p = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
             
         # Build a Graph that computes the logits predictions from the inference model.
-        y_hat = linenet_model.inference(x, x_no_p, phase_train)
+        y_hat = linenet_model.inference(x, phase_train)
 
         # Calculate loss.
         loss = linenet_model.loss(y_hat, y)
@@ -116,7 +115,7 @@ def train():
             opt = tf.train.AdamOptimizer(learning_rate)            
             grads = opt.compute_gradients(loss)
             max_grad = FLAGS.clip_gradients / learning_rate
-            # grads = [(tf.clip_by_value(grad, -max_grad, max_grad), var) for grad, var in grads]
+            grads = [(tf.clip_by_value(grad, -max_grad, max_grad), var) for grad, var in grads]
 
         apply_gradient_op = opt.apply_gradients(grads, global_step=global_step)
 
@@ -155,6 +154,7 @@ def train():
         summary_x_writer = tf.train.SummaryWriter(FLAGS.log_dir + '/x', sess.graph)
         summary_y_writer = tf.train.SummaryWriter(FLAGS.log_dir + '/y', sess.graph)
         summary_y_hat_writer = tf.train.SummaryWriter(FLAGS.log_dir + '/y_hat', sess.graph)
+        x_no_p = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])        
         x_no_p_summary = tf.image_summary('x_no_p', x_no_p, max_images=FLAGS.max_images)
         if FLAGS.use_two_channels:
             p = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 3])
@@ -178,8 +178,7 @@ def train():
             # x_batch, y_batch = linenet_data.batch()
             x_batch, y_batch, x_no_p_batch, _ = batch_manager.batch()
             _, loss_value = sess.run([train_op, loss], feed_dict={phase_train: is_train,
-                                                                  x: x_batch, y: y_batch,
-                                                                  x_no_p: x_no_p_batch})
+                                                                  x: x_batch, y: y_batch})
             duration = time.time() - start_time
 
             assert not np.isnan(loss_value), 'Model diverged with loss = NaN'

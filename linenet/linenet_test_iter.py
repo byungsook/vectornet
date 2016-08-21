@@ -27,6 +27,8 @@ tf.app.flags.DEFINE_string('test_dir', 'test/tmp',
                            """and checkpoint.""")
 tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', 'log/ratio_test/10_100000_30000_0.01/linenet.ckpt',
                            """If specified, restore this pretrained model.""")
+tf.app.flags.DEFINE_string('train_model', 1,
+			   """train model type [1-2] """)
 tf.app.flags.DEFINE_integer('max_images', 3,
                             """max # images to save.""")
 tf.app.flags.DEFINE_integer('num_eval', 6400,
@@ -47,7 +49,7 @@ def test_iter():
         x_no_p = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
 
         # Build a Graph that computes the logits predictions from the inference model.
-        y_hat = linenet_model.inference(x, x_no_p, phase_train)
+        y_hat = linenet_model.inference(x, phase_train, model=FLAGS.train_model)
 
         # Calculate loss.
         loss = linenet_model.loss(y_hat, y)
@@ -65,6 +67,7 @@ def test_iter():
         loss_avg = tf.placeholder(tf.float32)
         loss_avg_summary = tf.scalar_summary('l2 loss (avg)', loss_avg)
 
+	i_summary = tf.image_summary('I', x_no_p, max_images=FLAGS.max_images)
         x_summary = tf.image_summary('x', x, max_images=FLAGS.max_images)
         y_summary = tf.image_summary('y', y, max_images=FLAGS.max_images)
         y_hat_ph = tf.placeholder(tf.float32)
@@ -100,8 +103,9 @@ def test_iter():
                     summary_writer[i].add_summary(loss_summary_str, step)
 
                     if step == 0:
-                        x_summary_str, y_summary_str, y_hat_summary_str = sess.run([x_summary, y_summary, y_hat_summary], 
-                            feed_dict={x: x_batch, y: y_batch, y_hat_ph: y_hat_value})
+                        i_summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run([i_summary, x_summary, y_summary, y_hat_summary], 
+                            feed_dict={x_no_p: x_no_p_batch, x: x_batch, y: y_batch, y_hat_ph: y_hat_value})
+			summary_writer[i].add_summary(i_summary_str, step)
                         summary_writer[i].add_summary(x_summary_str, step)
                         summary_writer[i].add_summary(y_summary_str, step)
                         summary_writer[i].add_summary(y_hat_summary_str, step)
@@ -133,8 +137,8 @@ def main(_):
     tf.gfile.MakeDirs(FLAGS.test_dir)
 
 
-    # test_iter()
-    test_intersect()
+    test_iter()
+    # test_intersect()
     
 
 if __name__ == '__main__':

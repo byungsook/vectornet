@@ -67,7 +67,7 @@ def test_iter():
         loss_avg = tf.placeholder(tf.float32)
         loss_avg_summary = tf.scalar_summary('l2 loss (avg)', loss_avg)
 
-	i_summary = tf.image_summary('I', x_no_p, max_images=FLAGS.max_images)
+        i_summary = tf.image_summary('I', x_no_p, max_images=FLAGS.max_images)
         x_summary = tf.image_summary('x', x, max_images=FLAGS.max_images)
         y_summary = tf.image_summary('y', y, max_images=FLAGS.max_images)
         y_hat_ph = tf.placeholder(tf.float32)
@@ -105,7 +105,7 @@ def test_iter():
                     if step == 0:
                         i_summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run([i_summary, x_summary, y_summary, y_hat_summary], 
                             feed_dict={x_no_p: x_no_p_batch, x: x_batch, y: y_batch, y_hat_ph: y_hat_value})
-			summary_writer[i].add_summary(i_summary_str, step)
+                        summary_writer[i].add_summary(i_summary_str, step)
                         summary_writer[i].add_summary(x_summary_str, step)
                         summary_writer[i].add_summary(y_summary_str, step)
                         summary_writer[i].add_summary(y_hat_summary_str, step)

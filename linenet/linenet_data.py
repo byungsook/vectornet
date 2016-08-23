@@ -170,7 +170,11 @@ def _slur_image(img):
 
 
 def batch_for_pbmap_test(seed):
-    num_pixels = FLAGS.image_size * FLAGS.image_size
+    px_list = [p-5 for p in xrange(11)]
+    py_list = list(px_list)
+    num_pixels = len(px_list) ** 2
+    # num_pixels = FLAGS.image_size * FLAGS.image_size
+    
     x_no_p_batch = np.empty([num_pixels, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
     x_batch = np.empty([num_pixels, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
     
@@ -192,8 +196,10 @@ def batch_for_pbmap_test(seed):
     x_norm = x / FLAGS.intensity_ratio
 
     i = 0
-    for px in xrange(FLAGS.image_size):
-        for py in xrange(FLAGS.image_size):
+    # for px in xrange(FLAGS.image_size):
+    #     for py in xrange(FLAGS.image_size):
+    for px in px_list:
+        for py in py_list:
             x_no_p_batch[i,:,:] = x_no_p
         
             # plt.imshow(x, cmap=plt.cm.gray)

@@ -47,6 +47,8 @@ def test_pbmap():
 
         # Build the summary writer
         summary_writer = tf.train.SummaryWriter(FLAGS.test_dir, g)
+        summary_x_writer = tf.train.SummaryWriter(FLAGS.test_dir + '/x', g)
+        summary_y_hat_writer = tf.train.SummaryWriter(FLAGS.test_dir + '/y_hat', g)
 
         x_summary = tf.image_summary('x', x, max_images=batch_size)
         x_no_p_summary = tf.image_summary('x_no_p', x_no_p, max_images=batch_size)
@@ -72,22 +74,34 @@ def test_pbmap():
             x_summary_str, x_no_p_summary_str, y_hat_summary_str = sess.run([x_summary, x_no_p_summary, y_hat_summary], 
                 feed_dict={x: x_batch, x_no_p: x_no_p_batch, y_hat_ph: y_hat_value})
             
-            x_no_p_summary_tmp = tf.Summary()
             x_summary_tmp = tf.Summary()
+            x_no_p_summary_tmp = tf.Summary()
             y_hat_summary_tmp = tf.Summary()
-            x_no_p_summary_tmp.ParseFromString(x_no_p_summary_str)
             x_summary_tmp.ParseFromString(x_summary_str)
+            x_no_p_summary_tmp.ParseFromString(x_no_p_summary_str)
             y_hat_summary_tmp.ParseFromString(y_hat_summary_str)
+            
             for i in xrange(batch_size):
-                new_tag = '%03d' % i
+                new_tag = '0/%03d' % i
                 x_no_p_summary_tmp.value[i].tag = new_tag
                 x_summary_tmp.value[i].tag = new_tag
                 y_hat_summary_tmp.value[i].tag = new_tag
 
-            summary_writer.add_summary(x_no_p_summary_tmp)
-            summary_x_writer.add_summary(x_summary_tmp)
-            summary_y_hat_writer.add_summary(y_hat_summary_tmp)
+            summary_writer.add_summary(x_no_p_summary_tmp, global_step=0)
+            summary_x_writer.add_summary(x_summary_tmp, global_step=0)
+            summary_y_hat_writer.add_summary(y_hat_summary_tmp, global_step=0)
 
+            # blend
+            y_hat_blend = np.sum(y_hat_value, axis=3)
+            y_hat_blend = y_hat_blend / batch_size
+            print('check max value: %f' % np.amax(y_hat_blend))
+
+            y_hat_summary_str = sess.run(y_hat_summary, feed_dict={y_hat_ph: y_hat_blend})
+            y_hat_summary_tmp = tf.Summary()
+            y_hat_summary_tmp.ParseFromString(y_hat_summary_str)
+            y_hat_summary_tmp.value[i].tag = 'blend'
+            summary_y_hat_writer.add_summary(y_hat_summary_tmp, global_step=1)
+            
             
     print('done')
 

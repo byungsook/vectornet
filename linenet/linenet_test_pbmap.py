@@ -54,6 +54,8 @@ def test_pbmap():
         x_no_p_summary = tf.image_summary('x_no_p', x_no_p, max_images=batch_size)
         y_hat_ph = tf.placeholder(tf.float32)
         y_hat_summary = tf.image_summary('y_hat_ph', y_hat_ph, max_images=batch_size)
+        blend_ph = tf.placeholder(tf.float32)
+        blend_summary = tf.image_summary('blend', blend_ph, max_images=1)
 
         
         # Start evaluation
@@ -87,20 +89,20 @@ def test_pbmap():
                 x_summary_tmp.value[i].tag = new_tag
                 y_hat_summary_tmp.value[i].tag = new_tag
 
-            summary_writer.add_summary(x_no_p_summary_tmp, global_step=0)
-            summary_x_writer.add_summary(x_summary_tmp, global_step=0)
-            summary_y_hat_writer.add_summary(y_hat_summary_tmp, global_step=0)
+            summary_writer.add_summary(x_no_p_summary_tmp)
+            summary_x_writer.add_summary(x_summary_tmp)
+            summary_y_hat_writer.add_summary(y_hat_summary_tmp)
 
             # blend
-            y_hat_blend = np.clip(np.sum(y_hat_value, axis=3), a_min=0.0, a_max=1.0)
-            y_hat_blend = np.reshape(y_hat_blend, [batch_size, FLAGS.image_size, FLAGS.image_size, 1])
-            print('check max value: %f' % np.amax(y_hat_blend))
+            blend = np.clip(np.sum(y_hat_value, axis=0), a_min=0.0, a_max=1.0)
+            blend = np.reshape(blend, [1, FLAGS.image_size, FLAGS.image_size, 1])
+            print('check max value: %f' % np.amax(blend))
 
-            y_hat_summary_str = sess.run(y_hat_summary, feed_dict={y_hat_ph: y_hat_blend})
-            y_hat_summary_tmp = tf.Summary()
-            y_hat_summary_tmp.ParseFromString(y_hat_summary_str)
-            y_hat_summary_tmp.value[i].tag = 'blend'
-            summary_y_hat_writer.add_summary(y_hat_summary_tmp, global_step=1)
+            blend_summary_str = sess.run(blend_summary, feed_dict={blend_ph: blend})
+            blend_summary_tmp = tf.Summary()
+            blend_summary_tmp.ParseFromString(blend_summary_str)
+            blend_summary_tmp.value[i].tag = 'blend'
+            summary_y_hat_writer.add_summary(blend_summary_tmp)
 
             
     print('done')

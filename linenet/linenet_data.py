@@ -131,7 +131,7 @@ def _create_a_path(path_type):
     return path_selector[path_type]()
 
 
-def slur_image(img):
+def _slur_image(img):
     # img = face(gray=True)
     # plt.imshow(img, cmap=plt.cm.gray)
     # plt.show()
@@ -167,6 +167,49 @@ def slur_image(img):
     # plt.show()
     
     return noisy
+
+
+def batch_for_pbmap_test(seed):
+    num_pixels = FLAGS.image_size * FLAGS.image_size
+    x_no_p_batch = np.empty([num_pixels, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
+    x_batch = np.empty([num_pixels, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
+    
+
+    np.random.seed(seed)
+    SVG_MULTI_LINES = SVG_START_TEMPLATE.format(
+            width=FLAGS.image_size,
+            height=FLAGS.image_size
+        )
+    for path_id in range(0, FLAGS.num_path):
+        SVG_MULTI_LINES = SVG_MULTI_LINES + _create_a_path(FLAGS.path_type)
+    SVG_MULTI_LINES = SVG_MULTI_LINES + SVG_END_TEMPLATE
+
+    
+    x_png = cairosvg.svg2png(bytestring=SVG_MULTI_LINES)
+    x_img = Image.open(io.BytesIO(x_png))
+    x = _slur_image(np.array(x_img)[:,:,3])
+    x_no_p = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
+    x_norm = x / FLAGS.intensity_ratio
+
+    i = 0
+    for px in xrange(FLAGS.image_size):
+        for py in xrange(FLAGS.image_size):
+            x_no_p_batch[i,:,:] = x_no_p
+        
+            # plt.imshow(x, cmap=plt.cm.gray)
+            # plt.show()
+
+            tmp = x_norm[px, py]
+            x_norm[px, py] = 1.0
+            x_batch[i,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
+            x_norm[px, py] = tmp
+
+            # plt.imshow(x, cmap=plt.cm.gray)
+            # plt.show()
+
+            i = i + 1
+
+    return num_pixels, x_batch, x_no_p_batch
 
 
 def batch_for_intersection_test():
@@ -359,7 +402,7 @@ def train_set(i, x_batch, y_batch, x_no_p_batch, p_batch):
     else:
         # load and normalize y to [0, 0.1]
         if FLAGS.noise_on:
-            x = slur_image(np.array(x_img)[:,:,3])
+            x = _slur_image(np.array(x_img)[:,:,3])
         else:
             x = np.array(x_img)[:,:,3].astype(np.float) / 255.0
         x_no_p_batch[i,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
@@ -399,4 +442,5 @@ def batch(check_result=False):
 
 if __name__ == '__main__':
     # test
-    batch(True)
+    # batch(True)
+    batch_for_pbmap_test(4) # 2 4 17

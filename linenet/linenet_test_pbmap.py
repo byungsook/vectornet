@@ -94,14 +94,14 @@ def test_pbmap():
             summary_y_hat_writer.add_summary(y_hat_summary_tmp)
 
             # blend
-            blend = np.clip(np.sum(y_hat_value, axis=0), a_min=0.0, a_max=1.0)
+            blend = np.sum(y_hat_value, axis=0) / batch_size
             blend = np.reshape(blend, [1, FLAGS.image_size, FLAGS.image_size, 1])
             print('check max value: %f' % np.amax(blend))
 
             blend_summary_str = sess.run(blend_summary, feed_dict={blend_ph: blend})
             blend_summary_tmp = tf.Summary()
             blend_summary_tmp.ParseFromString(blend_summary_str)
-            blend_summary_tmp.value[i].tag = 'blend'
+            blend_summary_tmp.value[0].tag = 'blend'
             summary_y_hat_writer.add_summary(blend_summary_tmp)
 
             

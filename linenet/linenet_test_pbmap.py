@@ -22,7 +22,7 @@ import linenet_model
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('test_dir', 'test/pbmap_noise_hard',
+tf.app.flags.DEFINE_string('test_dir', 'test/pbmap_noise',
                            """Directory where to write event logs """
                            """and checkpoint.""")
 tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', 'log/noise_hard/linenet.ckpt',
@@ -92,8 +92,8 @@ def test_pbmap():
             summary_y_hat_writer.add_summary(y_hat_summary_tmp, global_step=0)
 
             # blend
-            y_hat_blend = np.sum(y_hat_value, axis=3)
-            y_hat_blend = y_hat_blend / batch_size
+            y_hat_blend = np.clip(np.sum(y_hat_value, axis=3), a_min=0.0, a_max=1.0)
+            y_hat_blend = np.reshape(y_hat_blend, [batch_size, FLAGS.image_size, FLAGS.image_size, 1])
             print('check max value: %f' % np.amax(y_hat_blend))
 
             y_hat_summary_str = sess.run(y_hat_summary, feed_dict={y_hat_ph: y_hat_blend})
@@ -101,7 +101,7 @@ def test_pbmap():
             y_hat_summary_tmp.ParseFromString(y_hat_summary_str)
             y_hat_summary_tmp.value[i].tag = 'blend'
             summary_y_hat_writer.add_summary(y_hat_summary_tmp, global_step=1)
-            
+
             
     print('done')
 

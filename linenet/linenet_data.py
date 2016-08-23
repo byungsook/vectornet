@@ -174,7 +174,7 @@ def batch_for_pbmap_test(seed):
     py_list = list(px_list)
     num_pixels = len(px_list) ** 2
     # num_pixels = FLAGS.image_size * FLAGS.image_size
-    
+
     x_no_p_batch = np.empty([num_pixels, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
     x_batch = np.empty([num_pixels, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
     
@@ -207,7 +207,7 @@ def batch_for_pbmap_test(seed):
 
             tmp = x_norm[px, py]
             x_norm[px, py] = 1.0
-            x_batch[i,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
+            x_batch[i,:,:] = np.reshape(x_norm, [FLAGS.image_size, FLAGS.image_size, 1])
             x_norm[px, py] = tmp
 
             # plt.imshow(x, cmap=plt.cm.gray)

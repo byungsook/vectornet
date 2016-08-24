@@ -36,7 +36,7 @@ def test_pbmap():
         phase_train = tf.placeholder(tf.bool, name='phase_train')
         
         batch_size, x_batch, x_no_p_batch = linenet_data.batch_for_pbmap_test(4)
-        subbatch_size = np.sqrt(batch_size)
+        subbatch_size = int(np.sqrt(batch_size))
         num_subbatch = subbatch_size
         x = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
         x_no_p = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
@@ -71,6 +71,7 @@ def test_pbmap():
             
             bx = 0
             by = subbatch_size
+            blend = np.zeros(shape=[FLAGS.image_size, FLAGS.image_size, 1])
             for step in xrange(num_subbatch):
                 start_time = time.time()
                 y_hat_value = sess.run(y_hat, feed_dict={phase_train: is_train, 
@@ -100,10 +101,10 @@ def test_pbmap():
                 summary_x_writer.add_summary(x_summary_tmp, global_step=step)
                 summary_y_hat_writer.add_summary(y_hat_summary_tmp, global_step=step)
 
-                blend = np.sum(y_hat_value, axis=0)
+                blend = blend + np.sum(y_hat_value, axis=0)
 
                 bx = by
-                by = bx + by                
+                by = bx + subbatch_size
 
             # blend
             blend = np.clip(blend, a_min=0.0, a_max=1.0)

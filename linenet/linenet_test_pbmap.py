@@ -113,7 +113,7 @@ def test_pbmap():
             blend_summary_str = sess.run(blend_summary, feed_dict={blend_ph: blend})
             blend_summary_tmp = tf.Summary()
             blend_summary_tmp.ParseFromString(blend_summary_str)
-            blend_summary_tmp.value[i].tag = 'blend'
+            blend_summary_tmp.value[0].tag = 'blend'
             summary_y_hat_writer.add_summary(blend_summary_tmp, global_step=num_subbatch)
             
     print('done')

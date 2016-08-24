@@ -170,7 +170,7 @@ def _slur_image(img):
 
 
 def batch_for_pbmap_test(seed):
-    # center = [FLAGS.image_size*0.5] * 2
+    # center = FLAGS.image_size*0.5
     # px_list = [center-p for p in xrange(-5, 6)]
     # py_list = list(px_list)
     # num_pixels = len(px_list) ** 2

@@ -55,6 +55,8 @@ tf.app.flags.DEFINE_float('noise_intensity', 30,
                           """unifor noise intensity""")
 tf.app.flags.DEFINE_boolean('use_two_channels', False,
                             """use two channels for input""")
+tf.app.flags.DEFINE_float('prob_background', 0.0,
+                          """probability for selecting background""")
 
 
 SVG_START_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
@@ -389,7 +391,7 @@ def train_set(i, x_batch, y_batch, x_no_p_batch, p_batch):
     y = np.array(y_img)[:,:,3].astype(np.float) / 255.0
     
     # 0.1: probability to select a marking pixel in the background
-    if np.random.rand(1) < 0.1:
+    if np.random.rand(1) < FLAGS.prob_background:
         y_batch[i,:,:] = np.zeros(shape=[FLAGS.image_size, FLAGS.image_size, 1])
         line_ids = np.nonzero(y < 0.5)
     else:

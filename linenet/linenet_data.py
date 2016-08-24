@@ -170,11 +170,11 @@ def _slur_image(img):
 
 
 def batch_for_pbmap_test(seed):
-    center = [FLAGS.image_size*0.5] * 2
-    px_list = [center-p for p in xrange(-5, 6)]
-    py_list = list(px_list)
-    num_pixels = len(px_list) ** 2
-    # num_pixels = FLAGS.image_size * FLAGS.image_size
+    # center = [FLAGS.image_size*0.5] * 2
+    # px_list = [center-p for p in xrange(-5, 6)]
+    # py_list = list(px_list)
+    # num_pixels = len(px_list) ** 2
+    num_pixels = FLAGS.image_size * FLAGS.image_size
 
     x_no_p_batch = np.empty([num_pixels, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
     x_batch = np.empty([num_pixels, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
@@ -192,15 +192,18 @@ def batch_for_pbmap_test(seed):
     
     x_png = cairosvg.svg2png(bytestring=SVG_MULTI_LINES)
     x_img = Image.open(io.BytesIO(x_png))
-    x = _slur_image(np.array(x_img)[:,:,3])
+    if FLAGS.noise_on:
+        x = _slur_image(np.array(x_img)[:,:,3])
+    else:
+        x = np.array(x_img)[:,:,3].astype(np.float) / 255.0
     x_no_p = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
     x_norm = x / FLAGS.intensity_ratio
 
     i = 0
-    # for px in xrange(FLAGS.image_size):
-    #     for py in xrange(FLAGS.image_size):
-    for px in px_list:
-        for py in py_list:
+    for px in xrange(FLAGS.image_size):
+        for py in xrange(FLAGS.image_size):
+    # for px in px_list:
+    #     for py in py_list:
             x_no_p_batch[i,:,:] = x_no_p
         
             # plt.imshow(x, cmap=plt.cm.gray)

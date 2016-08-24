@@ -36,6 +36,8 @@ def test_pbmap():
         phase_train = tf.placeholder(tf.bool, name='phase_train')
         
         batch_size, x_batch, x_no_p_batch = linenet_data.batch_for_pbmap_test(4)
+        subbatch_size = np.sqrt(batch_size)
+        num_subbatch = subbatch_size
         x = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
         x_no_p = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
 
@@ -50,10 +52,11 @@ def test_pbmap():
         summary_x_writer = tf.train.SummaryWriter(FLAGS.test_dir + '/x', g)
         summary_y_hat_writer = tf.train.SummaryWriter(FLAGS.test_dir + '/y_hat', g)
 
-        x_summary = tf.image_summary('x', x, max_images=batch_size)
-        x_no_p_summary = tf.image_summary('x_no_p', x_no_p, max_images=batch_size)
+
+        x_summary = tf.image_summary('x', x, max_images=subbatch_size)
+        x_no_p_summary = tf.image_summary('x_no_p', x_no_p, max_images=subbatch_size)
         y_hat_ph = tf.placeholder(tf.float32)
-        y_hat_summary = tf.image_summary('y_hat_ph', y_hat_ph, max_images=batch_size)
+        y_hat_summary = tf.image_summary('y_hat_ph', y_hat_ph, max_images=subbatch_size)
         blend_ph = tf.placeholder(tf.float32)
         blend_summary = tf.image_summary('blend', blend_ph, max_images=1)
 
@@ -66,35 +69,44 @@ def test_pbmap():
                 print('%s: Pre-trained model restored from %s' %
                     (datetime.now(), FLAGS.pretrained_model_checkpoint_path))
             
-            start_time = time.time()
-            y_hat_value = sess.run(y_hat, feed_dict={phase_train: is_train, x: x_batch, x_no_p: x_no_p_batch})
-            duration = time.time() - start_time
-            
-            examples_per_sec = FLAGS.image_size * FLAGS.image_size / float(duration)
-            print('%s: %.1f examples/sec; %.3f sec/batch' % (datetime.now(), examples_per_sec, duration))
+            bx = 0
+            by = subbatch_size
+            for step in xrange(num_subbatch):
+                start_time = time.time()
+                y_hat_value = sess.run(y_hat, feed_dict={phase_train: is_train, 
+                                                         x: x_batch[bx:by,:,:,:], x_no_p: x_no_p_batch[bx:by,:,:,:]})
+                duration = time.time() - start_time
+                
+                examples_per_sec = FLAGS.image_size * FLAGS.image_size / float(duration)
+                print('%s: step %d, %.1f examples/sec; %.3f sec/batch' % (datetime.now(), step, examples_per_sec, duration))
 
-            x_summary_str, x_no_p_summary_str, y_hat_summary_str = sess.run([x_summary, x_no_p_summary, y_hat_summary], 
-                feed_dict={x: x_batch, x_no_p: x_no_p_batch, y_hat_ph: y_hat_value})
-            
-            x_summary_tmp = tf.Summary()
-            x_no_p_summary_tmp = tf.Summary()
-            y_hat_summary_tmp = tf.Summary()
-            x_summary_tmp.ParseFromString(x_summary_str)
-            x_no_p_summary_tmp.ParseFromString(x_no_p_summary_str)
-            y_hat_summary_tmp.ParseFromString(y_hat_summary_str)
-            
-            for i in xrange(batch_size):
-                new_tag = '0/%03d' % i
-                x_no_p_summary_tmp.value[i].tag = new_tag
-                x_summary_tmp.value[i].tag = new_tag
-                y_hat_summary_tmp.value[i].tag = new_tag
+                x_summary_str, x_no_p_summary_str, y_hat_summary_str = sess.run([x_summary, x_no_p_summary, y_hat_summary], 
+                    feed_dict={x: x_batch[bx:by,:,:,:], x_no_p: x_no_p_batch[bx:by,:,:,:], y_hat_ph: y_hat_value})
+                
+                x_summary_tmp = tf.Summary()
+                x_no_p_summary_tmp = tf.Summary()
+                y_hat_summary_tmp = tf.Summary()
+                x_summary_tmp.ParseFromString(x_summary_str)
+                x_no_p_summary_tmp.ParseFromString(x_no_p_summary_str)
+                y_hat_summary_tmp.ParseFromString(y_hat_summary_str)
+                
+                for i in xrange(subbatch_size):
+                    new_tag = '%03d/%03d' % (step, i)
+                    x_no_p_summary_tmp.value[i].tag = new_tag
+                    x_summary_tmp.value[i].tag = new_tag
+                    y_hat_summary_tmp.value[i].tag = new_tag
 
-            summary_writer.add_summary(x_no_p_summary_tmp)
-            summary_x_writer.add_summary(x_summary_tmp)
-            summary_y_hat_writer.add_summary(y_hat_summary_tmp)
+                summary_writer.add_summary(x_no_p_summary_tmp, global_step=step)
+                summary_x_writer.add_summary(x_summary_tmp, global_step=step)
+                summary_y_hat_writer.add_summary(y_hat_summary_tmp, global_step=step)
+
+                blend = np.sum(y_hat_value, axis=0)
+
+                bx = by
+                by = bx + by                
 
             # blend
-            blend = np.clip(np.sum(y_hat_value, axis=0), a_min=0.0, a_max=1.0)
+            blend = np.clip(blend, a_min=0.0, a_max=1.0)
             blend = np.reshape(blend, [1, FLAGS.image_size, FLAGS.image_size, 1])
             print('check max value: %f' % np.amax(blend))
 
@@ -102,8 +114,7 @@ def test_pbmap():
             blend_summary_tmp = tf.Summary()
             blend_summary_tmp.ParseFromString(blend_summary_str)
             blend_summary_tmp.value[i].tag = 'blend'
-            summary_y_hat_writer.add_summary(blend_summary_tmp)
-
+            summary_y_hat_writer.add_summary(blend_summary_tmp, global_step=num_subbatch)
             
     print('done')
 

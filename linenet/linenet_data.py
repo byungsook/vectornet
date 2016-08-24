@@ -387,11 +387,18 @@ def train_set(i, x_batch, y_batch, x_no_p_batch, p_batch):
 
     # load and normalize y to [0, 1]
     y = np.array(y_img)[:,:,3].astype(np.float) / 255.0
-    # y = threshold(threshold(y, threshmin=0.5), threshmax=0.4, newval=1.0)
-    y_batch[i,:,:] = np.reshape(y, [FLAGS.image_size, FLAGS.image_size, 1])
+    
+    # 0.1: probability to select a marking pixel in the background
+    if np.random.rand(1) < 0.1:
+        y_batch[i,:,:] = np.zeros(shape=[FLAGS.image_size, FLAGS.image_size, 1])
+        line_ids = np.nonzero(y < 0.5)
+    else:
+        # y = threshold(threshold(y, threshmin=0.5), threshmax=0.4, newval=1.0)
+        y_batch[i,:,:] = np.reshape(y, [FLAGS.image_size, FLAGS.image_size, 1])
 
-    # select a random point on line1
-    line_ids = np.nonzero(y > 0.4)
+        # select a random point on line1
+        line_ids = np.nonzero(y >= 0.5)
+
     point_id = np.random.randint(len(line_ids[0]))
     px, py = line_ids[0][point_id], line_ids[1][point_id]
 
@@ -452,5 +459,5 @@ def batch(check_result=False):
 
 if __name__ == '__main__':
     # test
-    # batch(True)
-    batch_for_pbmap_test(4) # 2 4 17
+    batch(True)
+    # batch_for_pbmap_test(4) # 2 4 17

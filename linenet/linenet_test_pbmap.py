@@ -107,7 +107,7 @@ def test_pbmap():
                 by = bx + subbatch_size
 
             # blend
-            blend = np.clip(blend, a_min=0.0, a_max=1.0)
+            blend = np.clip(blend / num_subbatch, a_min=0.0, a_max=1.0)
             blend = np.reshape(blend, [1, FLAGS.image_size, FLAGS.image_size, 1])
             print('check max value: %f' % np.amax(blend))
 

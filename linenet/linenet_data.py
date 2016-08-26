@@ -363,11 +363,21 @@ def new_x_from_y_with_p(x_batch, y_batch, p_batch):
 
 def train_set(i, x_batch, y_batch, x_no_p_batch, p_batch):
     np.random.seed()
-    LINE1 = _create_a_path(FLAGS.path_type)
-    SVG_LINE1 = SVG_START_TEMPLATE.format(
-            width=FLAGS.image_size,
-            height=FLAGS.image_size
-        ) + LINE1 + SVG_END_TEMPLATE
+    while True:
+        LINE1 = _create_a_path(FLAGS.path_type)
+        SVG_LINE1 = SVG_START_TEMPLATE.format(
+                width=FLAGS.image_size,
+                height=FLAGS.image_size
+            ) + LINE1 + SVG_END_TEMPLATE
+
+        y_png = cairosvg.svg2png(bytestring=SVG_LINE1)
+        y_img = Image.open(io.BytesIO(y_png))
+        y = np.array(y_img)[:,:,3].astype(np.float) / 255.0
+        y_batch[i,:,:] = np.reshape(y, [FLAGS.image_size, FLAGS.image_size, 1])
+        
+        line_ids = np.nonzero(y >= 0.5)
+        if len(line_ids[0]) > 0:
+            break
 
     SVG_MULTI_LINES = SVG_START_TEMPLATE.format(
             width=FLAGS.image_size,
@@ -378,26 +388,6 @@ def train_set(i, x_batch, y_batch, x_no_p_batch, p_batch):
         SVG_MULTI_LINES = SVG_MULTI_LINES + _create_a_path(FLAGS.path_type)
     SVG_MULTI_LINES = SVG_MULTI_LINES + SVG_END_TEMPLATE
 
-
-    # save y png
-    y_png = cairosvg.svg2png(bytestring=SVG_LINE1)
-    y_img = Image.open(io.BytesIO(y_png))
-    # y_img.save('log/png/y_img%d.png' % i)
-    # y_img = Image.open('log/png/%d_y_img%d.png' % (step, i))
-
-    # load and normalize y to [0, 1]
-    y = np.array(y_img)[:,:,3].astype(np.float) / 255.0
-    
-    # 0.1: probability to select a marking pixel in the background
-    if np.random.rand(1) < 0.1:
-        y_batch[i,:,:] = np.zeros(shape=[FLAGS.image_size, FLAGS.image_size, 1])
-        line_ids = np.nonzero(y < 0.5)
-    else:
-        # y = threshold(threshold(y, threshmin=0.5), threshmax=0.4, newval=1.0)
-        y_batch[i,:,:] = np.reshape(y, [FLAGS.image_size, FLAGS.image_size, 1])
-
-        # select a random point on line1
-        line_ids = np.nonzero(y >= 0.5)
 
     point_id = np.random.randint(len(line_ids[0]))
     px, py = line_ids[0][point_id], line_ids[1][point_id]

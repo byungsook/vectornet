@@ -30,12 +30,12 @@ tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', '',
                            """If specified, restore this pretrained model """
                            """before beginning any training.
                            e.g. log/second_train/linenet.ckpt """)
-tf.app.flags.DEFINE_string('gpu_list', '-1', 
-                           """gpu list. -1 for no gpu or default setting.
-                           e.g. 0 or 0-3 or 0,2-3""")
-tf.app.flags.DEFINE_integer('max_steps', 1200000, # 1 epoch: 75000 * 16 (batch)
+# tf.app.flags.DEFINE_string('gpu_list', '-1', 
+#                            """gpu list. -1 for no gpu or default setting.
+#                            e.g. 0 or 0-3 or 0,2-3""")
+tf.app.flags.DEFINE_integer('max_steps', 600000, # 1 epoch: 75000 files * #lines/file
                             """Number of batches to run.""")
-tf.app.flags.DEFINE_integer('decay_steps', 300000,
+tf.app.flags.DEFINE_integer('decay_steps', 200000,
                           """Decay steps""")
 tf.app.flags.DEFINE_float('initial_learning_rate', 0.005,
                           """Initial learning rate.""")

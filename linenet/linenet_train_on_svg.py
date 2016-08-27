@@ -61,9 +61,9 @@ def train():
         is_train = True
         phase_train = tf.placeholder(tf.bool, name='phase_train')
         
-        batch_shape =(None, FLAGS.image_size, FLAGS.image_size, 1)
-        x = tf.placeholder(dtype=tf.float32, shape=batch_shape)
-        y = tf.placeholder(dtype=tf.float32, shape=batch_shape)        
+        d = 2 if FLAGS.use_two_channels else 1
+        x = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, d])
+        y = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
             
         # Build a Graph that computes the logits predictions from the inference model.
         y_hat = linenet_model.inference(x, phase_train)
@@ -140,9 +140,14 @@ def train():
         summary_y_writer = tf.train.SummaryWriter(FLAGS.log_dir + '/y', sess.graph)
         summary_y_hat_writer = tf.train.SummaryWriter(FLAGS.log_dir + '/y_hat', sess.graph)
         
-        s = tf.placeholder(dtype=tf.float32, shape=batch_shape)        
+        s = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
         s_summary = tf.image_summary('s', s, max_images=FLAGS.max_images)
-        x_summary = tf.image_summary('x', x, max_images=FLAGS.max_images)
+        if FLAGS.use_two_channels:
+            x_rgb = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 3])
+            x_summary = tf.image_summary('x', x_rgb, max_images=FLAGS.max_images)
+            b_channel = np.zeros([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1]) # to make x RGB
+        else:
+            x_summary = tf.image_summary('x', x, max_images=FLAGS.max_images)
         y_summary = tf.image_summary('y', y, max_images=FLAGS.max_images)
         y_hat_summary = tf.image_summary('y_hat', y_hat, max_images=FLAGS.max_images)
 
@@ -174,9 +179,15 @@ def train():
 
             # Write the summary periodically.
             if step % FLAGS.summary_steps == 0 or step < 100:
-                summary_str, s_summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
-                    [summary_op, s_summary, x_summary, y_summary, y_hat_summary],
-                    feed_dict={phase_train: is_train, s: s_batch, x: x_batch, y: y_batch})
+                if FLAGS.use_two_channels:
+                    summary_str, s_summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
+                        [summary_op, s_summary, x_summary, y_summary, y_hat_summary],
+                        feed_dict={phase_train: is_train, s: s_batch, x: x_batch, y: y_batch,
+                        x_rgb: np.concatenate((x_batch, b_channel), axis=3)})
+                else:
+                    summary_str, s_summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
+                        [summary_op, s_summary, x_summary, y_summary, y_hat_summary],
+                        feed_dict={phase_train: is_train, s: s_batch, x: x_batch, y: y_batch})
 
                 summary_writer.add_summary(summary_str, step)
                 

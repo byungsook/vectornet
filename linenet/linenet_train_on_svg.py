@@ -33,11 +33,11 @@ tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', '',
 tf.app.flags.DEFINE_string('gpu_list', '-1', 
                            """gpu list. -1 for no gpu or default setting.
                            e.g. 0 or 0-3 or 0,2-3""")
-tf.app.flags.DEFINE_integer('max_steps', 100, # 1200000, # 1 epoch: 75000 * 16 (batch)
+tf.app.flags.DEFINE_integer('max_steps', 1200000, # 1 epoch: 75000 * 16 (batch)
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_integer('decay_steps', 300000,
                           """Decay steps""")
-tf.app.flags.DEFINE_float('initial_learning_rate', 0.01,
+tf.app.flags.DEFINE_float('initial_learning_rate', 0.005,
                           """Initial learning rate.""")
 tf.app.flags.DEFINE_float('learning_decay_factor', 0.1,
                           """Learning rate decay factor.""")

@@ -33,8 +33,11 @@ tf.app.flags.DEFINE_integer('image_size', 96, # 48-24-12-6
                             """Image Size.""")
 tf.app.flags.DEFINE_float('intensity_ratio', 10.0,
                           """intensity ratio of point to lines""")
-tf.app.flags.DEFINE_float('initial_min_ratio', 0.004,
+tf.app.flags.DEFINE_float('initial_min_ratio', 0.01,
                           """initial_min_ratio for minimum length of line""")
+tf.app.flags.DEFINE_boolean('use_two_channels', True,
+                            """use two channels for input""")
+
 
 SVG_TEMPLATE_START = """<svg width="{s}" height="{s}" viewBox="0 0 640 480" 
                         xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg" 
@@ -69,10 +72,10 @@ class BatchManager(object):
         self.num_epoch = 1
         self.ratio = FLAGS.initial_min_ratio
         
-        batch_shape = [FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1]
-        self.s_batch = np.zeros(batch_shape, dtype=np.float)
-        self.x_batch = np.zeros(batch_shape, dtype=np.float)
-        self.y_batch = np.zeros(batch_shape, dtype=np.float)
+        d = 2 if FLAGS.use_two_channels else 1
+        self.s_batch = np.zeros([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
+        self.x_batch = np.zeros([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, d], dtype=np.float)
+        self.y_batch = np.zeros([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
     
     
     def _next_svg(self):
@@ -120,7 +123,7 @@ class BatchManager(object):
 
                 x_img = Image.open(io.BytesIO(x_png))
                 self.x = np.array(x_img)[:,:,3].astype(np.float) / 255.0
-                # self.x = threshold(self.x, threshmax=0.5, newval=1.0)
+                self.x = threshold(self.x, threshmax=0.5, newval=1.0)
 
                 # # debug
                 # plt.imshow(self.x, cmap=plt.cm.gray)
@@ -136,7 +139,7 @@ class BatchManager(object):
             y_png = cairosvg.svg2png(bytestring=y_svg)
             y_img = Image.open(io.BytesIO(y_png))
             y = np.array(y_img)[:,:,3].astype(np.float) / 255.0
-            # y = threshold(y, threshmax=0.5, newval=1.0)
+            y = threshold(y, threshmax=0.5, newval=1.0)
             line_ids = np.nonzero(y)
             
             if len(line_ids[0]) / (FLAGS.image_size*FLAGS.image_size) < self.ratio:
@@ -161,18 +164,22 @@ class BatchManager(object):
             x, y, line_ids = self._next_svg()
 
             # s
-            self.s_batch[i,:,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1]) 
-
+            self.s_batch[i,:,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
             # y
             self.y_batch[i,:,:,:] = np.reshape(y, [FLAGS.image_size, FLAGS.image_size, 1])
-
             # x
             point_id = np.random.randint(len(line_ids[0]))
             px, py = line_ids[0][point_id], line_ids[1][point_id]
             
-            x = x / FLAGS.intensity_ratio
-            x[px, py] = 1.0
-            self.x_batch[i,:,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
+            if FLAGS.use_two_channels:
+                self.x_batch[i,:,:,0] = x
+                x_point = np.zeros(x.shape)
+                x_point[px, py] = 1.0
+                self.x_batch[i,:,:,1] = x_point
+            else:
+                x = x / FLAGS.intensity_ratio
+                x[px, py] = 1.0
+                self.x_batch[i,:,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
 
         return self.s_batch, self.x_batch, self.y_batch
 
@@ -198,7 +205,11 @@ if __name__ == '__main__':
     for i in xrange(FLAGS.batch_size):
         plt.imshow(np.reshape(s_batch[i,:], [FLAGS.image_size,FLAGS.image_size]), cmap=plt.cm.gray)
         plt.show()
-        plt.imshow(np.reshape(x_batch[i,:], [FLAGS.image_size,FLAGS.image_size]), cmap=plt.cm.gray)
+        if FLAGS.use_two_channels:
+            t = np.concatenate((x_batch, np.zeros([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1])), axis=3)
+            plt.imshow(t[i,:,:,:], cmap=plt.cm.gray)
+        else:
+            plt.imshow(np.reshape(x_batch[i,:], [FLAGS.image_size,FLAGS.image_size]), cmap=plt.cm.gray)
         plt.show()
         plt.imshow(np.reshape(y_batch[i,:], [FLAGS.image_size,FLAGS.image_size]), cmap=plt.cm.gray)
         plt.show()

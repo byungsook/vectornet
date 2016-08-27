@@ -64,7 +64,8 @@ class BatchManager(object):
         self._path_id = 0
 
         self.num_examples_per_epoch = len(self._svg_list)
-        self.num_epoch = 1        
+        self.num_epoch = 1
+        self.ratio = 0.01
         
         batch_shape = [FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1]
         self.s_batch = np.zeros(batch_shape, dtype=np.float)
@@ -134,7 +135,7 @@ class BatchManager(object):
             y = np.array(y_img)[:,:,3].astype(np.float) / 255.0
             line_ids = np.nonzero(y)
             
-            if len(line_ids[0]) / (FLAGS.image_size*FLAGS.image_size) < 0.002:
+            if len(line_ids[0]) / (FLAGS.image_size*FLAGS.image_size) < self.ratio:
                 del self._path_list[self._path_id]
             else:
                 self._path_id = self._path_id + 1
@@ -146,6 +147,7 @@ class BatchManager(object):
                 self._next_svg_id = (self._next_svg_id + 1) % len(self._svg_list)
                 if self._next_svg_id == 0:
                     self.num_epoch = self.num_epoch + 1
+                    self.ratio = np.clip(self.ratio / 2.0, 0.0, 1.0)
 
         return self.x, y, line_ids
 

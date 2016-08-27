@@ -223,10 +223,12 @@ def main(_):
     tf.gfile.MakeDirs(FLAGS.log_dir)
 
     # start training
-    if FLAGS.gpu_list == '-1':
-        train()
-    else:
-        raise NameError('need to implement..')
+    # if FLAGS.gpu_list == '-1':
+    
+    train()
+
+    # else:
+    #     raise NameError('need to implement..')
         # train_gpu()        
 
 if __name__ == '__main__':

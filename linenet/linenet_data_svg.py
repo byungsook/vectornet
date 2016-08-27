@@ -107,8 +107,7 @@ class BatchManager(object):
             try:
                 x_png = cairosvg.svg2png(bytestring=svg)
             except Exception as e:
-                print('error %e, file %s' % (e, file_path))
-                pass
+                print('error %s, file %s' % (e, file_path))                
             else:
                 break
 
@@ -198,10 +197,14 @@ if __name__ == '__main__':
         os.chdir(working_path)
 
     batch_manager = BatchManager()
-    s_batch, x_batch, y_batch = batch_manager.batch()
-    for i in xrange(FLAGS.batch_size):
-        plt.imshow(np.reshape(x_batch[i,:], [FLAGS.image_size,FLAGS.image_size]), cmap=plt.cm.gray)
-        plt.show()
+    # s_batch, x_batch, y_batch = batch_manager.batch()
+    # for i in xrange(FLAGS.batch_size):
+    #     plt.imshow(np.reshape(x_batch[i,:], [FLAGS.image_size,FLAGS.image_size]), cmap=plt.cm.gray)
+    #     plt.show()
+
+    for i in xrange(batch_manager.num_examples_per_epoch):
+        batch_manager.batch()
+
 
     # filelist = 'checked.txt'
     # for root, _, files in os.walk(FLAGS.data_dir):

@@ -15,6 +15,7 @@ from random import shuffle
 
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.stats import threshold
 
 import cairosvg
 from PIL import Image
@@ -119,6 +120,7 @@ class BatchManager(object):
 
                 x_img = Image.open(io.BytesIO(x_png))
                 self.x = np.array(x_img)[:,:,3].astype(np.float) / 255.0
+                # self.x = threshold(self.x, threshmax=0.5, newval=1.0)
 
                 # # debug
                 # plt.imshow(self.x, cmap=plt.cm.gray)
@@ -134,6 +136,7 @@ class BatchManager(object):
             y_png = cairosvg.svg2png(bytestring=y_svg)
             y_img = Image.open(io.BytesIO(y_png))
             y = np.array(y_img)[:,:,3].astype(np.float) / 255.0
+            # y = threshold(y, threshmax=0.5, newval=1.0)
             line_ids = np.nonzero(y)
             
             if len(line_ids[0]) / (FLAGS.image_size*FLAGS.image_size) < self.ratio:
@@ -143,12 +146,12 @@ class BatchManager(object):
                 success = True
 
             # if there is no remaining path
-            if self._path_id >= len(self._path_list):
+            if success or self._path_id >= len(self._path_list):
                 self._read_next = True
                 self._next_svg_id = (self._next_svg_id + 1) % len(self._svg_list)
                 if self._next_svg_id == 0:
                     self.num_epoch = self.num_epoch + 1
-                    self.ratio = np.clip(self.ratio / 2.0, 0.0, 1.0)
+                    # self.ratio = np.clip(self.ratio / 2.0, 0.0, 1.0)
 
         return self.x, y, line_ids
 
@@ -193,8 +196,8 @@ if __name__ == '__main__':
 
     s_batch, x_batch, y_batch = batch_manager.batch()
     for i in xrange(FLAGS.batch_size):
-        # plt.imshow(np.reshape(s_batch[i,:], [FLAGS.image_size,FLAGS.image_size]), cmap=plt.cm.gray)
-        # plt.show()
+        plt.imshow(np.reshape(s_batch[i,:], [FLAGS.image_size,FLAGS.image_size]), cmap=plt.cm.gray)
+        plt.show()
         plt.imshow(np.reshape(x_batch[i,:], [FLAGS.image_size,FLAGS.image_size]), cmap=plt.cm.gray)
         plt.show()
         plt.imshow(np.reshape(y_batch[i,:], [FLAGS.image_size,FLAGS.image_size]), cmap=plt.cm.gray)

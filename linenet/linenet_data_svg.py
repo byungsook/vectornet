@@ -74,37 +74,45 @@ class BatchManager(object):
         debug = False
         
         # preprocessing
-        file_path = self._svg_list[self._next_svg_id]
-        with open(file_path, 'r') as f:
-            # svg = f.read() or            
-            
-            # scale image
-            svg = f.readline()
-            id_width = svg.find('width')
-            id_xmlns = svg.find('xmlns', id_width)
-            svg_size = 'width="{s}" height="{s}" viewBox="0 0 640 480" '.format(s=FLAGS.image_size)
-            svg = svg[:id_width] + svg_size + svg[id_xmlns:]
-            
-            # gather normal paths and remove thick white stroke
-            path_list = []
-            while True:
-                svg_line = f.readline()
-                if not svg_line: break
+        while True:
+            file_path = self._svg_list[self._next_svg_id]
+            with open(file_path, 'r') as f:
+                # svg = f.read() or
+                
+                # scale image
+                svg = f.readline()
+                id_width = svg.find('width')
+                id_xmlns = svg.find('xmlns', id_width)
+                svg_size = 'width="{s}" height="{s}" viewBox="0 0 640 480" '.format(s=FLAGS.image_size)
+                svg = svg[:id_width] + svg_size + svg[id_xmlns:]
+                
+                # gather normal paths and remove thick white stroke
+                path_list = []
+                while True:
+                    svg_line = f.readline()
+                    if not svg_line: break
 
-                # remove thick white strokes
-                id_white_stroke = svg_line.find('#fff')
-                if id_white_stroke == -1:
-                    # gather normal paths
-                    if svg_line.find('path t=') >= 0:
-                        path_list.append(svg_line)
-                    svg = svg + svg_line
+                    # remove thick white strokes
+                    id_white_stroke = svg_line.find('#fff')
+                    if id_white_stroke == -1:
+                        # gather normal paths
+                        if svg_line.find('path t=') >= 0:
+                            path_list.append(svg_line)
+                        svg = svg + svg_line
 
-        self._next_svg_id = (self._next_svg_id + 1) % len(self._svg_list)
-        if self._next_svg_id == 0:
-            self.num_epoch = self.num_epoch + 1
+            self._next_svg_id = (self._next_svg_id + 1) % len(self._svg_list)
+            if self._next_svg_id == 0:
+                self.num_epoch = self.num_epoch + 1
 
-        
-        x_png = cairosvg.svg2png(bytestring=svg)
+            try:
+                x_png = cairosvg.svg2png(bytestring=svg)
+            except Exception as e:
+                print('error %e, file %s' % (e, file_path))
+                pass
+            else:
+                break
+
+
         x_img = Image.open(io.BytesIO(x_png))
         x = np.array(x_img)[:,:,3].astype(np.float) / 255.0
         

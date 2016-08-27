@@ -32,7 +32,8 @@ tf.app.flags.DEFINE_integer('image_size', 96, # 48-24-12-6
                             """Image Size.""")
 tf.app.flags.DEFINE_float('intensity_ratio', 10.0,
                           """intensity ratio of point to lines""")
-
+tf.app.flags.DEFINE_float('initial_min_ratio', 0.004,
+                          """initial_min_ratio for minimum length of line""")
 
 SVG_TEMPLATE_START = """<svg width="{s}" height="{s}" viewBox="0 0 640 480" 
                         xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg" 
@@ -65,7 +66,7 @@ class BatchManager(object):
 
         self.num_examples_per_epoch = len(self._svg_list)
         self.num_epoch = 1
-        self.ratio = 0.01
+        self.ratio = FLAGS.initial_min_ratio
         
         batch_shape = [FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1]
         self.s_batch = np.zeros(batch_shape, dtype=np.float)

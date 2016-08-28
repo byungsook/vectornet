@@ -33,7 +33,7 @@ tf.app.flags.DEFINE_integer('image_size', 96, # 48-24-12-6
                             """Image Size.""")
 tf.app.flags.DEFINE_float('intensity_ratio', 10.0,
                           """intensity ratio of point to lines""")
-tf.app.flags.DEFINE_float('initial_min_ratio', 0.01,
+tf.app.flags.DEFINE_float('initial_min_ratio', 0.02,
                           """initial_min_ratio for minimum length of line""")
 tf.app.flags.DEFINE_boolean('use_two_channels', True,
                             """use two channels for input""")
@@ -123,7 +123,7 @@ class BatchManager(object):
 
                 x_img = Image.open(io.BytesIO(x_png))
                 self.x = np.array(x_img)[:,:,3].astype(np.float) / 255.0
-                self.x = threshold(self.x, threshmax=0.2, newval=1.0)
+                self.x = threshold(self.x, threshmax=0.01, newval=1.0)
 
                 # # debug
                 # plt.imshow(self.x, cmap=plt.cm.gray)
@@ -139,7 +139,7 @@ class BatchManager(object):
             y_png = cairosvg.svg2png(bytestring=y_svg)
             y_img = Image.open(io.BytesIO(y_png))
             y = np.array(y_img)[:,:,3].astype(np.float) / 255.0
-            y = threshold(y, threshmax=0.2, newval=1.0)
+            y = threshold(y, threshmax=0.01, newval=1.0)
             line_ids = np.nonzero(y)
             
             if len(line_ids[0]) / (FLAGS.image_size*FLAGS.image_size) < self.ratio:
@@ -155,7 +155,8 @@ class BatchManager(object):
                 self._next_svg_id = (self._next_svg_id + 1) % len(self._svg_list)
                 if self._next_svg_id == 0:
                     self.num_epoch = self.num_epoch + 1
-                    self.ratio = self.ratio * 0.5
+                    if self.ratio > 0.001:
+                        self.ratio = self.ratio * 0.5
 
         return self.x, y, line_ids
 

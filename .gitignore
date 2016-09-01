@@ -2,7 +2,7 @@
 *.sh
 *~
 log/
-data/
+data_tmp/
 eval/
 test/
 result/

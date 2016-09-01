@@ -27,7 +27,7 @@ import cairosvg
 
 import tensorflow as tf
 from linenet.linenet_manager import LinenetManager
-from gco_python import pygco
+
 
 
 # parameters
@@ -41,7 +41,8 @@ tf.app.flags.DEFINE_integer('prediction_scale', 100,
                            """make it sensible value when rounding""")
 tf.app.flags.DEFINE_integer('max_num_labels', 10, 
                            """the maximum number of labels""")
-
+tf.app.flags.DEFINE_integer('label_cost', 100000, 
+                           """label cost""")
 
 def _imread(img_file_name, inv=False):
     """ Read, grayscale and normalize the image"""
@@ -119,32 +120,33 @@ def graphcut(linenet_manager, file_path):
     # graphcut opt.
     data_term = np.zeros([num_line_pixels*num_line_pixels, FLAGS.max_num_labels], dtype=np.int32)
     pairwise = np.ones([FLAGS.max_num_labels, FLAGS.max_num_labels], dtype=np.int32) - 2 * np.eye(FLAGS.max_num_labels, dtype=np.int32)
-    label_cost = 10000
-    result_label = pygco.cut_from_graph(edge_weight, data_term, pairwise)
+    
+    from gco_python import pygco
+    result_label, e_before, e_after = pygco.cut_from_graph(edge_weight, data_term, pairwise, FLAGS.label_cost)
     num_labels = np.amax(result_label) + 1
     print('%s: %s, the number of labels %d' % (datetime.now(), file_name, num_labels))
-    # print('%s: %s, energy before optimization, smooth %d, label %d, total %d' % (datetime.now(), file_name,  
-    #     e_before[0], e_before[1], e_before[2]))
-    # print('%s: %s, energy after optimization, data %d, smooth %d, label %d, total %d' % (datetime.now(), file_name, 
-    #     e_after[0], e_after[1], e_after[2]))
+    print('%s: %s, energy before optimization, smooth %d, label %d, total %d' % (datetime.now(), file_name,  
+        e_before[0], e_before[1], e_before[2]))
+    print('%s: %s, energy after optimization, smooth %d, label %d, total %d' % (datetime.now(), file_name, 
+        e_after[0], e_after[1], e_after[2]))
     
     # write summary
     num_labels_summary = tf.scalar_summary('num_lables', tf.constant(num_labels, dtype=tf.int16))
     summary_writer.add_summary(num_labels_summary.eval())
 
-    # smooth_energy = tf.placeholder(dtype=tf.int32)
-    # label_energy = tf.placeholder(dtype=tf.int32)
-    # total_energy = tf.placeholder(dtype=tf.int32)
-    # smooth_energy_summary = tf.scalar_summary('smooth_energy', smooth_energy)
-    # label_energy_summary = tf.scalar_summary('label_energy', label_energy)
-    # total_energy_summary = tf.scalar_summary('total_energy', total_energy)
-    # energy_summary = tf.merge_summary([smooth_energy_summary, label_energy_summary, total_energy_summary])
-    # # energy before optimization
-    # summary_writer.add_summary(energy_summary.eval(feed_dict={
-    #     smooth_energy:e_before[0], label_energy:e_before[1], total_energy:e_before[2]}), 0)
-    # # energy after optimization
-    # summary_writer.add_summary(energy_summary.eval(feed_dict={
-    #     smooth_energy:e_after[0], label_energy:e_after[1], total_energy:e_after[2]}), 1)
+    smooth_energy = tf.placeholder(dtype=tf.int32)
+    label_energy = tf.placeholder(dtype=tf.int32)
+    total_energy = tf.placeholder(dtype=tf.int32)
+    smooth_energy_summary = tf.scalar_summary('smooth_energy', smooth_energy)
+    label_energy_summary = tf.scalar_summary('label_energy', label_energy)
+    total_energy_summary = tf.scalar_summary('total_energy', total_energy)
+    energy_summary = tf.merge_summary([smooth_energy_summary, label_energy_summary, total_energy_summary])
+    # energy before optimization
+    summary_writer.add_summary(energy_summary.eval(feed_dict={
+        smooth_energy:e_before[0], label_energy:e_before[1], total_energy:e_before[2]}), 0)
+    # energy after optimization
+    summary_writer.add_summary(energy_summary.eval(feed_dict={
+        smooth_energy:e_after[0], label_energy:e_after[1], total_energy:e_after[2]}), 1)
     
     
     # save label map image
@@ -172,6 +174,7 @@ def graphcut(linenet_manager, file_path):
 def test():
     # create managers
     start_time = time.time()
+    print('%s: Linenet manager loading...' % datetime.now())
     linenet_manager = LinenetManager()
     duration = time.time() - start_time
     print('%s: Linenet manager loaded (%.3f sec)' % (datetime.now(), duration))

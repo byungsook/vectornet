@@ -14,6 +14,7 @@ from six.moves import xrange  # pylint: disable=redefined-builtin
 import numpy as np
 from scipy import ndimage
 from scipy.misc import imread
+from scipy.misc import imsave
 from scipy.stats import threshold
 import cairosvg
 import matplotlib.pyplot as plt
@@ -445,6 +446,16 @@ def batch(check_result=False):
             x = np.reshape(x_batch[0,:,:], [FLAGS.image_size, FLAGS.image_size])
             plt.imshow(x, cmap=plt.cm.gray)
             plt.show()
+            # s = np.reshape(x_no_p_batch[0,:,:], [FLAGS.image_size, FLAGS.image_size])
+            # imsave('01.png', 1.0-s)
+            # s = np.reshape(x_no_p_batch[1,:,:], [FLAGS.image_size, FLAGS.image_size])
+            # imsave('02.png', 1.0-s)
+            # s = np.reshape(x_no_p_batch[2,:,:], [FLAGS.image_size, FLAGS.image_size])
+            # imsave('03.png', 1.0-s)
+            # s = np.reshape(x_no_p_batch[3,:,:], [FLAGS.image_size, FLAGS.image_size])
+            # imsave('04.png', 1.0-s)
+            # s = np.reshape(x_no_p_batch[4,:,:], [FLAGS.image_size, FLAGS.image_size])
+            # imsave('05.png', 1.0-s)
 
     return x_batch, y_batch, x_no_p_batch, p_batch
 

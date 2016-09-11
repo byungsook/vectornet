@@ -56,8 +56,6 @@ tf.app.flags.DEFINE_float('noise_intensity', 30,
                           """unifor noise intensity""")
 tf.app.flags.DEFINE_boolean('use_two_channels', False,
                             """use two channels for input""")
-tf.app.flags.DEFINE_float('prob_background', 0.0,
-                          """probability for selecting background""")
 
 
 SVG_START_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>

@@ -32,21 +32,17 @@ from linenet.linenet_manager import LinenetManager
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('test_dir', 'test/p10_no_spatial',
+tf.app.flags.DEFINE_string('test_dir', 'test/fileio',
                            """Directory where to write event logs """
                            """and checkpoint.""")
 tf.app.flags.DEFINE_string('data_dir', 'data/graphcut', 
                            """Data directory""")
-tf.app.flags.DEFINE_integer('prediction_scale', 1000,
-                           """make it sensible value when rounding""")
 tf.app.flags.DEFINE_integer('max_num_labels', 10, 
                            """the maximum number of labels""")
 tf.app.flags.DEFINE_integer('label_cost', 100,
                            """label cost""")
 tf.app.flags.DEFINE_float('neighbor_sigma', 3.0,
                            """neighbor sigma""")
-tf.app.flags.DEFINE_float('prediction_sigma', 2.0,
-                           """prediction sigma""")
 
 def _imread(img_file_name, inv=False):
     """ Read, grayscale and normalize the image"""
@@ -63,7 +59,8 @@ def _imread(img_file_name, inv=False):
         return img
 
 def graphcut(linenet_manager, file_path):
-    print('%s: start graphcut opt.' % datetime.now())
+    file_name = os.path.splitext(basename(file_path))[0]
+    print('%s: %s, start graphcut opt.' % (datetime.now(), file_name))
     img = _imread(file_path, inv=True)
     
     # # debug
@@ -75,8 +72,7 @@ def graphcut(linenet_manager, file_path):
     
     # specify neighbor weights
     num_line_pixels = len(line_pixels[0])
-    file_name = os.path.splitext(basename(file_path))[0]
-
+    
     sess = tf.InteractiveSession()
     summary_writer = tf.train.SummaryWriter(os.path.join(FLAGS.test_dir, file_name), sess.graph)
     # ###################################################################################
@@ -94,35 +90,9 @@ def graphcut(linenet_manager, file_path):
                 continue
             p2 = np.array([line_pixels[0][j], line_pixels[1][j]])
             pred_p2 = np.reshape(y_batch[j,:,:,:], [FLAGS.image_size, FLAGS.image_size])
-            # pred = pred_p1[p2[0],p2[1]]
             pred = (pred_p1[p2[0],p2[1]] + pred_p2[p1[0],p1[1]]) * 0.5                        
-            # pred = max(pred_p1[p2[0],p2[1]], pred_p2[p1[0],p1[1]])
-            
-            # # kernel
-            # if pred >= 0.5:
-            #     pred = (1.0 - pred) * 2.0
-            #     pred = np.exp(-pred**2 / FLAGS.prediction_sigma**2)
-            # else:
-            #     pred = 1.0 - pred * 2.0
-            #     pred = -np.exp(-pred**2 / FLAGS.prediction_sigma**2)
-            # pred = (pred + 1) * 0.5
-            # print(i,j,pred)
-
-            # d12 = LA.norm(p1-p2, 2)
-            # w12 = scipy.stats.norm(0, FLAGS.neighbor_sigma).pdf(d12)
-            # pred = w12 * pred
-            
-            # if pred > 0.5:
-            #     prediction_map[p2[0],p2[1]] = np.array([0, pred, pred])
             prediction_map[p2[0],p2[1]] = np.array([0, pred, 1.0-pred])
-            # prediction_map[p2[0],p2[1]] = np.array([pred, pred, pred])
-
-        #     # use diff
-        #     y_diff = np.reshape(pred_p1 - pred_p2, [FLAGS.image_size, FLAGS.image_size])
-        #     norm12 = LA.norm(y_diff, 'fro')
-        #     similarity = (1.0 / norm12) ** 2
-        #     prediction_map[p2[0],p2[1]] = np.array([similarity, similarity, similarity])            
-        # prediction_map = prediction_map / np.amax(prediction_map)
+        
         prediction_map[p1[0],p1[1]] = np.array([1, 0, 0])
         # plt.imshow(prediction_map)
         # plt.show()
@@ -140,8 +110,18 @@ def graphcut(linenet_manager, file_path):
     # return
     # ###################################################################################
 
+    pred_file_path = os.path.join(FLAGS.test_dir, file_name) + '.pred'
+    f = open(pred_file_path, 'w')
+    # info
+    f.write(pred_file_path + '\n')
+    f.write(FLAGS.data_dir + '\n')
+    f.write('%d\n' % FLAGS.max_num_labels)
+    f.write('%d\n' % FLAGS.label_cost)
+    f.write('%f\n' % FLAGS.neighbor_sigma)
+    f.write('%d\n' % num_line_pixels)
+
+    
     # support only symmetric edge weight
-    edge_weight = []
     for i in xrange(num_line_pixels-1):
         p1 = np.array([line_pixels[0][i], line_pixels[1][i]])
         pred_p1 = np.reshape(y_batch[i,:,:,:], [FLAGS.image_size, FLAGS.image_size])
@@ -149,90 +129,77 @@ def graphcut(linenet_manager, file_path):
         for j in xrange(i+1, num_line_pixels):
             p2 = np.array([line_pixels[0][j], line_pixels[1][j]])
             pred_p2 = np.reshape(y_batch[j,:,:,:], [FLAGS.image_size, FLAGS.image_size])
-            # pred = pred_p1[p2[0],p2[1]]
-            # print(i,j, 'pred_p1[p2]', pred_p1[p2[0],p2[1]], 'pred_p2[p1]', pred_p2[p1[0],p1[1]])            
             pred = (pred_p1[p2[0],p2[1]] + pred_p2[p1[0],p1[1]]) * 0.5
-            # pred = max(pred_p1[p2[0],p2[1]], pred_p2[p1[0],p1[1]])
-            # if pred > 0.5:
-            #     pred = 1.0
-            # else:
-            #     pred = 0.0
             
-            # # kernel
-            # if pred > 0.5:
-            #     pred = (1.0 - pred) * 2.0
-            #     pred = np.exp(-pred**2 / FLAGS.prediction_sigma**2)
-            # else:
-            #     pred = pred * 2.0
-            #     pred = -np.exp(-pred**2 / FLAGS.prediction_sigma**2)
-            # scaled_pred = pred
+            d12 = LA.norm(p1-p2, 2)
+            spatial = np.exp(-0.5 * d12**2 / FLAGS.neighbor_sigma**2)
 
-
-            # d12 = LA.norm(p1-p2, 2)
-            # w12 = scipy.stats.norm(0, FLAGS.neighbor_sigma).pdf(d12)
-            # scaled_pred = w12 * (2.0 * pred - 1.0) * FLAGS.prediction_scale
-
-            scaled_pred = pred * 2.0 * FLAGS.prediction_scale - FLAGS.prediction_scale
-            # scaled_pred = np.exp(-(1-pred)**2 / FLAGS.prediction_sigma**2) * FLAGS.prediction_scale
-
-            edge_weight.append([i, j, scaled_pred])
-            # print(i,j,pred,scaled_pred)
-
-        #     y_diff = np.reshape(pred_p1 - pred_p2, [FLAGS.image_size, FLAGS.image_size])
-        #     norm12 = LA.norm(y_diff, 'fro')
-        #     similarity = (1.0 / norm12) ** 2
-        #     prediction_list.append(similarity)
-
-        # prediction_list = np.array(prediction_list)
-        # prediction_list = prediction_list / np.amax(prediction_list) * 2.0 * FLAGS.prediction_scale - FLAGS.prediction_scale
-        # for j in xrange(len(prediction_list)):
-        #     edge_weight.append([i, j+i+1, prediction_list[j]])
-
-    edge_weight = np.array(edge_weight).astype(np.int32)
-
-    # graphcut opt.
-    data_term = np.zeros([num_line_pixels, FLAGS.max_num_labels], dtype=np.int32)
-    pairwise = 1*np.ones([FLAGS.max_num_labels, FLAGS.max_num_labels], dtype=np.int32) - 2*np.eye(FLAGS.max_num_labels, dtype=np.int32)
+            f.write('%d %d %f %f\n' % (i, j, pred, spatial))
     
-    from gco_python import pygco
-    # from pygco import pygco
-    result_label, e_before, e_after = pygco.cut_from_graph(edge_weight, data_term, pairwise, FLAGS.label_cost)
-    num_labels = np.unique(result_label).size
-    print('%s: %s, label: %s' % (datetime.now(), file_name, result_label))
+    f.close()
+    print('%s: %s, prediction computed' % (datetime.now(), file_name))
+    
+    # run gco_linenet
+    working_path = os.getcwd()
+    gco_path = os.path.join(working_path, 'gco/gco_src')
+    os.chdir(gco_path)
+    os.environ['LD_LIBRARY_PATH'] = os.getcwd()
+    call(['./gco_linenet', '../../' + pred_file_path])
+    os.chdir(working_path)
+    
+    # read result
+    label_file_path = os.path.join(FLAGS.test_dir, file_name) + '.label'
+    f = open(label_file_path, 'r')
+    e_before = f.readline()
+    e_after = f.readline()
+    labels = np.fromstring(f.read(), dtype=np.int32, sep=' ')
+    f.close()
+    os.remove(pred_file_path)
+    os.remove(label_file_path)
+    print('%s: %s, labeling finished' % (datetime.now(), file_name))
+    
+    
+    # graphcut opt.
+    num_labels = np.unique(labels).size
+    print('%s: %s, label: %s' % (datetime.now(), file_name, labels))
     print('%s: %s, the number of labels %d' % (datetime.now(), file_name, num_labels))
-    print('%s: %s, energy before optimization, smooth %d, label %d, total %d' % (datetime.now(), file_name,  
-        e_before[0], e_before[1], e_before[2]))
-    print('%s: %s, energy after optimization, smooth %d, label %d, total %d' % (datetime.now(), file_name, 
-        e_after[0], e_after[1], e_after[2]))
+    print('%s: %s, energy before optimization %s' % (datetime.now(), file_name, e_before))
+    print('%s: %s, energy after optimization %s' % (datetime.now(), file_name, e_after))
     
     # write summary
     num_labels_summary = tf.scalar_summary('num_lables', tf.constant(num_labels, dtype=tf.int16))
     summary_writer.add_summary(num_labels_summary.eval())
 
-    smooth_energy = tf.placeholder(dtype=tf.int32)
-    label_energy = tf.placeholder(dtype=tf.int32)
-    total_energy = tf.placeholder(dtype=tf.int32)
-    smooth_energy_summary = tf.scalar_summary('smooth_energy', smooth_energy)
-    label_energy_summary = tf.scalar_summary('label_energy', label_energy)
-    total_energy_summary = tf.scalar_summary('total_energy', total_energy)
-    energy_summary = tf.merge_summary([smooth_energy_summary, label_energy_summary, total_energy_summary])
+    # smooth_energy = tf.placeholder(dtype=tf.int32)
+    # label_energy = tf.placeholder(dtype=tf.int32)
+    # total_energy = tf.placeholder(dtype=tf.int32)
+    energy = tf.placeholder(dtype=tf.int32)
+    # smooth_energy_summary = tf.scalar_summary('smooth_energy', smooth_energy)
+    # label_energy_summary = tf.scalar_summary('label_energy', label_energy)
+    # total_energy_summary = tf.scalar_summary('total_energy', total_energy)
+    energy_summary = tf.scalar_summary('energy', energy)
+    # energy_summary = tf.merge_summary([smooth_energy_summary, label_energy_summary, total_energy_summary])
+    # # energy before optimization
+    # summary_writer.add_summary(energy_summary.eval(feed_dict={
+    #     smooth_energy:e_before[0], label_energy:e_before[1], total_energy:e_before[2]}), 0)
+    # # energy after optimization
+    # summary_writer.add_summary(energy_summary.eval(feed_dict={
+    #     smooth_energy:e_after[0], label_energy:e_after[1], total_energy:e_after[2]}), 1)
     # energy before optimization
-    summary_writer.add_summary(energy_summary.eval(feed_dict={
-        smooth_energy:e_before[0], label_energy:e_before[1], total_energy:e_before[2]}), 0)
+    summary_writer.add_summary(energy_summary.eval(feed_dict={energy:e_before}), 0)
     # energy after optimization
-    summary_writer.add_summary(energy_summary.eval(feed_dict={
-        smooth_energy:e_after[0], label_energy:e_after[1], total_energy:e_after[2]}), 1)
+    summary_writer.add_summary(energy_summary.eval(feed_dict={energy:e_after}), 1)
     
     
     # save label map image
     cmap = plt.get_cmap('jet')
-    cnorm  = colors.Normalize(vmin=0, vmax=np.amax(result_label))
+    cnorm  = colors.Normalize(vmin=0, vmax=np.amax(labels))
     cscalarmap = cmx.ScalarMappable(norm=cnorm, cmap=cmap)
 
     label_map = np.ones([FLAGS.image_size, FLAGS.image_size, 3], dtype=np.float)
     for i in xrange(num_line_pixels):
-        color = cscalarmap.to_rgba(result_label[i])
-        # print(line_pixels[0][i],line_pixels[1][i],result_label[i]) # ,color)
+        color = cscalarmap.to_rgba(labels[i])
+        # print(line_pixels[0][i],line_pixels[1][i],labels[i]) # ,color)
         label_map[line_pixels[0][i],line_pixels[1][i]] = color[:3]
     
     # label_map_path = os.path.join(FLAGS.test_dir, 'label_map_%s.png' % file_name)
@@ -276,19 +243,17 @@ def main(_):
         working_path = os.path.join(working_path, 'vectornet')
         os.chdir(working_path)
     
-    # make pygco
-    print('%s: start compile pygco' % datetime.now())
+    # make gco
+    print('%s: start to compile gco' % datetime.now())
+    # http://vision.csd.uwo.ca/code/
+    gco_path = os.path.join(working_path, 'gco/gco_src')
     
-    # https://github.com/amueller/gco_python
-    pygco_path = os.path.join(working_path, 'gco_python')
-    
-    # # https://github.com/yujiali/pygco
-    # pygco_path = os.path.join(working_path, 'pygco')
-    
-    os.chdir(pygco_path)
-    call(['make'])
+    os.chdir(gco_path)
+    # call(['make', 'rm'])
+    # call(['make'])
+    call(['make', 'gco_linenet'])
     os.chdir(working_path)
-    print('%s: pygco compiled' % datetime.now())    
+    print('%s: gco compiled' % datetime.now())    
 
     # create test directory
     if tf.gfile.Exists(FLAGS.test_dir):

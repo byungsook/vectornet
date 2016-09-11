@@ -24,7 +24,7 @@ tf.app.flags.DEFINE_float('intensity_ratio', 10.0,
                           """intensity ratio of point to lines""")
 tf.app.flags.DEFINE_integer('image_size', 48, # 48-24-12-6
                             """Image Size.""")    
-tf.app.flags.DEFINE_string('linenet_ckpt', 'linenet/log/m5/linenet.ckpt',
+tf.app.flags.DEFINE_string('linenet_ckpt', 'model/m5/linenet.ckpt',
                            """linenet checkpoint file path.""")  
 
 

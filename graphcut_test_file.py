@@ -39,8 +39,8 @@ tf.app.flags.DEFINE_string('data_dir', 'data/graphcut',
                            """Data directory""")
 tf.app.flags.DEFINE_integer('max_num_labels', 10, 
                            """the maximum number of labels""")
-tf.app.flags.DEFINE_integer('label_cost', 100,
-                           """label cost""")
+# tf.app.flags.DEFINE_integer('label_cost', 100,
+#                            """label cost""")
 tf.app.flags.DEFINE_float('neighbor_sigma', 3.0,
                            """neighbor sigma""")
 
@@ -91,8 +91,16 @@ def graphcut(linenet_manager, file_path):
             p2 = np.array([line_pixels[0][j], line_pixels[1][j]])
             pred_p2 = np.reshape(y_batch[j,:,:,:], [FLAGS.image_size, FLAGS.image_size])
             pred = (pred_p1[p2[0],p2[1]] + pred_p2[p1[0],p1[1]]) * 0.5                        
-            prediction_map[p2[0],p2[1]] = np.array([0, pred, 1.0-pred])
-        
+            if FLAGS.neighbor_sigma > 0:
+                d12 = LA.norm(p1-p2, 2)
+                spatial = np.exp(-0.5 * d12**2 / FLAGS.neighbor_sigma**2)
+                pred = spatial * pred
+                prediction_map[p2[0],p2[1]] = np.array([pred, pred, pred])
+            else:
+                prediction_map[p2[0],p2[1]] = np.array([0, pred, 1.0-pred])
+
+        if FLAGS.neighbor_sigma > 0:
+            prediction_map = prediction_map / np.amax(prediction_map)
         prediction_map[p1[0],p1[1]] = np.array([1, 0, 0])
         # plt.imshow(prediction_map)
         # plt.show()
@@ -116,7 +124,7 @@ def graphcut(linenet_manager, file_path):
     f.write(pred_file_path + '\n')
     f.write(FLAGS.data_dir + '\n')
     f.write('%d\n' % FLAGS.max_num_labels)
-    f.write('%d\n' % FLAGS.label_cost)
+    # f.write('%d\n' % FLAGS.label_cost)
     f.write('%f\n' % FLAGS.neighbor_sigma)
     f.write('%d\n' % num_line_pixels)
 
@@ -131,9 +139,11 @@ def graphcut(linenet_manager, file_path):
             pred_p2 = np.reshape(y_batch[j,:,:,:], [FLAGS.image_size, FLAGS.image_size])
             pred = (pred_p1[p2[0],p2[1]] + pred_p2[p1[0],p1[1]]) * 0.5
             
-            d12 = LA.norm(p1-p2, 2)
-            spatial = np.exp(-0.5 * d12**2 / FLAGS.neighbor_sigma**2)
-
+            if FLAGS.neighbor_sigma > 0:
+                d12 = LA.norm(p1-p2, 2)
+                spatial = np.exp(-0.5 * d12**2 / FLAGS.neighbor_sigma**2)
+            else:
+                spatial = 1.0
             f.write('%d %d %f %f\n' % (i, j, pred, spatial))
     
     f.close()
@@ -150,8 +160,8 @@ def graphcut(linenet_manager, file_path):
     # read result
     label_file_path = os.path.join(FLAGS.test_dir, file_name) + '.label'
     f = open(label_file_path, 'r')
-    e_before = f.readline()
-    e_after = f.readline()
+    e_before = long(f.readline())
+    e_after = long(f.readline())
     labels = np.fromstring(f.read(), dtype=np.int32, sep=' ')
     f.close()
     os.remove(pred_file_path)
@@ -161,10 +171,10 @@ def graphcut(linenet_manager, file_path):
     
     # graphcut opt.
     num_labels = np.unique(labels).size
-    print('%s: %s, label: %s' % (datetime.now(), file_name, labels))
+    # print('%s: %s, label: %s' % (datetime.now(), file_name, labels))
     print('%s: %s, the number of labels %d' % (datetime.now(), file_name, num_labels))
-    print('%s: %s, energy before optimization %s' % (datetime.now(), file_name, e_before))
-    print('%s: %s, energy after optimization %s' % (datetime.now(), file_name, e_after))
+    print('%s: %s, energy before optimization %d' % (datetime.now(), file_name, e_before))
+    print('%s: %s, energy after optimization %d' % (datetime.now(), file_name, e_after))
     
     # write summary
     num_labels_summary = tf.scalar_summary('num_lables', tf.constant(num_labels, dtype=tf.int16))
@@ -173,7 +183,7 @@ def graphcut(linenet_manager, file_path):
     # smooth_energy = tf.placeholder(dtype=tf.int32)
     # label_energy = tf.placeholder(dtype=tf.int32)
     # total_energy = tf.placeholder(dtype=tf.int32)
-    energy = tf.placeholder(dtype=tf.int32)
+    energy = tf.placeholder(dtype=tf.int64)
     # smooth_energy_summary = tf.scalar_summary('smooth_energy', smooth_energy)
     # label_energy_summary = tf.scalar_summary('label_energy', label_energy)
     # total_energy_summary = tf.scalar_summary('total_energy', total_energy)
@@ -249,8 +259,8 @@ def main(_):
     gco_path = os.path.join(working_path, 'gco/gco_src')
     
     os.chdir(gco_path)
-    # call(['make', 'rm'])
-    # call(['make'])
+    call(['make', 'rm'])
+    call(['make'])
     call(['make', 'gco_linenet'])
     os.chdir(working_path)
     print('%s: gco compiled' % datetime.now())    

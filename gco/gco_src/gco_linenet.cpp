@@ -39,7 +39,7 @@ int main(int argc, char **argv)
 	is >> pred_file_path;
 	is >> data_dir;
 	is >> n_labels;
-	is >> label_cost;
+	//is >> label_cost;
 	is >> neighbor_sigma;
 	is >> n_sites;
 
@@ -88,7 +88,7 @@ int main(int argc, char **argv)
 		gc->setSmoothCost(smoothFn, (void*)pred);
 		for (int i = 0; i < n_sites - 1; ++i) {
 			for (int j = i + 1; j < n_sites; ++j) {
-				gc->setNeighbors(i, j, 1); // w[i][j] * 1000);
+				gc->setNeighbors(i, j, w[i][j] * 1000);
 			}
 		}
 		//gc->setLabelCost(label_cost);

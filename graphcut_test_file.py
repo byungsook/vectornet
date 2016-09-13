@@ -32,7 +32,7 @@ from linenet.linenet_manager import LinenetManager
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('test_dir', 'test/real',
+tf.app.flags.DEFINE_string('test_dir', 'test/test',
                            """Directory where to write event logs """
                            """and checkpoint.""")
 tf.app.flags.DEFINE_string('data_dir', 'data/graphcut', 
@@ -41,43 +41,28 @@ tf.app.flags.DEFINE_integer('max_num_labels', 20,
                            """the maximum number of labels""")
 # tf.app.flags.DEFINE_integer('label_cost', 100,
 #                            """label cost""")
-tf.app.flags.DEFINE_float('neighbor_sigma', 0.8,
+tf.app.flags.DEFINE_float('neighbor_sigma', 8,
                            """neighbor sigma""")
 tf.app.flags.DEFINE_float('prediction_sigma', 0.7,
                            """prediction sigma""")
 
 def _imread(img_file_name, inv=False):
     """ Read, grayscale and normalize the image"""
-    img = np.array(Image.open(img_file_name).convert('L')).astype(np.float) / 255.0
-    
-    # im = Image.open(img_file_name).convert('L')
-    # im = im.resize((48,48), Image.ANTIALIAS)
-    # img = np.array(im).astype(np.float) / 255.0
-    # img = scipy.stats.threshold(img, threshmin=0.8, newval=0.0)
-    # img = scipy.stats.threshold(img, threshmax=0.7, newval=1.0)
-    
+    img = np.array(Image.open(img_file_name).convert('L')).astype(np.float) / 255.0   
     if inv: 
         return 1.0 - img
     else: 
         return img
 
-# def graphcut(file_path):
 def graphcut(linenet_manager, file_path):
     file_name = os.path.splitext(basename(file_path))[0]
     print('%s: %s, start graphcut opt.' % (datetime.now(), file_name))
     img = _imread(file_path, inv=True)
     
-    # # create managers
-    # start_time = time.time()
-    # print('%s: Linenet manager loading...' % datetime.now())
-    # linenet_manager = LinenetManager(img.shape) # h, w
-    # duration = time.time() - start_time
-    # print('%s: Linenet manager loaded (%.3f sec)' % (datetime.now(), duration))
-
     # # debug
     # plt.imshow(img, cmap=plt.cm.gray)
     # plt.show()
-
+    
     # compute probability map of all line pixels
     y_batch, line_pixels = linenet_manager.extract_all(img)
     
@@ -259,7 +244,6 @@ def test():
             
             file_path = os.path.join(root, file)
             start_time = time.time()
-            # graphcut(file_path)
             graphcut(linenet_manager, file_path)
             duration = time.time() - start_time
             print('%s: %s processed (%.3f sec)' % (datetime.now(), file, duration))

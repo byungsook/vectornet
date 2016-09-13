@@ -22,8 +22,6 @@ import linenet.linenet_model
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_float('intensity_ratio', 10.0,
                           """intensity ratio of point to lines""")
-tf.app.flags.DEFINE_integer('image_size', 48, # 48-24-12-6
-                            """Image Size.""")    
 tf.app.flags.DEFINE_string('linenet_ckpt', 'model/m5/linenet.ckpt',
                            """linenet checkpoint file path.""")  
 
@@ -32,13 +30,15 @@ class LinenetManager(object):
     """
     Linenet
     """
-    def __init__(self):
+    def __init__(self, img_shape):
+        self._h = img_shape[0]
+        self._w = img_shape[1]
         self._graph = tf.Graph()
         with self._graph.as_default():
             global_step = tf.Variable(0, name='global_step', trainable=False)
             self._phase_train = tf.placeholder(tf.bool, name='phase_train')
 
-            self._x = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
+            self._x = tf.placeholder(dtype=tf.float32, shape=[None, self._h, self._w, 1])
             self._y_hat = linenet.linenet_model.inference(self._x, self._phase_train)
 
             self._sess = tf.Session()
@@ -56,11 +56,11 @@ class LinenetManager(object):
         # plt.imshow(x, cmap=plt.cm.gray)
         # plt.show()
         
-        x_ = np.reshape(x, [1, FLAGS.image_size, FLAGS.image_size, 1])
+        x_ = np.reshape(x, [1, self._h, self._w, 1])
 
         with self._graph.as_default():
             y = self._sess.run(self._y_hat, feed_dict={self._phase_train: False, self._x: x_})
-            y = np.reshape(y, [FLAGS.image_size, FLAGS.image_size])
+            y = np.reshape(y, [self._h, self._w])
             
             # # debug
             # plt.imshow(y, cmap=plt.cm.gray)
@@ -85,7 +85,7 @@ class LinenetManager(object):
         
         img = img / FLAGS.intensity_ratio
 
-        x_batch = np.zeros([num_line_pixels, FLAGS.image_size, FLAGS.image_size])
+        x_batch = np.zeros([num_line_pixels, self._h, self._w])
         for i in xrange(num_line_pixels):
             px, py = line_pixels[0][i], line_pixels[1][i]
             x_batch[i,:,:] = img
@@ -95,12 +95,12 @@ class LinenetManager(object):
             # plt.imshow(x_batch[i,:,:], cmap=plt.cm.gray)
             # plt.show()
         
-        x_batch = np.reshape(x_batch, [num_line_pixels, FLAGS.image_size, FLAGS.image_size, 1])
+        x_batch = np.reshape(x_batch, [num_line_pixels, self._h, self._w, 1])
         with self._graph.as_default():
             y_batch = self._sess.run(self._y_hat, feed_dict={self._phase_train: False, self._x: x_batch})
             
             # # debug
-            # y_vis = np.reshape(y_batch[0,:,:,:], [FLAGS.image_size, FLAGS.image_size])
+            # y_vis = np.reshape(y_batch[0,:,:,:], [self._h, self._w])
             # plt.imshow(y_vis, cmap=plt.cm.gray)
             # plt.show()
             

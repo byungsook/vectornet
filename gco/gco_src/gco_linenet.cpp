@@ -8,7 +8,6 @@
 #include <string>
 #include "GCoptimization.h"
 
-
 int smoothFn(int p1, int p2, int l1, int l2, void *data)
 {
 	float **pred = reinterpret_cast<float**>(data);
@@ -41,6 +40,7 @@ int main(int argc, char **argv)
 	is >> n_labels;
 	//is >> label_cost;
 	is >> neighbor_sigma;
+	is >> prediction_sigma;
 	is >> n_sites;
 
 	//std::cout << "pred_file_path:" << pred_file_path << std::endl;
@@ -48,6 +48,7 @@ int main(int argc, char **argv)
 	//std::cout << "n_labels:" << n_labels << std::endl;
 	//std::cout << "label_cost:" << label_cost << std::endl;
 	//std::cout << "neighbor_sigma:" << neighbor_sigma << std::endl;
+	//std::cout << "pred_sigma:" << pred_sigma << std::endl;
 	//std::cout << "n_sites:" << n_sites << std::endl;
 	
 	float **pred = new float*[n_sites];

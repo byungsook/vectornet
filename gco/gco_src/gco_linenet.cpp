@@ -8,7 +8,7 @@
 #include <string>
 #include "GCoptimization.h"
 
-int smoothFn(int p1, int p2, int l1, int l2, void *data)
+float smoothFn(int p1, int p2, int l1, int l2, void *data)
 {
 	float **pred = reinterpret_cast<float**>(data);
 	//float avg_pred = 0.5 * (pred[p1][p2] + pred[p2][p1]);
@@ -19,7 +19,8 @@ int smoothFn(int p1, int p2, int l1, int l2, void *data)
 	}
 	float avg_pred = pred[p1][p2];
 	float pred_distance = (l1 == l2) ? (1 - avg_pred) : avg_pred;
-	return int(pred_distance * 1000);
+	//return int(pred_distance * 1000);
+	return pred_distance;
 }
 
 int main(int argc, char **argv)
@@ -34,7 +35,7 @@ int main(int argc, char **argv)
 	
 	std::string pred_file_path, data_dir;
 	int n_labels, n_sites, label_cost;
-	float neighbor_sigma;
+	float neighbor_sigma, prediction_sigma;
 	is >> pred_file_path;
 	is >> data_dir;
 	is >> n_labels;
@@ -77,7 +78,7 @@ int main(int argc, char **argv)
 
 	int n_iters = -1;
 
-	int *data = new int[n_sites*n_labels];
+	float *data = new float[n_sites*n_labels];
 	for (int i = 0; i < n_sites*n_labels; ++i)
 		data[i] = 0;
 
@@ -89,7 +90,7 @@ int main(int argc, char **argv)
 		gc->setSmoothCost(smoothFn, (void*)pred);
 		for (int i = 0; i < n_sites - 1; ++i) {
 			for (int j = i + 1; j < n_sites; ++j) {
-				gc->setNeighbors(i, j, w[i][j] * 1000);
+				gc->setNeighbors(i, j, w[i][j]);
 			}
 		}
 		//gc->setLabelCost(label_cost);

@@ -13,6 +13,7 @@ import os
 from os.path import basename
 import time
 from subprocess import call
+import io
 
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import numpy as np
@@ -32,10 +33,10 @@ from linenet.linenet_manager import LinenetManager
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('test_dir', 'test/test',
+tf.app.flags.DEFINE_string('test_dir', 'test/svg',
                            """Directory where to write event logs """
                            """and checkpoint.""")
-tf.app.flags.DEFINE_string('data_dir', 'data/graphcut', 
+tf.app.flags.DEFINE_string('data_dir', 'data/svg', 
                            """Data directory""")
 tf.app.flags.DEFINE_integer('max_num_labels', 20, 
                            """the maximum number of labels""")
@@ -43,27 +44,86 @@ tf.app.flags.DEFINE_integer('max_num_labels', 20,
 #                            """label cost""")
 tf.app.flags.DEFINE_float('neighbor_sigma', 8,
                            """neighbor sigma""")
-tf.app.flags.DEFINE_float('prediction_sigma', 0.7, #0.6,
+tf.app.flags.DEFINE_float('prediction_sigma', 0.7,
                            """prediction sigma""")
-
 
 def _imread(img_file_name, inv=False):
     """ Read, grayscale and normalize the image"""
-    img = np.array(Image.open(img_file_name).convert('L')).astype(np.float) / 255.0   
+    # img = np.array(Image.open(img_file_name).convert('L')).astype(np.float) / 255.0
+    with open(img_file_name, 'r') as f:
+        # svg = f.read() or        
+        # scale image
+        svg = f.readline()
+        id_width = svg.find('width')
+        id_xmlns = svg.find('xmlns', id_width)
+        svg_size = 'width="96" height="96" viewBox="0 0 640 480" '
+        svg = svg[:id_width] + svg_size + svg[id_xmlns:]
+
+        # gather normal paths and remove thick white stroke
+        path_list = []
+        while True:
+            svg_line = f.readline()
+            if not svg_line: break
+
+            # remove thick white strokes
+            id_white_stroke = svg_line.find('#fff')
+            if id_white_stroke == -1:
+                # gather normal paths
+                if svg_line.find('path t=') >= 0:
+                    svg_line.replace('stroke-width="2"', 'stroke-width="1"')
+                    path_list.append(svg_line)
+                svg = svg + svg_line
+
+    # read preprocessed svg
+    try:
+        png = cairosvg.svg2png(bytestring=svg)
+    except Exception as e:
+        # print('error %s, file %s' % (e, file_path))
+        svg = svg + '</svg>'
+        png = cairosvg.svg2png(bytestring=svg)
+
+    img = np.array(Image.open(io.BytesIO(png)))[:,:,3].astype(np.float) / 255.0
+
+    # img = scipy.stats.threshold(img, threshmax=0.1, newval=1.0)
+    line_pixels = np.nonzero(img)
+    totalnum_line_pixels = float(len(line_pixels[0]))
+    threshmax = np.amax(img) - 0.02
+    print('totalnum_line_pixels: %d, max: %f' % (totalnum_line_pixels, threshmax))
+
+    while True:
+        img_ = scipy.stats.threshold(img, threshmax=threshmax, newval=1.0)
+        line_pixels = np.nonzero(img_ > threshmax)
+        num_line_pixels = len(line_pixels[0])
+        print('num_line_pixels: %d' % num_line_pixels)
+
+        if num_line_pixels/totalnum_line_pixels > 0.7:
+            img = img_
+            break
+        else:
+            threshmax = threshmax - 0.02
+
     if inv: 
         return 1.0 - img
     else: 
         return img
 
+# def graphcut(file_path):
 def graphcut(linenet_manager, file_path):
     file_name = os.path.splitext(basename(file_path))[0]
     print('%s: %s, start graphcut opt.' % (datetime.now(), file_name))
-    img = _imread(file_path, inv=True)
+    img = _imread(file_path)
     
     # # debug
     # plt.imshow(img, cmap=plt.cm.gray)
     # plt.show()
     
+    # # create managers
+    # start_time = time.time()
+    # print('%s: Linenet manager loading...' % datetime.now())
+    # linenet_manager = LinenetManager(img.shape) # h, w
+    # duration = time.time() - start_time
+    # print('%s: Linenet manager loaded (%.3f sec)' % (datetime.now(), duration))
+
     # compute probability map of all line pixels
     y_batch, line_pixels = linenet_manager.extract_all(img)
     
@@ -76,7 +136,6 @@ def graphcut(linenet_manager, file_path):
     # debug: generate similarity map
     pred_map_ph = tf.placeholder(dtype=tf.float32, shape=[None, img.shape[0], img.shape[1], 3])
     pred_map_summary = tf.image_summary('pred_map', pred_map_ph, max_images=1)
-    prediction_list = []
 
     for i in xrange(num_line_pixels):
         p1 = np.array([line_pixels[0][i], line_pixels[1][i]])
@@ -91,14 +150,13 @@ def graphcut(linenet_manager, file_path):
             pred = (pred_p1[p2[0],p2[1]] + pred_p2[p1[0],p1[1]]) * 0.5                        
             pred = np.exp(-0.5 * (1.0-pred)**2 / FLAGS.prediction_sigma**2)
 
-            if i < j:
-                prediction_list.append(pred)
-
             if FLAGS.neighbor_sigma > 0:
                 d12 = LA.norm(p1-p2, 2)
                 spatial = np.exp(-0.5 * d12**2 / FLAGS.neighbor_sigma**2)
                 pred = spatial * pred
             prediction_map[p2[0],p2[1]] = np.array([pred, pred, pred])
+            # else:
+            #     prediction_map[p2[0],p2[1]] = np.array([0, pred, 1.0-pred])
 
         prediction_map = prediction_map / np.amax(prediction_map)
         prediction_map[p1[0],p1[1]] = np.array([1, 0, 0])
@@ -113,30 +171,6 @@ def graphcut(linenet_manager, file_path):
         summary_tmp.ParseFromString(summary_str)        
         summary_tmp.value[0].tag = 'pred_map/%04d' % i
         summary_writer.add_summary(summary_tmp)
-
-    # the histogram of the data
-    prediction_list = np.array(prediction_list)
-    
-    fig = plt.figure()    
-    plt.hist(prediction_list, 50, normed=True, alpha=0.75)
-    plt.title('Histogram of Kpq')
-    plt.grid(True)
-    fig.canvas.draw()
-
-    # Now we can save it to a numpy array.
-    pred_hist = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
-    pred_hist = pred_hist.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-    plt.close(fig)
-
-    pred_hist = np.reshape(pred_hist, [1, pred_hist.shape[0], pred_hist.shape[1], pred_hist.shape[2]])
-    pred_hist_ph = tf.placeholder(dtype=tf.uint8, shape=pred_hist.shape)
-    pred_hist_summary = tf.image_summary('Kpq_hist', pred_hist_ph, max_images=1)
-    
-    summary_str = pred_hist_summary.eval(feed_dict={pred_hist_ph: pred_hist})
-    summary_tmp = tf.Summary()
-    summary_tmp.ParseFromString(summary_str)
-    summary_tmp.value[0].tag = 'pred_Kpq_hist'
-    summary_writer.add_summary(summary_tmp)
 
     # print('Done')
     # return
@@ -158,6 +192,7 @@ def graphcut(linenet_manager, file_path):
     for i in xrange(num_line_pixels-1):
         p1 = np.array([line_pixels[0][i], line_pixels[1][i]])
         pred_p1 = np.reshape(y_batch[i,:,:,:], [img.shape[0], img.shape[1]])
+        prediction_list = []
         for j in xrange(i+1, num_line_pixels):
             p2 = np.array([line_pixels[0][j], line_pixels[1][j]])
             pred_p2 = np.reshape(y_batch[j,:,:,:], [img.shape[0], img.shape[1]])
@@ -186,8 +221,8 @@ def graphcut(linenet_manager, file_path):
     # read result
     label_file_path = os.path.join(FLAGS.test_dir, file_name) + '.label'
     f = open(label_file_path, 'r')
-    e_before = float(f.readline())
-    e_after = float(f.readline())
+    e_before = long(f.readline())
+    e_after = long(f.readline())
     labels = np.fromstring(f.read(), dtype=np.int32, sep=' ')
     f.close()
     # os.remove(pred_file_path)
@@ -197,12 +232,11 @@ def graphcut(linenet_manager, file_path):
     
     
     # graphcut opt.
-    u = np.unique(labels)
-    num_labels = u.size
+    num_labels = np.unique(labels).size
     # print('%s: %s, label: %s' % (datetime.now(), file_name, labels))
     print('%s: %s, the number of labels %d' % (datetime.now(), file_name, num_labels))
-    print('%s: %s, energy before optimization %.4f' % (datetime.now(), file_name, e_before))
-    print('%s: %s, energy after optimization %.4f' % (datetime.now(), file_name, e_after))
+    print('%s: %s, energy before optimization %d' % (datetime.now(), file_name, e_before))
+    print('%s: %s, energy after optimization %d' % (datetime.now(), file_name, e_after))
     
     # write summary
     num_labels_summary = tf.scalar_summary('num_lables', tf.constant(num_labels, dtype=tf.int16))
@@ -211,7 +245,7 @@ def graphcut(linenet_manager, file_path):
     # smooth_energy = tf.placeholder(dtype=tf.int32)
     # label_energy = tf.placeholder(dtype=tf.int32)
     # total_energy = tf.placeholder(dtype=tf.int32)
-    energy = tf.placeholder(dtype=tf.float64)
+    energy = tf.placeholder(dtype=tf.int64)
     # smooth_energy_summary = tf.scalar_summary('smooth_energy', smooth_energy)
     # label_energy_summary = tf.scalar_summary('label_energy', label_energy)
     # total_energy_summary = tf.scalar_summary('total_energy', total_energy)
@@ -233,15 +267,13 @@ def graphcut(linenet_manager, file_path):
     summary_writer.add_summary(duration_summary.eval(feed_dict={duration_ph:duration}))
     
     # save label map image
-    cmap = plt.get_cmap('jet')    
-    cnorm  = colors.Normalize(vmin=0, vmax=num_labels-1)
+    cmap = plt.get_cmap('jet')
+    cnorm  = colors.Normalize(vmin=0, vmax=np.amax(labels))
     cscalarmap = cmx.ScalarMappable(norm=cnorm, cmap=cmap)
 
     label_map = np.ones([img.shape[0], img.shape[1], 3], dtype=np.float)
     for i in xrange(num_line_pixels):
-        # color = cscalarmap.to_rgba(labels[i])
-        color = cscalarmap.to_rgba(np.where(u==labels[i])[0])[0]
-
+        color = cscalarmap.to_rgba(labels[i])
         # print(line_pixels[0][i],line_pixels[1][i],labels[i]) # ,color)
         label_map[line_pixels[0][i],line_pixels[1][i]] = color[:3]
     
@@ -256,61 +288,24 @@ def graphcut(linenet_manager, file_path):
     summary_tmp.value[0].tag = 'label_map'
     summary_writer.add_summary(summary_tmp)
 
-    return num_labels
-
-
-def parameter_tune():
-    # create managers
-    start_time = time.time()
-    print('%s: Linenet manager loading...' % datetime.now())
-    fixed_image_size = [48, 48]
-    linenet_manager = LinenetManager(fixed_image_size)
-    duration = time.time() - start_time
-    print('%s: Linenet manager loaded (%.3f sec)' % (datetime.now(), duration))
-    
-    for root, _, files in os.walk(FLAGS.data_dir):
-        for file in files:
-            if not file.lower().endswith('png'):
-                continue
-
-            # n_sig_list = np.linspace(6, 10, 41).tolist()
-            n_sig_list = [8]
-            p_sig_list = np.linspace(0.65, 0.66, 11).tolist()
-            for n_sig in n_sig_list:
-                FLAGS.neighbor_sigma = n_sig
-                print('n_sig: %.3f' % FLAGS.neighbor_sigma)
-                for p_sig in p_sig_list:
-                    FLAGS.prediction_sigma = p_sig
-                    print('p_sig: %.3f' % FLAGS.prediction_sigma)
-                    file_path = os.path.join(root, file)
-                    start_time = time.time()
-                    num_labels = graphcut(linenet_manager, file_path)                    
-                    duration = time.time() - start_time
-                    print('%s: %s processed (%.3f sec)' % (datetime.now(), file, duration))
-
-                    if num_labels == 4:
-                        print('Find!')
-                        # return
-
-    print('Done')
-
 
 def test():
     # create managers
     start_time = time.time()
     print('%s: Linenet manager loading...' % datetime.now())
-    fixed_image_size = [48, 48]
+    fixed_image_size = [96, 96]
     linenet_manager = LinenetManager(fixed_image_size)
     duration = time.time() - start_time
     print('%s: Linenet manager loaded (%.3f sec)' % (datetime.now(), duration))
     
     for root, _, files in os.walk(FLAGS.data_dir):
         for file in files:
-            if not file.lower().endswith('png'):
+            if not file.lower().endswith('svg'):
                 continue
             
             file_path = os.path.join(root, file)
             start_time = time.time()
+            # graphcut(file_path)
             graphcut(linenet_manager, file_path)
             duration = time.time() - start_time
             print('%s: %s processed (%.3f sec)' % (datetime.now(), file, duration))
@@ -344,7 +339,6 @@ def main(_):
 
     # start
     test()
-    # parameter_tune()
 
 
 if __name__ == '__main__':

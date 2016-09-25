@@ -38,9 +38,9 @@ tf.app.flags.DEFINE_integer('min_length', 4,
                             """minimum length of a line.""")
 tf.app.flags.DEFINE_float('intensity_ratio', 10.0,
                           """intensity ratio of point to lines""")
-tf.app.flags.DEFINE_integer('num_path', 2,
+tf.app.flags.DEFINE_integer('num_path', 5,
                             """# paths for batch generation""")
-tf.app.flags.DEFINE_integer('path_type', 0,
+tf.app.flags.DEFINE_integer('path_type', 2,
                             """path type 0: line, 1: curve, 2: both""")
 tf.app.flags.DEFINE_boolean('noise_on', False,
                             """noise on/off""")
@@ -444,16 +444,10 @@ def batch(check_result=False):
             x = np.reshape(x_batch[0,:,:], [FLAGS.image_size, FLAGS.image_size])
             plt.imshow(x, cmap=plt.cm.gray)
             plt.show()
-            # s = np.reshape(x_no_p_batch[0,:,:], [FLAGS.image_size, FLAGS.image_size])
-            # imsave('01.png', 1.0-s)
-            # s = np.reshape(x_no_p_batch[1,:,:], [FLAGS.image_size, FLAGS.image_size])
-            # imsave('02.png', 1.0-s)
-            # s = np.reshape(x_no_p_batch[2,:,:], [FLAGS.image_size, FLAGS.image_size])
-            # imsave('03.png', 1.0-s)
-            # s = np.reshape(x_no_p_batch[3,:,:], [FLAGS.image_size, FLAGS.image_size])
-            # imsave('04.png', 1.0-s)
-            # s = np.reshape(x_no_p_batch[4,:,:], [FLAGS.image_size, FLAGS.image_size])
-            # imsave('05.png', 1.0-s)
+
+            for i in xrange(FLAGS.batch_size):
+                s = np.reshape(x_no_p_batch[i,:,:], [FLAGS.image_size, FLAGS.image_size])
+                imsave('m5-%d.png' % i, 1.0-s)
 
     return x_batch, y_batch, x_no_p_batch, p_batch
 

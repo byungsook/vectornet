@@ -32,9 +32,9 @@ import tensorflow as tf
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_integer('batch_size', 128,
                             """Number of images to process in a batch.""")
-tf.app.flags.DEFINE_integer('process_num', 16,
+tf.app.flags.DEFINE_integer('process_num', 8,
                             """# processes for generating a batch""")
-tf.app.flags.DEFINE_integer('image_size', 96, # 96-48-24-12-6
+tf.app.flags.DEFINE_integer('image_size', 48, # 96-48-24-12-6
                             """Image Size.""")
 tf.app.flags.DEFINE_integer('xy_size', 8,
                             """# Coordinates of Bezier Curve.""")
@@ -149,7 +149,7 @@ def svg_to_png(xy, num_image):
 
 if __name__ == '__main__':
     # test
-    batch()    
+    batch()
 
 
 # tf.app.flags.DEFINE_integer('num_examples', 100000,

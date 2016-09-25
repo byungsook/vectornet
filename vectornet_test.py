@@ -10,6 +10,7 @@ from __future__ import print_function
 
 from datetime import datetime
 import os
+from os.path import basename
 import time
 
 from six.moves import xrange  # pylint: disable=redefined-builtin
@@ -17,7 +18,6 @@ import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
 import cairosvg
-import io
 
 import tensorflow as tf
 from linenet.linenet_manager import LinenetManager
@@ -26,21 +26,17 @@ from beziernet.beziernet_manager import BeziernetManager
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('log_dir', 'log/test',
+tf.app.flags.DEFINE_string('test_dir', 'test/test',
                            """Directory where to write event logs """
                            """and checkpoint.""")
-tf.app.flags.DEFINE_string('data_dir', 'data/test1', # sketches/sketches_png/airplane',
+tf.app.flags.DEFINE_string('data_dir', 'data/iter',
                            """Directory where to write event logs """
                            """and checkpoint.""")
-tf.app.flags.DEFINE_integer('max_lines', 20,
+tf.app.flags.DEFINE_integer('max_lines', 10,
                            """maximum number of line to extract""")
-tf.app.flags.DEFINE_integer('extract_iter', 3,
+tf.app.flags.DEFINE_integer('extract_iter', 2,
                            """iteration number for line extraction""")
-tf.app.flags.DEFINE_string('linenet_ckpt', 'linenet/log/r10p2/linenet.ckpt',
-                           """linenet checkpoint file path.""")                           
-tf.app.flags.DEFINE_string('beziernet_ckpt', 'beziernet/log/bz_m1/beziernet.ckpt',
-                           """beziernet checkpoint file path.""")
-tf.app.flags.DEFINE_float('epsilon', 1e-8,
+tf.app.flags.DEFINE_float('epsilon', 0.02,
                            """epsilon for image comparision""")
 
 
@@ -86,7 +82,7 @@ def draw_lines(lines, image_size, img_rec_name):
 
 def sample_pixel(img, img_rec):
     # select a pixel randomly
-    img_line_ids = np.nonzero(img - img_rec > 0.4)
+    img_line_ids = np.nonzero((img - img_rec) >= 0.5)
 
     img_pid = np.random.randint(len(img_line_ids[0]))
     return img_line_ids[0][img_pid], img_line_ids[1][img_pid]
@@ -104,24 +100,23 @@ def sketch_simplify(img):
     return img
 
 
-def vectorize(linenet_manager, beziernet_manager, img_file_name):
-    print('%s: start to vectorize %s' % (datetime.now(), img_file_name))
+def vectorize(linenet_manager, beziernet_manager, file_path):
+    file_name = os.path.splitext(basename(file_path))[0]
+    print('%s: %s, start vectorize.' % (datetime.now(), file_name))
     
     # read a image and normalize
-    img = _imread(img_file_name, inv=True)
+    img = _imread(file_path, inv=True)
+    
     # # debug
     # plt.imshow(img, cmap=plt.cm.gray)
     # plt.show()
 
-    _, img_base_name = os.path.split(img_file_name)
-    img_rec_name = os.path.join(FLAGS.log_dir, os.path.splitext(img_base_name)[0] + '_rec_%d.png')
+    # paths for saving
     img_rec = np.empty(shape=img.shape)
-    
-    img_line_file_name = os.path.join(FLAGS.log_dir, os.path.splitext(img_base_name)[0] + '_rec_%d.svg')
-
-    # intermediate restuls
-    img_extract_x_file_name = os.path.join(FLAGS.log_dir, os.path.splitext(img_base_name)[0] + '_extract_%d_%d_x.png')
-    img_extract_y_file_name = os.path.join(FLAGS.log_dir, os.path.splitext(img_base_name)[0] + '_extract_%d_%d_y.png')
+    img_rec_name = os.path.join(FLAGS.test_dir, file_name + '_rec_%d.png')
+    img_line_file_name = os.path.join(FLAGS.test_dir, file_name + '_rec_%d.svg')
+    img_extract_x_file_name = os.path.join(FLAGS.test_dir, file_name + '_extract_%d_%d_x.png')
+    img_extract_y_file_name = os.path.join(FLAGS.test_dir, file_name + '_extract_%d_%d_y.png')
 
     # # debug
     # img_rec_name = 'data/test1/machine_rec.PNG'
@@ -174,14 +169,15 @@ def vectorize(linenet_manager, beziernet_manager, img_file_name):
             break
 
     f.close()
-    print('done')
 
 
 def test():
     # create managers
     start_time = time.time()
-    linenet_manager = LinenetManager(img.shape, FLAGS.linenet_ckpt)
-    beziernet_manager = BeziernetManager(FLAGS.beziernet_ckpt)
+    print('%s: Linenet manager loading...' % datetime.now())
+    fixed_image_size = [48, 48]
+    linenet_manager = LinenetManager(fixed_image_size)
+    beziernet_manager = BeziernetManager(fixed_image_size)    
     duration = time.time() - start_time
     print('%s: manager loading (%.3f sec)' % (datetime.now(), duration))
     
@@ -192,7 +188,13 @@ def test():
             # elif file.lower().endswith('_rec.png'):
             #     continue
             
-            vectorize(linenet_manager, beziernet_manager, os.path.join(root, file))
+            file_path = os.path.join(root, file)
+            start_time = time.time()
+            vectorize(linenet_manager, beziernet_manager, file_path)
+            duration = time.time() - start_time
+            print('%s: %s processed (%.3f sec)' % (datetime.now(), file, duration))
+
+    print('Done')
 
 
 def main(_):
@@ -202,12 +204,10 @@ def main(_):
         working_path = os.path.join(current_path, 'vectornet')
         os.chdir(working_path)
     
-    # create log directory
-    if FLAGS.log_dir.endswith('log'):
-        FLAGS.log_dir = os.path.join(FLAGS.log_dir, datetime.now().isoformat().replace(':', '-'))
-    elif tf.gfile.Exists(FLAGS.log_dir):
-        tf.gfile.DeleteRecursively(FLAGS.log_dir)
-    tf.gfile.MakeDirs(FLAGS.log_dir)
+    # create test directory
+    if tf.gfile.Exists(FLAGS.test_dir):
+        tf.gfile.DeleteRecursively(FLAGS.test_dir)
+    tf.gfile.MakeDirs(FLAGS.test_dir)
 
     # start
     test()

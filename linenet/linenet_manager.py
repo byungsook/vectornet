@@ -56,10 +56,10 @@ class LinenetManager(object):
         # plt.imshow(x, cmap=plt.cm.gray)
         # plt.show()
         
-        x_ = np.reshape(x, [1, self._h, self._w, 1])
+        x_batch = np.reshape(x, [1, self._h, self._w, 1])
 
         with self._graph.as_default():
-            y = self._sess.run(self._y_hat, feed_dict={self._phase_train: False, self._x: x_})
+            y = self._sess.run(self._y_hat, feed_dict={self._phase_train: False, self._x: x_batch})
             y = np.reshape(y, [self._h, self._w])
             
             # # debug
@@ -79,7 +79,7 @@ class LinenetManager(object):
             line_pixels: coordinates of all line pixels
         """
 
-        line_pixels = np.nonzero(img >= 0.5)
+        line_pixels = np.nonzero(img) # >= 0.5)
         num_line_pixels = len(line_pixels[0]) 
         assert(num_line_pixels > 0)
         

@@ -33,7 +33,7 @@ tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', '', # 'log/second
                            """before beginning any training.""")
 tf.app.flags.DEFINE_integer('model', 1,
                             """train model type [1-2]""")
-tf.app.flags.DEFINE_integer('max_steps', 5, #100000,
+tf.app.flags.DEFINE_integer('max_steps', 100000,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_integer('decay_steps', 30000,
                           """Decay steps""")

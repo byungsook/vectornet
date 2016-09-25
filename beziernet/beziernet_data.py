@@ -30,7 +30,7 @@ import tensorflow as tf
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_integer('batch_size', 128,
+tf.app.flags.DEFINE_integer('batch_size', 256,
                             """Number of images to process in a batch.""")
 tf.app.flags.DEFINE_integer('process_num', 8,
                             """# processes for generating a batch""")

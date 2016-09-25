@@ -31,9 +31,9 @@ tf.app.flags.DEFINE_boolean('log_device_placement', False,
 tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', '', # 'log/second_train/beziernet.ckpt',
                            """If specified, restore this pretrained model """
                            """before beginning any training.""")
-tf.app.flags.DEFINE_integer('model', 4,
-                            """model""")
-tf.app.flags.DEFINE_integer('max_steps', 100000,
+tf.app.flags.DEFINE_integer('model', 1,
+                            """train model type [1-2]""")
+tf.app.flags.DEFINE_integer('max_steps', 5, #100000,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_integer('decay_steps', 30000,
                           """Decay steps""")
@@ -43,6 +43,8 @@ tf.app.flags.DEFINE_float('learning_decay_factor', 0.1,
                           """Learning rate decay factor.""")
 tf.app.flags.DEFINE_float('moving_avg_decay', 0.9999,
                           """The decay to use for the moving average.""")
+tf.app.flags.DEFINE_float('clip_gradients', 0.1,
+                          """range for clipping gradients.""")
 tf.app.flags.DEFINE_integer('max_images', 1,
                             """max # images to save.""")
 tf.app.flags.DEFINE_integer('stat_steps', 10,
@@ -100,8 +102,8 @@ def train():
         with tf.control_dependencies([loss_averages_op]):
             opt = tf.train.AdamOptimizer(learning_rate)            
             grads = opt.compute_gradients(loss)
-            # max_grad = FLAGS.clip_gradients / learning_rate
-            # grads = [(tf.clip_by_value(grad, -max_grad, max_grad), var) for grad, var in grads]
+            max_grad = FLAGS.clip_gradients / learning_rate
+            grads = [(tf.clip_by_value(grad, -max_grad, max_grad), var) for grad, var in grads]
 
         apply_gradient_op = opt.apply_gradients(grads, global_step=global_step)
 

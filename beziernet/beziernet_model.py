@@ -121,45 +121,6 @@ def _fc(layer_name, x, d_next, phase_train, use_activation=True):
             return batch
 
 
-def model4(x, phase_train):
-    # 1-1 down-convolutional layer: k=3x3, s=2x2, d=64, 96 -> 48
-    h_conv11 = _conv2d('1-1_down', x,        3, 2,  64, phase_train)
-    # 1-2 flat-convolutional layer: k=3x3, s=1x1, d=128
-    h_conv12 = _conv2d('1-2_flat', h_conv11, 3, 1, 128, phase_train)
-    # 1-3 flat-convolutional layer: k=3x3, s=1x1, d=128
-    h_conv13 = _conv2d('1-3_flat', h_conv12, 3, 1, 128, phase_train)
-
-    # 2-1 down-convolutional layer: k=3x3, s=2x2, d=128 -> 24
-    h_conv21 = _conv2d('2-1_down', h_conv13, 3, 2, 128, phase_train)
-    # 2-2 flat-convolutional layer: k=3x3, s=1x1, d=256
-    h_conv22 = _conv2d('2-2_flat', h_conv21, 3, 1, 256, phase_train)
-    # 2-3 flat-convolutional layer: k=3x3, s=1x1, d=256
-    h_conv23 = _conv2d('2-3_flat', h_conv22, 3, 1, 256, phase_train)
-
-    # 3-1 down-convolutional layer: k=3x3, s=2x2, d=256 -> 12
-    h_conv31 = _conv2d('3-1_down', h_conv23, 3, 2, 256, phase_train)
-    # 3-2 flat-convolutional layer: k=3x3, s=1x1, d=512
-    h_conv32 = _conv2d('3-2_flat', h_conv31, 3, 1, 512, phase_train)
-    # 3-3 flat-convolutional layer: k=3x3, s=1x1, d=512
-    h_conv33 = _conv2d('3-3_flat', h_conv32, 3, 1, 512, phase_train)
-
-    h_conv_shape = h_conv33.get_shape()
-    h_conv_dim = h_conv_shape[1].value * h_conv_shape[2].value * h_conv_shape[3].value
-    h_conv_flat = tf.reshape(h_conv33, [-1, h_conv_dim])
-        
-    # 4-1 fully-connected layer: d=1024
-    h_fc41 = _fc('4-1_fc', h_conv_flat, 1024, phase_train)
-    # 4-2 fully-connected layer: d=512
-    h_fc42 = _fc('4-2_fc', h_fc41, 512, phase_train)
-    # 4-3 fully-connected layer: d=256
-    h_fc43 = _fc('4-3_fc', h_fc42, 256, phase_train)
-    # 4-4 fully-connected layer: d=8
-    y_fc = _fc('4-4_fc', h_fc43, 8, phase_train)
-    
-    return y_fc
-
-
-
 def model1(images, phase_train):
     # We instantiate all variables using tf.get_variable() instead of
     # tf.Variable() in order to share variables across multiple GPU training runs.
@@ -282,6 +243,44 @@ def model3(images, phase_train):
     return y_fc
 
 
+def model4(x, phase_train):
+    # 1-1 down-convolutional layer: k=3x3, s=2x2, d=64, 96 -> 48
+    h_conv11 = _conv2d('1-1_down', x,        3, 2,  64, phase_train)
+    # 1-2 flat-convolutional layer: k=3x3, s=1x1, d=128
+    h_conv12 = _conv2d('1-2_flat', h_conv11, 3, 1, 128, phase_train)
+    # 1-3 flat-convolutional layer: k=3x3, s=1x1, d=128
+    h_conv13 = _conv2d('1-3_flat', h_conv12, 3, 1, 128, phase_train)
+
+    # 2-1 down-convolutional layer: k=3x3, s=2x2, d=128 -> 24
+    h_conv21 = _conv2d('2-1_down', h_conv13, 3, 2, 128, phase_train)
+    # 2-2 flat-convolutional layer: k=3x3, s=1x1, d=256
+    h_conv22 = _conv2d('2-2_flat', h_conv21, 3, 1, 256, phase_train)
+    # 2-3 flat-convolutional layer: k=3x3, s=1x1, d=256
+    h_conv23 = _conv2d('2-3_flat', h_conv22, 3, 1, 256, phase_train)
+
+    # 3-1 down-convolutional layer: k=3x3, s=2x2, d=256 -> 12
+    h_conv31 = _conv2d('3-1_down', h_conv23, 3, 2, 256, phase_train)
+    # 3-2 flat-convolutional layer: k=3x3, s=1x1, d=512
+    h_conv32 = _conv2d('3-2_flat', h_conv31, 3, 1, 512, phase_train)
+    # 3-3 flat-convolutional layer: k=3x3, s=1x1, d=512
+    h_conv33 = _conv2d('3-3_flat', h_conv32, 3, 1, 512, phase_train)
+
+    h_conv_shape = h_conv33.get_shape()
+    h_conv_dim = h_conv_shape[1].value * h_conv_shape[2].value * h_conv_shape[3].value
+    h_conv_flat = tf.reshape(h_conv33, [-1, h_conv_dim])
+        
+    # 4-1 fully-connected layer: d=1024
+    h_fc41 = _fc('4-1_fc', h_conv_flat, 1024, phase_train)
+    # 4-2 fully-connected layer: d=512
+    h_fc42 = _fc('4-2_fc', h_fc41, 512, phase_train)
+    # 4-3 fully-connected layer: d=256
+    h_fc43 = _fc('4-3_fc', h_fc42, 256, phase_train)
+    # 4-4 fully-connected layer: d=8
+    y_fc = _fc('4-4_fc', h_fc43, 8, phase_train)
+    
+    return y_fc
+
+
 def inference(images, phase_train, model=1):
     """Build the Bezier model."""
     model_selector = {
@@ -297,7 +296,3 @@ def loss(y_hat, y):
     # y_hat: estimate, y: training set
     l2_loss = tf.nn.l2_loss(y_hat - y, name='l2_loss')
     return l2_loss
-
-# def loss(logits, xys):
-#     loss_mean = tf.reduce_mean(tf.square(xys - logits), name='loss')
-#     return loss_mean

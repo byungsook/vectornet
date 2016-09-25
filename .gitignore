@@ -1,5 +1,7 @@
 *.pyc
 *.sh
+*.suo
+*.o
 *~
 log/
 data_tmp/

@@ -149,10 +149,12 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\gco_src\GCoptimization.cpp" />
-    <ClCompile Include="..\gco_src\gco_linenet.cpp" />
+    <ClCompile Include="..\gco_src\gco_linenet.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\gco_src\graph.cpp" />
     <ClCompile Include="..\gco_src\linetest.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\gco_src\LinkedBlockList.cpp" />
     <ClCompile Include="..\gco_src\maxflow.cpp" />

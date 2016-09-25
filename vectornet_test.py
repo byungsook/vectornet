@@ -115,6 +115,7 @@ def vectorize(linenet_manager, beziernet_manager, file_path):
     img_rec = np.empty(shape=img.shape)
     img_rec_name = os.path.join(FLAGS.test_dir, file_name + '_rec_%d.png')
     img_line_file_name = os.path.join(FLAGS.test_dir, file_name + '_rec_%d.svg')
+    img_pdf_file_name = os.path.join(FLAGS.test_dir, file_name + '_rec_%d.pdf')
     img_extract_x_file_name = os.path.join(FLAGS.test_dir, file_name + '_extract_%d_%d_x.png')
     img_extract_y_file_name = os.path.join(FLAGS.test_dir, file_name + '_extract_%d_%d_y.png')
 
@@ -160,6 +161,8 @@ def vectorize(linenet_manager, beziernet_manager, file_path):
         img_rec, svg = draw_lines(lines, img_rec.shape, img_rec_name % num_line)
         with open(img_line_file_name % num_line, 'w') as f:
             f.write(svg)
+
+        cairosvg.svg2pdf(bytestring=svg, write_to=img_pdf_file_name % num_line)
 
         # # debug
         # plt.imshow(img_rec, cmap=plt.cm.gray)

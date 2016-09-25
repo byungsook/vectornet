@@ -177,7 +177,7 @@ def vectorize(linenet_manager, beziernet_manager, file_path):
 def test():
     # create managers
     start_time = time.time()
-    print('%s: Linenet manager loading...' % datetime.now())
+    print('%s: manager loading...' % datetime.now())
     fixed_image_size = [48, 48]
     linenet_manager = LinenetManager(fixed_image_size)
     beziernet_manager = BeziernetManager(fixed_image_size)    

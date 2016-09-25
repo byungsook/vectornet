@@ -79,7 +79,7 @@ class LinenetManager(object):
             line_pixels: coordinates of all line pixels
         """
 
-        line_pixels = np.nonzero(img) # >= 0.5)
+        line_pixels = np.nonzero(img >= 0.5)
         num_line_pixels = len(line_pixels[0]) 
         assert(num_line_pixels > 0)
         

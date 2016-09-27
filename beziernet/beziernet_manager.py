@@ -42,6 +42,9 @@ class BeziernetManager(object):
 
             self._sess = tf.Session()
         
+            # variable_averages = tf.train.ExponentialMovingAverage(0.9999)
+            # variables_to_restore = variable_averages.variables_to_restore()
+            # saver = tf.train.Saver(variables_to_restore)
             saver = tf.train.Saver()
             saver.restore(self._sess, FLAGS.beziernet_ckpt)
             print('%s: Pre-trained model restored from %s' % (datetime.now(), FLAGS.beziernet_ckpt))

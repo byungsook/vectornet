@@ -26,7 +26,7 @@ from beziernet.beziernet_manager import BeziernetManager
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('test_dir', 'test/test',
+tf.app.flags.DEFINE_string('test_dir', 'test/iter_test',
                            """Directory where to write event logs """
                            """and checkpoint.""")
 tf.app.flags.DEFINE_string('data_dir', 'data/iter',

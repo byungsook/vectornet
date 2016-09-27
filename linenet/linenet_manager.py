@@ -22,7 +22,7 @@ import linenet.linenet_model
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_float('intensity_ratio', 10.0,
                           """intensity ratio of point to lines""")
-tf.app.flags.DEFINE_string('linenet_ckpt', 'model/m5/linenet.ckpt',
+tf.app.flags.DEFINE_string('linenet_ckpt', 'model/m5/linenet_no_th.ckpt',
                            """linenet checkpoint file path.""")  
 
 
@@ -79,7 +79,7 @@ class LinenetManager(object):
             line_pixels: coordinates of all line pixels
         """
 
-        line_pixels = np.nonzero(img >= 0.5)
+        line_pixels = np.nonzero(img) # >= 0.5)
         num_line_pixels = len(line_pixels[0]) 
         assert(num_line_pixels > 0)
         
@@ -104,7 +104,4 @@ class LinenetManager(object):
             # plt.imshow(y_vis, cmap=plt.cm.gray)
             # plt.show()
             
-            return y_batch, line_pixels 
-        
-
-        
+            return y_batch, line_pixels

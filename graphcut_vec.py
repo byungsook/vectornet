@@ -13,12 +13,14 @@ import os
 from os.path import basename
 import time
 from subprocess import call
+import io
 
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import numpy as np
 from numpy import linalg as LA
 import scipy.stats
 import scipy.misc
+import scipy.ndimage
 from PIL import Image
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
@@ -43,7 +45,7 @@ tf.app.flags.DEFINE_integer('max_num_labels', 20,
 #                            """label cost""")
 tf.app.flags.DEFINE_float('neighbor_sigma', 8,
                            """neighbor sigma""")
-tf.app.flags.DEFINE_float('prediction_sigma', 0.7,
+tf.app.flags.DEFINE_float('prediction_sigma', 0.764, # 0.7 for 0.5 threshold
                            """prediction sigma""")
 
 SVG_START_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
@@ -290,8 +292,12 @@ def graphcut(linenet_manager, beziernet_manager, file_path):
         # print(line_pixels[0][i],line_pixels[1][i],labels[i]) # ,color)
         label_map[line_pixels[0][i],line_pixels[1][i]] = color[:3]
     
+    # # debug
     # label_map_path = os.path.join(FLAGS.test_dir, 'label_map_%s.png' % file_name)
     # scipy.misc.imsave(label_map_path, label_map)
+    # plt.imshow(label_map)
+    # plt.show()
+    
     label_map_ph = tf.placeholder(dtype=tf.float32, shape=[None, img.shape[0], img.shape[1], 3])
     label_map_summary = tf.image_summary('label_map', label_map_ph, max_images=1)
     label_map = np.reshape(label_map, [1, img.shape[0], img.shape[1], 3])
@@ -301,33 +307,109 @@ def graphcut(linenet_manager, beziernet_manager, file_path):
     summary_tmp.value[0].tag = 'label_map'
     summary_writer.add_summary(summary_tmp)
 
-
+    # vectorize
     lines = []
     line_colors = []
     for label in u:
-        line_id = np.where(label==labels)[0].tolist()
+        line_ids = np.where(label==labels)[0].tolist()
+        if len(line_ids) < 5:
+            continue
         color = cscalarmap.to_rgba(np.where(u==label)[0])[0]
         line_colors.append(color[:3])
 
         line_drawing = np.zeros([img.shape[0], img.shape[1], 1], dtype=np.float)
-        for i in line_id:
+        for i in line_ids:
             line_drawing[line_pixels[0][i],line_pixels[1][i]] = img[line_pixels[0][i],line_pixels[1][i]]
         
+    
         # # debug
+        # # gaussian blur
+        # line_drawing = scipy.ndimage.gaussian_filter(line_drawing, 0.3)
+        # line_drawing = scipy.stats.threshold(line_drawing, threshmax=0.1, newval=1.0)
         # plt.imshow(line_drawing[:,:,0], cmap=plt.cm.gray)
         # plt.show()
 
         # line fitting
-        start_time = time.time()                
+        start_time = time.time()
         line = beziernet_manager.fit_line(line_drawing)
         lines.append(line)
         duration = time.time() - start_time
-        print('%s: label %d, fit line, %s (%.3f sec)' % (datetime.now(), label, line, duration))
+        print('%s: label %d - fit line (%.3f sec)' % (datetime.now(), label, duration))
 
-    # print(line_colors)
+        # # debug
+        # svg = _to_svg([line], img.shape, [color])
+        # png = cairosvg.svg2png(bytestring=svg)
+        # line_img = Image.open(io.BytesIO(png))
+        # line_img = np.array(line_img)[:,:,3].astype(np.float) / 255.0    
+        # plt.imshow(line_img, cmap=plt.cm.gray)
+        # plt.show()
+
+    # optional: assign new colors
+    cnorm  = colors.Normalize(vmin=0, vmax=len(lines)-1)
+    cscalarmap = cmx.ScalarMappable(norm=cnorm, cmap=cmap)
+    line_colors = []
+    for i in xrange(len(lines)):
+        color = np.array(cscalarmap.to_rgba(i)[:3])
+        line_colors.append(color)
+        
     svg = _to_svg(lines, img.shape, line_colors)
     img_pdf_file_name = os.path.join(FLAGS.test_dir, file_name + '_rec.pdf')    
     cairosvg.svg2pdf(bytestring=svg, write_to=img_pdf_file_name)
+    
+    vector_map_ph = tf.placeholder(dtype=tf.float32, shape=[None, img.shape[0], img.shape[1], 4])
+    vector_map_summary = tf.image_summary('label_vector_map', vector_map_ph, max_images=1)
+    vector_map = cairosvg.svg2png(bytestring=svg)
+    vector_map = np.array(Image.open(io.BytesIO(vector_map)))
+    vector_map = np.reshape(vector_map, [1, img.shape[0], img.shape[1], 4])
+    summary_str = sess.run(vector_map_summary, feed_dict={vector_map_ph: vector_map})
+    summary_tmp = tf.Summary()
+    summary_tmp.ParseFromString(summary_str)        
+    summary_tmp.value[0].tag = 'label_vector_map'
+    summary_writer.add_summary(summary_tmp)
+
+    # # debug
+    # plt.imshow(vector_map)
+    # plt.show()
+
+    return num_labels
+
+
+def parameter_tune():
+    # create managers
+    start_time = time.time()
+    print('%s: manager loading...' % datetime.now())
+    fixed_image_size = [48, 48]
+    linenet_manager = LinenetManager(fixed_image_size)
+    beziernet_manager = BeziernetManager(fixed_image_size)
+    duration = time.time() - start_time
+    print('%s: manager loaded (%.3f sec)' % (datetime.now(), duration))
+    
+    for root, _, files in os.walk(FLAGS.data_dir):
+        for file in files:
+            if not file.lower().endswith('png'):
+                continue
+
+            # n_sig_list = np.linspace(4, 8, 5).tolist()
+            n_sig_list = [8]
+            p_sig_list = np.linspace(0.764, 0.765, 11).tolist()
+            # p_sig_list = [0.7, 0.764, 0.765]
+            for n_sig in n_sig_list:
+                FLAGS.neighbor_sigma = n_sig
+                print('n_sig: %.4f' % FLAGS.neighbor_sigma)
+                for p_sig in p_sig_list:
+                    FLAGS.prediction_sigma = p_sig
+                    print('p_sig: %.4f' % FLAGS.prediction_sigma)
+                    file_path = os.path.join(root, file)
+                    start_time = time.time()
+                    num_labels = graphcut(linenet_manager, beziernet_manager, file_path)                    
+                    duration = time.time() - start_time
+                    print('%s: %s processed (%.3f sec)' % (datetime.now(), file, duration))
+
+                    if num_labels == 5:
+                        print('Find!')
+                        # return
+
+    print('Done')
 
 
 def test():

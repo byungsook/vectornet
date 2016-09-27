@@ -376,11 +376,12 @@ def train_set(i, x_batch, y_batch, x_no_p_batch, p_batch):
         y = np.array(y_img)[:,:,3].astype(np.float) / 255.0
         y_batch[i,:,:] = np.reshape(y, [FLAGS.image_size, FLAGS.image_size, 1])
     
-        line_ids = np.nonzero(y >= 0.5)
-        if len(line_ids[0]) > 0:
-            break
-    # line_ids = np.nonzero(y)
-    
+        # line_ids = np.nonzero(y >= 0.5)
+        # if len(line_ids[0]) > 0:
+        #     break
+        line_ids = np.nonzero(y)
+        break
+
     SVG_MULTI_LINES = SVG_START_TEMPLATE.format(
             width=FLAGS.image_size,
             height=FLAGS.image_size

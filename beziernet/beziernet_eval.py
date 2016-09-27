@@ -29,7 +29,7 @@ tf.app.flags.DEFINE_string('eval_dir', 'eval',
                            """and checkpoint.""")
 tf.app.flags.DEFINE_integer('model', 1,
                             """model""")
-tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', 'log/second_train/beziernet.ckpt', # 'log/second_train/beziernet.ckpt',
+tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', 'log/bz_m1/beziernet.ckpt',
                            """If specified, restore this pretrained model.""")
 tf.app.flags.DEFINE_float('moving_avg_decay', 0.9999,
                           """The decay to use for the moving average.""")

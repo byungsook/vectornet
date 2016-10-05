@@ -12,6 +12,7 @@ import os
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import io
 from random import shuffle
+import zipfile
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -27,7 +28,9 @@ import tensorflow as tf
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_integer('batch_size', 16,
                             """Number of images to process in a batch.""")
-tf.app.flags.DEFINE_string('data_dir', 'data/sketches',
+tf.app.flags.DEFINE_string('data_zip', 'data/sketches-06-04.zip',
+                           """Path to the Sketch data file.""")
+tf.app.flags.DEFINE_string('data_dir', '/local/scratch/kimby',
                            """Path to the Sketch data directory.""")
 tf.app.flags.DEFINE_integer('image_size', 96, # 48-24-12-6
                             """Image Size.""")
@@ -46,7 +49,11 @@ SVG_TEMPLATE_END = """</g></svg>"""
 
 
 class BatchManager(object):
-    def __init__(self):        
+    def __init__(self):
+        # unzip sketch file
+        with zipfile.ZipFile(FLAGS.data_zip, 'r') as zip_ref:
+            zip_ref.extractall(FLAGS.data_dir)
+
         # extract all svg list
         self._svg_list = []
         file_list_name = 'checked.txt'

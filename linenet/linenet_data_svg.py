@@ -12,6 +12,7 @@ import os
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import io
 from random import shuffle
+import urllib
 import zipfile
 
 import numpy as np
@@ -28,11 +29,13 @@ import tensorflow as tf
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_integer('batch_size', 16,
                             """Number of images to process in a batch.""")
-tf.app.flags.DEFINE_string('data_zip', '/local/scratch/kimby/sketches-06-04.zip',
+tf.app.flags.DEFINE_string('data_url', 'https://www.dropbox.com/s/e5ugvxdci5kv9g2/sketches-06-04.zip?dl=1', #'https://www.dropbox.com/s/ujb7bnwf147zjbp/sketches-06-04-mini.zip?dl=1', # 
+                           """Url to the Sketch data file.""")
+tf.app.flags.DEFINE_string('data_zip', 'data/sketches-06-04.zip',
                            """Path to the Sketch data file.""")
-tf.app.flags.DEFINE_string('data_dir', '/local/scratch/kimby',
+tf.app.flags.DEFINE_string('data_dir', 'data',
                            """Path to the Sketch data directory.""")
-tf.app.flags.DEFINE_integer('image_size', 96, # 48-24-12-6
+tf.app.flags.DEFINE_integer('image_size', 128, # 48-24-12-6
                             """Image Size.""")
 tf.app.flags.DEFINE_float('intensity_ratio', 10.0,
                           """intensity ratio of point to lines""")
@@ -50,9 +53,13 @@ SVG_TEMPLATE_END = """</g></svg>"""
 
 class BatchManager(object):
     def __init__(self):
-        # unzip sketch file
-        with zipfile.ZipFile(FLAGS.data_zip, 'r') as zip_ref:
-            zip_ref.extractall(FLAGS.data_dir)
+        # download sketch file unless it exists
+        if not os.path.isfile(FLAGS.data_zip):
+            urllib.urlretrieve(FLAGS.data_url, FLAGS.data_zip)
+
+            # unzip sketch file
+            with zipfile.ZipFile(FLAGS.data_zip, 'r') as zip_ref:
+                zip_ref.extractall(FLAGS.data_dir)
 
         # extract all svg list
         self._svg_list = []

@@ -53,13 +53,17 @@ SVG_TEMPLATE_END = """</g></svg>"""
 
 class BatchManager(object):
     def __init__(self):
-        # download sketch file unless it exists
-        if not os.path.isfile(FLAGS.data_zip):
-            urllib.urlretrieve(FLAGS.data_url, FLAGS.data_zip)
+        # # download sketch file unless it exists
+        # if not os.path.isfile(FLAGS.data_zip):
+        #     urllib.urlretrieve(FLAGS.data_url, FLAGS.data_zip)
 
-            # unzip sketch file
-            with zipfile.ZipFile(FLAGS.data_zip, 'r') as zip_ref:
-                zip_ref.extractall(FLAGS.data_dir)
+        #     # unzip sketch file
+        #     with zipfile.ZipFile(FLAGS.data_zip, 'r') as zip_ref:
+        #         zip_ref.extractall(FLAGS.data_dir)
+
+        # unzip sketch file
+        with zipfile.ZipFile(FLAGS.data_zip, 'r') as zip_ref:
+            zip_ref.extractall(FLAGS.data_dir)
 
         # extract all svg list
         self._svg_list = []

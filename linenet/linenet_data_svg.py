@@ -78,7 +78,8 @@ class BatchManager(object):
                     if not line: break
                     file_name = line.rstrip('\n') + '.svg'
                     file_path = os.path.join(root, file_name)
-                    self._svg_list.append(file_path)
+                    if os.path.isfile(file_path):
+                        self._svg_list.append(file_path)
         
         # comment debug
         # self._svg_list = ['data/sketches/couch/n04256520_8346-6.svg']

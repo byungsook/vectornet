@@ -27,7 +27,7 @@ import tensorflow as tf
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_integer('batch_size', 16,
+tf.app.flags.DEFINE_integer('batch_size', 32,
                             """Number of images to process in a batch.""")
 tf.app.flags.DEFINE_string('data_url', 'https://www.dropbox.com/s/e5ugvxdci5kv9g2/sketches-06-04.zip?dl=1', #'https://www.dropbox.com/s/ujb7bnwf147zjbp/sketches-06-04-mini.zip?dl=1', # 
                            """Url to the Sketch data file.""")
@@ -61,9 +61,9 @@ class BatchManager(object):
         #     with zipfile.ZipFile(FLAGS.data_zip, 'r') as zip_ref:
         #         zip_ref.extractall(FLAGS.data_dir)
 
-        # unzip sketch file
-        with zipfile.ZipFile(FLAGS.data_zip, 'r') as zip_ref:
-            zip_ref.extractall(FLAGS.data_dir)
+        # # unzip sketch file
+        # with zipfile.ZipFile(FLAGS.data_zip, 'r') as zip_ref:
+        #     zip_ref.extractall(FLAGS.data_dir)
 
         # extract all svg list
         self._svg_list = []
@@ -80,6 +80,8 @@ class BatchManager(object):
                     file_path = os.path.join(root, file_name)
                     self._svg_list.append(file_path)
         
+        # comment debug
+        # self._svg_list = ['data/sketches/couch/n04256520_8346-6.svg']
         shuffle(self._svg_list)
         self._next_svg_id = 0
         self._read_next = True
@@ -114,6 +116,11 @@ class BatchManager(object):
                     svg_size = 'width="{s}" height="{s}" viewBox="0 0 640 480" '.format(s=FLAGS.image_size)
                     svg = svg[:id_width] + svg_size + svg[id_xmlns:]
                     
+                    while True:
+                        svg_line = f.readline()
+                        if svg_line.find('<g display'):
+                            break
+
                     # gather normal paths and remove thick white stroke
                     self._path_list = []
                     while True:
@@ -220,6 +227,11 @@ if __name__ == '__main__':
         os.chdir(working_path)
 
     batch_manager = BatchManager()
+
+    # # debug: reading svg err
+    # for i in xrange(100):
+    #     batch_manager.batch()
+    # pass
 
     s_batch, x_batch, y_batch = batch_manager.batch()
     for i in xrange(FLAGS.batch_size):

@@ -28,7 +28,7 @@ import tensorflow as tf
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_integer('batch_size', 16,
                             """Number of images to process in a batch.""")
-tf.app.flags.DEFINE_string('data_zip', 'data/sketches-06-04.zip',
+tf.app.flags.DEFINE_string('data_zip', '/local/scratch/kimby/sketches-06-04.zip',
                            """Path to the Sketch data file.""")
 tf.app.flags.DEFINE_string('data_dir', '/local/scratch/kimby',
                            """Path to the Sketch data directory.""")

@@ -216,6 +216,7 @@ def train():
                 checkpoint_path = os.path.join(FLAGS.log_dir, 'linenet.ckpt')
                 saver.save(sess, checkpoint_path)
 
+        tf.gfile.DeleteRecursively(FLAGS.data_dir)
         print('done')
 
 

@@ -107,7 +107,7 @@ class BatchManager(object):
     def _next_svg(self):
         success = False
         while not success:
-            if self._read_next:
+            while self._read_next:
                 # open next svg
                 file_path = self._svg_list[self._next_svg_id]
                 
@@ -166,8 +166,11 @@ class BatchManager(object):
                 # plt.show()
 
                 # for next svg
-                self._read_next = False
-                
+                if len(self._path_list) > 0:
+                    self._read_next = False
+                else:
+                    print('empty path: %s' % file_path)
+                    self._svg_list[self._next_svg_id] = []
             
             # check y
             path = self._path_list[self._path_id]

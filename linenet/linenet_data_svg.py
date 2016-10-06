@@ -27,7 +27,7 @@ import tensorflow as tf
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_integer('batch_size', 32,
+tf.app.flags.DEFINE_integer('batch_size', 16,
                             """Number of images to process in a batch.""")
 tf.app.flags.DEFINE_string('data_url', 'https://www.dropbox.com/s/e5ugvxdci5kv9g2/sketches-06-04.zip?dl=1', #'https://www.dropbox.com/s/ujb7bnwf147zjbp/sketches-06-04-mini.zip?dl=1', # 
                            """Url to the Sketch data file.""")
@@ -145,7 +145,10 @@ class BatchManager(object):
                 except Exception as e:
                     # print('error %s, file %s' % (e, file_path))
                     svg = svg + '</svg>'
-                    x_png = cairosvg.svg2png(bytestring=svg)
+                    try:
+                        x_png = cairosvg.svg2png(bytestring=svg)
+                    except Exception as e:
+                        print('error %s, file %s' % (e, file_path))
 
                 x_img = Image.open(io.BytesIO(x_png))
                 self.x = np.array(x_img)[:,:,3].astype(np.float) / 255.0

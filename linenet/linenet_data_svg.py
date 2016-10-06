@@ -79,10 +79,15 @@ class BatchManager(object):
                     file_name = line.rstrip('\n') + '.svg'
                     file_path = os.path.join(root, file_name)
                     if os.path.isfile(file_path):
+                        # try:
+                        #     cairosvg.svg2png(url=file_path)
+                        # except Exception as e:
+                        #     continue
                         self._svg_list.append(file_path)
         
-        # comment debug
-        # self._svg_list = ['data/sketches/couch/n04256520_8346-6.svg']
+        # debug
+        # self._svg_list = ['data/sketches/couch/n04256520_8346-6.svg'] # comment '--' bug
+        # self._svg_list = ['data/sketches/bat/n02139199_7674-1.svg'] # invalid, dog/n02103406_936-3.svg
         shuffle(self._svg_list)
         self._next_svg_id = 0
         self._read_next = True
@@ -119,14 +124,16 @@ class BatchManager(object):
                     
                     while True:
                         svg_line = f.readline()
-                        if svg_line.find('<g display'):
+                        if svg_line.find('<g display') >= 0:
+                            svg = svg + svg_line
                             break
 
                     # gather normal paths and remove thick white stroke
                     self._path_list = []
                     while True:
                         svg_line = f.readline()
-                        if not svg_line: break
+                        if not svg_line or svg_line.find('<g') >= 0:
+                            break
 
                         # remove thick white strokes
                         id_white_stroke = svg_line.find('#fff')

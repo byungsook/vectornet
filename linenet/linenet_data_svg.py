@@ -124,7 +124,7 @@ class BatchManager(object):
                     
                     while True:
                         svg_line = f.readline()
-                        if svg_line.find('<g display') >= 0:
+                        if svg_line.find('<g') >= 0:
                             svg = svg + svg_line
                             break
 

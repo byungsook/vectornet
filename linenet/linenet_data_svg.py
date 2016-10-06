@@ -79,15 +79,17 @@ class BatchManager(object):
                     file_name = line.rstrip('\n') + '.svg'
                     file_path = os.path.join(root, file_name)
                     if os.path.isfile(file_path):
-                        # try:
-                        #     cairosvg.svg2png(url=file_path)
-                        # except Exception as e:
-                        #     continue
+                        try:
+                            cairosvg.svg2png(url=file_path)
+                        except Exception as e:
+                            continue
                         self._svg_list.append(file_path)
         
         # debug
         # self._svg_list = ['data/sketches/couch/n04256520_8346-6.svg'] # comment '--' bug
         # self._svg_list = ['data/sketches/bat/n02139199_7674-1.svg'] # invalid, dog/n02103406_936-3.svg
+        self._svg_list = ['data/sketches/alarm_clock/n02694662_7072-6.svg', 'data/sketches/camel/n02437136_257-7.svg'] # div 0
+        
         shuffle(self._svg_list)
         self._next_svg_id = 0
         self._read_next = True
@@ -156,6 +158,8 @@ class BatchManager(object):
                         x_png = cairosvg.svg2png(bytestring=svg)
                     except Exception as e:
                         print('error %s, file %s' % (e, file_path))
+                        del self._svg_list[self._next_svg_id]
+                        continue
 
                 x_img = Image.open(io.BytesIO(x_png))
                 self.x = np.array(x_img)[:,:,3].astype(np.float) / 255.0

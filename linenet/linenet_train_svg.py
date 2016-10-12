@@ -33,9 +33,9 @@ tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', '',
 # tf.app.flags.DEFINE_string('gpu_list', '-1', 
 #                            """gpu list. -1 for no gpu or default setting.
 #                            e.g. 0 or 0-3 or 0,2-3""")
-tf.app.flags.DEFINE_integer('max_steps', 600000, # 1 epoch: 75000 files * #lines/file
+tf.app.flags.DEFINE_integer('max_steps', 200000, # 1 epoch: 75000 files * #lines/file
                             """Number of batches to run.""")
-tf.app.flags.DEFINE_integer('decay_steps', 200000,
+tf.app.flags.DEFINE_integer('decay_steps', 120000,
                           """Decay steps""")
 tf.app.flags.DEFINE_float('initial_learning_rate', 0.01,
                           """Initial learning rate.""")
@@ -163,7 +163,7 @@ def train():
         start_step = tf.train.global_step(sess, global_step)
         for step in xrange(start_step, FLAGS.max_steps):
             # Train one step.
-            start_time = time.time()            
+            start_time = time.time()
             s_batch, x_batch, y_batch = batch_manager.batch()
             _, loss_value = sess.run([train_op, loss], feed_dict={phase_train: is_train,
                                                                   x: x_batch, y: y_batch})
@@ -200,7 +200,7 @@ def train():
                 y_summary_tmp.ParseFromString(y_summary_str)
                 y_hat_summary_tmp.ParseFromString(y_hat_summary_str)
                 for i in xrange(FLAGS.max_images):
-                    new_tag = '%07d/%02d' % (step, i)
+                    new_tag = '%06d/%02d' % (step, i)
                     s_summary_tmp.value[i].tag = new_tag
                     x_summary_tmp.value[i].tag = new_tag
                     y_summary_tmp.value[i].tag = new_tag
@@ -216,7 +216,7 @@ def train():
                 checkpoint_path = os.path.join(FLAGS.log_dir, 'linenet.ckpt')
                 saver.save(sess, checkpoint_path)
 
-        tf.gfile.DeleteRecursively(FLAGS.data_dir)
+        # tf.gfile.DeleteRecursively(FLAGS.data_dir)
         print('done')
 
 

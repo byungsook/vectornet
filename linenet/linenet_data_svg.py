@@ -52,7 +52,7 @@ SVG_TEMPLATE_END = """</g></svg>"""
 
 
 class BatchManager(object):
-    def __init__(self):
+    def __init__(self, is_eval=False):
         # # download sketch file unless it exists
         # if not os.path.isfile(FLAGS.data_zip):
         #     urllib.urlretrieve(FLAGS.data_url, FLAGS.data_zip)
@@ -84,6 +84,8 @@ class BatchManager(object):
                         except Exception as e:
                             continue
                         self._svg_list.append(file_path)
+                        if is_eval and len(self._svg_list) > 2 * FLAGS.num_eval:
+                            break
         
         # debug
         # self._svg_list = ['data/sketches/couch/n04256520_8346-6.svg'] # comment '--' bug

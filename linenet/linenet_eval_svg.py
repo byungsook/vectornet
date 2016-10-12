@@ -105,8 +105,8 @@ def evaluate():
                 total_loss += loss_value
                 duration = time.time() - start_time
                 examples_per_sec = FLAGS.batch_size / float(duration)
-                print('%s: step %d, loss = %.2f (%.1f examples/sec; %.3f sec/batch)' % (
-                        datetime.now(), step, loss_value, examples_per_sec, duration))
+                print('%s: epoch %d, step %d, loss = %.2f (%.1f examples/sec; %.3f sec/batch)' % (
+                        datetime.now(), batch_manager.num_epoch, step, loss_value, examples_per_sec, duration))
 
                 if FLAGS.use_two_channels:
                     loss_summary_str, s_summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(

@@ -33,9 +33,9 @@ tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', '',
 # tf.app.flags.DEFINE_string('gpu_list', '-1', 
 #                            """gpu list. -1 for no gpu or default setting.
 #                            e.g. 0 or 0-3 or 0,2-3""")
-tf.app.flags.DEFINE_integer('max_steps', 200000, # 1 epoch: 75000 files * #lines/file
+tf.app.flags.DEFINE_integer('max_steps', 3, # 1 epoch: 75000 files * #lines/file
                             """Number of batches to run.""")
-tf.app.flags.DEFINE_integer('decay_steps', 120000,
+tf.app.flags.DEFINE_integer('decay_steps', 30000,
                           """Decay steps""")
 tf.app.flags.DEFINE_float('initial_learning_rate', 0.01,
                           """Initial learning rate.""")
@@ -62,8 +62,8 @@ def train():
         phase_train = tf.placeholder(tf.bool, name='phase_train')
         
         d = 2 if FLAGS.use_two_channels else 1
-        x = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, d])
-        y = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
+        x = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, d])
+        y = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 1])
             
         # Build a Graph that computes the logits predictions from the inference model.
         y_hat = linenet_model.inference(x, phase_train)
@@ -140,12 +140,12 @@ def train():
         summary_y_writer = tf.train.SummaryWriter(FLAGS.log_dir + '/y', sess.graph)
         summary_y_hat_writer = tf.train.SummaryWriter(FLAGS.log_dir + '/y_hat', sess.graph)
         
-        s = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
+        s = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 1])
         s_summary = tf.image_summary('s', s, max_images=FLAGS.max_images)
         if FLAGS.use_two_channels:
-            x_rgb = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 3])
+            x_rgb = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 3])
             x_summary = tf.image_summary('x', x_rgb, max_images=FLAGS.max_images)
-            b_channel = np.zeros([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1]) # to make x RGB
+            b_channel = np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1]) # to make x RGB
         else:
             x_summary = tf.image_summary('x', x, max_images=FLAGS.max_images)
         y_summary = tf.image_summary('y', y, max_images=FLAGS.max_images)

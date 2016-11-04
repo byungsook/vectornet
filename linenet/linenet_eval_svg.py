@@ -31,19 +31,19 @@ tf.app.flags.DEFINE_float('moving_avg_decay', 0.9999,
                           """The decay to use for the moving average.""")
 tf.app.flags.DEFINE_integer('max_images', FLAGS.batch_size,
                             """max # images to save.""")
-tf.app.flags.DEFINE_integer('num_eval', 640,
+tf.app.flags.DEFINE_integer('num_eval', 960,
                             """# images for evaluation""")
 
 
 def evaluate():
     with tf.Graph().as_default() as g:
         global_step = tf.Variable(0, name='global_step', trainable=False)
-        is_train = False
+        is_train = True
         phase_train = tf.placeholder(tf.bool, name='phase_train')
 
         d = 2 if FLAGS.use_two_channels else 1
-        x = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, d])
-        y = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
+        x = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, d])
+        y = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 1])
         
         # Build a Graph that computes the logits predictions from the inference model.
         y_hat = linenet_model.inference(x, phase_train)
@@ -71,19 +71,19 @@ def evaluate():
         summary_y_writer = tf.train.SummaryWriter(FLAGS.eval_dir + '/y', g)
         summary_y_hat_writer = tf.train.SummaryWriter(FLAGS.eval_dir + '/y_hat', g)
         
-        s = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
+        s = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 1])
         s_summary = tf.image_summary('s', s, max_images=FLAGS.max_images)
         if FLAGS.use_two_channels:
-            x_rgb = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 3])
+            x_rgb = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 3])
             x_summary = tf.image_summary('x', x_rgb, max_images=FLAGS.max_images)
-            b_channel = np.zeros([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1]) # to make x RGB
+            b_channel = np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1]) # to make x RGB
         else:
             x_summary = tf.image_summary('x', x, max_images=FLAGS.max_images)
         y_summary = tf.image_summary('y', y, max_images=FLAGS.max_images)
         y_hat_ph = tf.placeholder(tf.float32)
         y_hat_summary = tf.image_summary('y_hat_ph', y_hat_ph, max_images=FLAGS.max_images)
         
-        batch_manager = linenet_data_svg.BatchManager(is_eval=True)
+        batch_manager = linenet_data_svg.BatchManager(num_max=FLAGS.num_eval)
         print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
         
         # Start evaluation

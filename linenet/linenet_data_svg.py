@@ -35,8 +35,10 @@ tf.app.flags.DEFINE_string('data_zip', 'data/sketches-06-04.zip',
                            """Path to the Sketch data file.""")
 tf.app.flags.DEFINE_string('data_dir', 'data',
                            """Path to the Sketch data directory.""")
-tf.app.flags.DEFINE_integer('image_size', 128, # 48-24-12-6
-                            """Image Size.""")
+tf.app.flags.DEFINE_integer('image_width', 128, # 48-24-12-6
+                            """Image Width.""")
+tf.app.flags.DEFINE_integer('image_height', 96, # 48-24-12-6
+                            """Image Height.""")
 tf.app.flags.DEFINE_float('intensity_ratio', 10.0,
                           """intensity ratio of point to lines""")
 tf.app.flags.DEFINE_float('initial_min_ratio', 0.02,
@@ -45,14 +47,14 @@ tf.app.flags.DEFINE_boolean('use_two_channels', True,
                             """use two channels for input""")
 
 
-SVG_TEMPLATE_START = """<svg width="{s}" height="{s}" viewBox="0 0 640 480" 
+SVG_TEMPLATE_START = """<svg width="{w}" height="{h}" viewBox="0 0 640 480" 
                         xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg" 
                         xmlns:xlink="http://www.w3.org/1999/xlink"><g>"""
 SVG_TEMPLATE_END = """</g></svg>"""
 
 
 class BatchManager(object):
-    def __init__(self, is_eval=False):
+    def __init__(self, num_max=-1):
         # # download sketch file unless it exists
         # if not os.path.isfile(FLAGS.data_zip):
         #     urllib.urlretrieve(FLAGS.data_url, FLAGS.data_zip)
@@ -84,7 +86,7 @@ class BatchManager(object):
                         except Exception as e:
                             continue
                         self._svg_list.append(file_path)
-                        if is_eval and len(self._svg_list) > 2 * FLAGS.num_eval:
+                        if num_max > 0 and len(self._svg_list) > num_max:
                             break
         
         # debug
@@ -103,9 +105,9 @@ class BatchManager(object):
         self.ratio = FLAGS.initial_min_ratio
         
         d = 2 if FLAGS.use_two_channels else 1
-        self.s_batch = np.zeros([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
-        self.x_batch = np.zeros([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, d], dtype=np.float)
-        self.y_batch = np.zeros([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1], dtype=np.float)
+        self.s_batch = np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1], dtype=np.float)
+        self.x_batch = np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, d], dtype=np.float)
+        self.y_batch = np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1], dtype=np.float)
     
     
     def _next_svg(self):
@@ -123,7 +125,8 @@ class BatchManager(object):
                     svg = f.readline()
                     id_width = svg.find('width')
                     id_xmlns = svg.find('xmlns', id_width)
-                    svg_size = 'width="{s}" height="{s}" viewBox="0 0 640 480" '.format(s=FLAGS.image_size)
+                    svg_size = 'width="{w}" height="{h}" viewBox="0 0 640 480" '.format(
+                                    w=FLAGS.image_width, h=FLAGS.image_height)
                     svg = svg[:id_width] + svg_size + svg[id_xmlns:]
                     
                     while True:
@@ -165,7 +168,7 @@ class BatchManager(object):
 
                 x_img = Image.open(io.BytesIO(x_png))
                 self.x = np.array(x_img)[:,:,3].astype(np.float) / 255.0
-                self.x = threshold(self.x, threshmax=0.01, newval=1.0)
+                # self.x = threshold(self.x, threshmax=0.01, newval=1.0)
 
                 # # debug
                 # plt.imshow(self.x, cmap=plt.cm.gray)
@@ -180,14 +183,14 @@ class BatchManager(object):
             
             # check y
             path = self._path_list[self._path_id]
-            y_svg = SVG_TEMPLATE_START.format(s=FLAGS.image_size) + path + SVG_TEMPLATE_END
+            y_svg = SVG_TEMPLATE_START.format(w=FLAGS.image_width, h=FLAGS.image_height) + path + SVG_TEMPLATE_END
             y_png = cairosvg.svg2png(bytestring=y_svg)
             y_img = Image.open(io.BytesIO(y_png))
             y = np.array(y_img)[:,:,3].astype(np.float) / 255.0
-            y = threshold(y, threshmax=0.01, newval=1.0)
+            # y = threshold(y, threshmax=0.01, newval=1.0)
             line_ids = np.nonzero(y)
             
-            if len(line_ids[0]) / (FLAGS.image_size*FLAGS.image_size) < self.ratio:
+            if len(line_ids[0]) / (FLAGS.image_width*FLAGS.image_height) < self.ratio:
                 del self._path_list[self._path_id]
             else:
                 self._path_id = self._path_id + 1
@@ -200,7 +203,7 @@ class BatchManager(object):
                 self._next_svg_id = (self._next_svg_id + 1) % len(self._svg_list)
                 if self._next_svg_id == 0:
                     self.num_epoch = self.num_epoch + 1
-                    if self.ratio > 0.001:
+                    if self.ratio > 0.005:
                         self.ratio = self.ratio * 0.5
 
         return self.x, y, line_ids
@@ -211,9 +214,9 @@ class BatchManager(object):
             x, y, line_ids = self._next_svg()
 
             # s
-            self.s_batch[i,:,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
+            self.s_batch[i,:,:,:] = np.reshape(x, [FLAGS.image_height, FLAGS.image_width, 1])
             # y
-            self.y_batch[i,:,:,:] = np.reshape(y, [FLAGS.image_size, FLAGS.image_size, 1])
+            self.y_batch[i,:,:,:] = np.reshape(y, [FLAGS.image_height, FLAGS.image_width, 1])
             # x
             point_id = np.random.randint(len(line_ids[0]))
             px, py = line_ids[0][point_id], line_ids[1][point_id]
@@ -226,7 +229,7 @@ class BatchManager(object):
             else:
                 x = x / FLAGS.intensity_ratio
                 x[px, py] = 1.0
-                self.x_batch[i,:,:,:] = np.reshape(x, [FLAGS.image_size, FLAGS.image_size, 1])
+                self.x_batch[i,:,:,:] = np.reshape(x, [FLAGS.image_height, FLAGS.image_width, 1])
 
         return self.s_batch, self.x_batch, self.y_batch
 
@@ -255,15 +258,15 @@ if __name__ == '__main__':
 
     s_batch, x_batch, y_batch = batch_manager.batch()
     for i in xrange(FLAGS.batch_size):
-        plt.imshow(np.reshape(s_batch[i,:], [FLAGS.image_size,FLAGS.image_size]), cmap=plt.cm.gray)
+        plt.imshow(np.reshape(s_batch[i,:], [FLAGS.image_height, FLAGS.image_width]), cmap=plt.cm.gray)
         plt.show()
         if FLAGS.use_two_channels:
-            t = np.concatenate((x_batch, np.zeros([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1])), axis=3)
+            t = np.concatenate((x_batch, np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1])), axis=3)
             plt.imshow(t[i,:,:,:], cmap=plt.cm.gray)
         else:
-            plt.imshow(np.reshape(x_batch[i,:], [FLAGS.image_size,FLAGS.image_size]), cmap=plt.cm.gray)
+            plt.imshow(np.reshape(x_batch[i,:], [FLAGS.image_height, FLAGS.image_width]), cmap=plt.cm.gray)
         plt.show()
-        plt.imshow(np.reshape(y_batch[i,:], [FLAGS.image_size,FLAGS.image_size]), cmap=plt.cm.gray)
+        plt.imshow(np.reshape(y_batch[i,:], [FLAGS.image_height, FLAGS.image_width]), cmap=plt.cm.gray)
         plt.show()
 
     # for i in xrange(batch_manager.num_examples_per_epoch):

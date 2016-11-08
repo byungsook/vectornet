@@ -168,7 +168,7 @@ class BatchManager(object):
 
                 x_img = Image.open(io.BytesIO(x_png))
                 self.x = np.array(x_img)[:,:,3].astype(np.float) / 255.0
-                # self.x = threshold(self.x, threshmax=0.01, newval=1.0)
+                self.x = threshold(self.x, threshmax=0.0001, newval=1.0)
 
                 # # debug
                 # plt.imshow(self.x, cmap=plt.cm.gray)
@@ -187,7 +187,7 @@ class BatchManager(object):
             y_png = cairosvg.svg2png(bytestring=y_svg)
             y_img = Image.open(io.BytesIO(y_png))
             y = np.array(y_img)[:,:,3].astype(np.float) / 255.0
-            # y = threshold(y, threshmax=0.01, newval=1.0)
+            y = threshold(y, threshmax=0.0001, newval=1.0)
             line_ids = np.nonzero(y)
             
             if len(line_ids[0]) / (FLAGS.image_width*FLAGS.image_height) < self.ratio:

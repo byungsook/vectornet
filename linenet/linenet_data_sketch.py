@@ -35,14 +35,12 @@ tf.app.flags.DEFINE_string('data_zip', 'data/sketches-06-04.zip',
                            """Path to the Sketch data file.""")
 tf.app.flags.DEFINE_string('data_dir', 'data',
                            """Path to the Sketch data directory.""")
-tf.app.flags.DEFINE_integer('image_width', 128, # 48-24-12-6
+tf.app.flags.DEFINE_integer('image_width', 96, # 48-24-12-6
                             """Image Width.""")
-tf.app.flags.DEFINE_integer('image_height', 96, # 48-24-12-6
+tf.app.flags.DEFINE_integer('image_height', 72, # 48-24-12-6
                             """Image Height.""")
 tf.app.flags.DEFINE_float('intensity_ratio', 10.0,
                           """intensity ratio of point to lines""")
-tf.app.flags.DEFINE_float('initial_min_ratio', 0.02,
-                          """initial_min_ratio for minimum length of line""")
 tf.app.flags.DEFINE_boolean('use_two_channels', True,
                             """use two channels for input""")
 

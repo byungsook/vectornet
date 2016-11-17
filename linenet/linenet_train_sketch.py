@@ -35,6 +35,8 @@ tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', '',
 #                            e.g. 0 or 0-3 or 0,2-3""")
 tf.app.flags.DEFINE_integer('max_steps', 3, # 1 epoch: 75000 files * #lines/file
                             """Number of batches to run.""")
+tf.app.flags.DEFINE_float('initial_min_ratio', 0.02,
+                          """initial_min_ratio for minimum length of line""")
 tf.app.flags.DEFINE_integer('decay_steps', 30000,
                           """Decay steps""")
 tf.app.flags.DEFINE_float('initial_learning_rate', 0.01,

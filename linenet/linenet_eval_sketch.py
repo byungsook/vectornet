@@ -27,6 +27,8 @@ tf.app.flags.DEFINE_string('eval_dir', 'eval/sketch',
                            """and checkpoint.""")
 tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', 'log/sketch/linenet.ckpt',
                            """If specified, restore this pretrained model.""")
+tf.app.flags.DEFINE_float('initial_min_ratio', 0.001,
+                          """initial_min_ratio for minimum length of line""")
 tf.app.flags.DEFINE_float('moving_avg_decay', 0.9999,
                           """The decay to use for the moving average.""")
 tf.app.flags.DEFINE_integer('max_images', FLAGS.batch_size,

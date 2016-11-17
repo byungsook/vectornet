@@ -16,12 +16,12 @@ from six.moves import xrange  # pylint: disable=redefined-builtin
 import numpy as np
 import tensorflow as tf
 
-import linenet_data_sketch
+import linenet_data_chinese
 import linenet_model
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('log_dir', 'log/test_data',
+tf.app.flags.DEFINE_string('log_dir', 'log/chinese',
                            """Directory where to write event logs """
                            """and checkpoint.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
@@ -30,13 +30,8 @@ tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', '',
                            """If specified, restore this pretrained model """
                            """before beginning any training.
                            e.g. log/second_train/linenet.ckpt """)
-# tf.app.flags.DEFINE_string('gpu_list', '-1', 
-#                            """gpu list. -1 for no gpu or default setting.
-#                            e.g. 0 or 0-3 or 0,2-3""")
-tf.app.flags.DEFINE_integer('max_steps', 3, # 1 epoch: 75000 files * #lines/file
+tf.app.flags.DEFINE_integer('max_steps', 10,
                             """Number of batches to run.""")
-tf.app.flags.DEFINE_float('initial_min_ratio', 0.02,
-                          """initial_min_ratio for minimum length of line""")
 tf.app.flags.DEFINE_integer('decay_steps', 30000,
                           """Decay steps""")
 tf.app.flags.DEFINE_float('initial_learning_rate', 0.01,
@@ -93,13 +88,13 @@ def train():
                                                    FLAGS.decay_steps,
                                                    FLAGS.learning_decay_factor,
                                                    staircase=True)
-        tf.scalar_summary('learning_rate', learning_rate)        
+        tf.scalar_summary('learning_rate', learning_rate)
         # # or use fixed learning rate
         # learning_rate = 1e-3
         
         # Compute gradients.
         with tf.control_dependencies([loss_averages_op]):
-            opt = tf.train.AdamOptimizer(learning_rate)            
+            opt = tf.train.AdamOptimizer(learning_rate)
             grads = opt.compute_gradients(loss)
             max_grad = FLAGS.clip_gradients / learning_rate
             grads = [(tf.clip_by_value(grad, -max_grad, max_grad), var) for grad, var in grads]
@@ -156,7 +151,7 @@ def train():
         # # Start the queue runners.
         # tf.train.start_queue_runners(sess=sess)
         # Initialize the batch manager        
-        batch_manager = linenet_data_sketch.BatchManager()
+        batch_manager = linenet_data_chinese.BatchManager()
         print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
         
         ####################################################################
@@ -228,7 +223,7 @@ def main(_):
     if not current_path.endswith('linenet'):
         working_path = os.path.join(current_path, 'vectornet/linenet')
         os.chdir(working_path)
-        
+
     # create log directory
     if FLAGS.log_dir.endswith('log'):
         FLAGS.log_dir = os.path.join(FLAGS.log_dir, datetime.now().isoformat().replace(':', '-'))
@@ -236,14 +231,7 @@ def main(_):
         tf.gfile.DeleteRecursively(FLAGS.log_dir)
     tf.gfile.MakeDirs(FLAGS.log_dir)
 
-    # start training
-    # if FLAGS.gpu_list == '-1':
-    
     train()
-
-    # else:
-    #     raise NameError('need to implement..')
-        # train_gpu()        
 
 if __name__ == '__main__':
     tf.app.run()

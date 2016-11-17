@@ -17,7 +17,7 @@ from six.moves import xrange  # pylint: disable=redefined-builtin
 import numpy as np
 import tensorflow as tf
 
-import linenet_data_svg
+import linenet_data_sketch
 import linenet_model
 
 # parameters
@@ -85,7 +85,7 @@ def evaluate():
         y_hat_ph = tf.placeholder(tf.float32)
         y_hat_summary = tf.image_summary('y_hat_ph', y_hat_ph, max_images=FLAGS.max_images)
         
-        batch_manager = linenet_data_svg.BatchManager(num_max=FLAGS.num_eval)
+        batch_manager = linenet_data_sketch.BatchManager(num_max=FLAGS.num_eval)
         print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
         
         # Start evaluation

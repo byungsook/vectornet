@@ -17,6 +17,7 @@ import cairosvg
 from PIL import Image
 import io
 import matplotlib.pyplot as plt
+import tarfile
 
 import numpy as np
 import scipy.stats
@@ -97,17 +98,17 @@ def preprocess_makemeahanzi(file_path):
                 svg = svg + '</g>\n</svg>'
                 break
 
-    # debug: test svg
-    img = cairosvg.svg2png(bytestring=svg.format(w=48, h=48))
-    img = Image.open(io.BytesIO(img))
-    img = np.array(img)[:,:,3].astype(np.float) / 255.0
-    img = 1.0 - img
+    # # debug: test svg
+    # img = cairosvg.svg2png(bytestring=svg.format(w=48, h=48))
+    # img = Image.open(io.BytesIO(img))
+    # img = np.array(img)[:,:,3].astype(np.float) / 255.0
+    # img = 1.0 - img
     
-    plt.imshow(img, cmap=plt.cm.gray)
-    plt.show()
+    # plt.imshow(img, cmap=plt.cm.gray)
+    # plt.show()
 
-    save_path = os.path.join(FLAGS.dst_dir, os.path.splitext(os.path.basename(file_path))[0] + '_48.png')
-    scipy.misc.imsave(save_path, img)
+    # save_path = os.path.join(FLAGS.dst_dir, os.path.splitext(os.path.basename(file_path))[0] + '_48.png')
+    # scipy.misc.imsave(save_path, img)
 
     return svg
 
@@ -161,9 +162,9 @@ def preprocess(run_id):
     if run_id == 0:
         data_dir = 'data_tmp/svg_test' 
     elif run_id == 1:    
-        data_dir = 'data_tmp/free_chinese/makemeahanzi/svgs'
+        data_dir = 'linenet/data/chinese/makemeahanzi/svgs'
     elif run_id == 2:
-        data_dir = 'data_tmp/free_chinese/kanjivg-20160426-all/kanji'
+        data_dir = 'linenet/data/chinese/kanjivg-20160426-all/kanji'
 
     for root, _, files in os.walk(data_dir):
         for file in files:
@@ -191,12 +192,20 @@ def preprocess(run_id):
             with open(write_path, 'w') as f:
                 f.write(svg_pre)
 
+    # compress
+    with tarfile.open(FLAGS.dst_tar, "w:gz") as tar:
+        tar.add(FLAGS.dst_dir, arcname=os.path.basename(FLAGS.dst_dir))
+
 
 def init_arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('dst_dir',
-                    default='data_tmp/gc_test',
-                    help='data directory',
+                    default='linenet/data/chinese1', # 'data_tmp/gc_test',
+                    help='destination directory',
+                    nargs='?') # optional arg.
+    parser.add_argument('dst_tar',
+                    default='linenet/data/chinese1.tar.gz', # 'data_tmp/gc_test',
+                    help='destination tar file',
                     nargs='?') # optional arg.
     return parser.parse_args()
 
@@ -215,6 +224,6 @@ if __name__ == '__main__':
         os.makedirs(FLAGS.dst_dir)
 
     # run [0-2]
-    preprocess(2)
+    preprocess(1)
 
     print('Done')

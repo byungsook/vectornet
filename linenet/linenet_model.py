@@ -10,6 +10,8 @@ from __future__ import print_function
 
 import tensorflow as tf
 
+FLAGS = tf.app.flags.FLAGS
+
 
 def _variable_summaries(x):
     """Helper to create summaries for activations.
@@ -190,5 +192,6 @@ def inference(x, phase_train, model=1):
 
 def loss(y_hat, y):
     # y_hat: estimate, y: training set
-    l2_loss = tf.nn.l2_loss(y_hat - y, name='l2_loss')
+    denom = FLAGS.batch_size * FLAGS.image_width * FLAGS.image_height
+    l2_loss = tf.nn.l2_loss(y_hat - y, name='l2_loss') / float(denom) * 1e5
     return l2_loss

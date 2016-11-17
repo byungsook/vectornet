@@ -31,14 +31,14 @@ def preprocess_kanji(file_path):
             svg_line = f.readline()
             if svg_line.find('<svg') >= 0:
                 id_width = svg_line.find('width')
-                id_viewBox = svg_line.find('viewBox')                
+                id_viewBox = svg_line.find('viewBox')
                 svg = svg + svg_line[:id_width] + 'width="{w}" height="{h}" ' + svg_line[id_viewBox:]
                 break
             else:
                 svg = svg + svg_line
 
-        # optional: transform
-        svg = svg + '<g transform="scale({sx}, {sy}) translate({tx}, {ty})">\n'                    
+        # # optional: transform
+        # svg = svg + '<g transform="scale({sx}, {sy}) translate({tx}, {ty})">\n'
         
         while True:
             svg_line = f.readline()
@@ -49,24 +49,24 @@ def preprocess_kanji(file_path):
                 continue
                 
             if svg_line.find('<g id="kvg:StrokeNumbers') >= 0:
-                svg = svg + '</g>\n' # transform
+                # svg = svg + '</g>\n' # optional: transform
                 svg = svg + '</svg>'
                 break
             else:
                 svg = svg + svg_line
         
-    # debug: test svg
-    img = cairosvg.svg2png(bytestring=svg.format(w=48, h=48, sx=1, sy=1, tx=0, ty=0))
-    img = Image.open(io.BytesIO(img))
-    img = np.array(img)[:,:,3].astype(np.float) / 255.0
-    # img = scipy.stats.threshold(img, threshmax=0.0001, newval=1.0)
-    img = 1.0 - img
+    # # debug: test svg
+    # img = cairosvg.svg2png(bytestring=svg.format(w=48, h=48, sx=1, sy=1, tx=0, ty=0))
+    # img = Image.open(io.BytesIO(img))
+    # img = np.array(img)[:,:,3].astype(np.float) / 255.0
+    # # img = scipy.stats.threshold(img, threshmax=0.0001, newval=1.0)
+    # img = 1.0 - img
     
-    plt.imshow(img, cmap=plt.cm.gray)
-    plt.show()
+    # plt.imshow(img, cmap=plt.cm.gray)
+    # plt.show()
 
-    save_path = os.path.join(FLAGS.dst_dir, os.path.splitext(os.path.basename(file_path))[0] + '_48.png')
-    scipy.misc.imsave(save_path, img)
+    # save_path = os.path.join(FLAGS.dst_dir, os.path.splitext(os.path.basename(file_path))[0] + '_48.png')
+    # scipy.misc.imsave(save_path, img)
 
     return svg
 
@@ -200,11 +200,11 @@ def preprocess(run_id):
 def init_arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('dst_dir',
-                    default='linenet/data/chinese1', # 'data_tmp/gc_test',
+                    default='linenet/data/chinese2', # 'data_tmp/gc_test',
                     help='destination directory',
                     nargs='?') # optional arg.
     parser.add_argument('dst_tar',
-                    default='linenet/data/chinese1.tar.gz', # 'data_tmp/gc_test',
+                    default='linenet/data/chinese2.tar.gz', # 'data_tmp/gc_test',
                     help='destination tar file',
                     nargs='?') # optional arg.
     return parser.parse_args()
@@ -224,6 +224,6 @@ if __name__ == '__main__':
         os.makedirs(FLAGS.dst_dir)
 
     # run [0-2]
-    preprocess(1)
+    preprocess(2)
 
     print('Done')

@@ -65,9 +65,8 @@ class BatchManager(object):
 
                 file_path = os.path.join(root, file)
                 with open(file_path, 'r') as f:
-                    svg = f.read().format(w=FLAGS.image_width, h=FLAGS.image_height)
-                    svg_xml = et.fromstring(svg)
-                    self._svg_list.append(svg_xml)
+                    svg = f.read()
+                    self._svg_list.append(svg)
         
         # delete data
         tf.gfile.DeleteRecursively(FLAGS.data_dir)
@@ -107,61 +106,14 @@ class BatchManager(object):
             self._pool.join()
 
 
-    def _next_svg(self):
-        svg_xml = copy.deepcopy(self._svg_list[self._next_svg_id])
-        svg = et.tostring(svg_xml, method='xml')
-        s_png = cairosvg.svg2png(bytestring=svg)
-        s_img = Image.open(io.BytesIO(s_png))
-        s = np.array(s_img)[:,:,3].astype(np.float) / 255.0
-        
-        # # debug
-        # plt.imshow(s, cmap=plt.cm.gray)
-        # plt.show()
-
-        # leave only one path
-        path_id = np.random.randint(len(svg_xml[0]._children))
-        svg_xml[0]._children = [svg_xml[0]._children[path_id]]
-
-        svg = et.tostring(svg_xml, method='xml')
-        y_png = cairosvg.svg2png(bytestring=svg)
-        y_img = Image.open(io.BytesIO(y_png))
-        y = np.array(y_img)[:,:,3].astype(np.float) / 255.0
-        
-        # # debug
-        # plt.imshow(y, cmap=plt.cm.gray)
-        # plt.show()
-
-        # select arbitrary marking pixel
-        line_ids = np.nonzero(y)
-        point_id = np.random.randint(len(line_ids[0]))
-        px, py = line_ids[0][point_id], line_ids[1][point_id]
-
-        # for next access
-        self._next_svg_id = (self._next_svg_id + 1) % len(self._svg_list)
-        if self._next_svg_id == 0:
-            self.num_epoch = self.num_epoch + 1
-            shuffle(self._svg_list)
-
-        return s, y, px, py
-
-
     def batch(self):
         if FLAGS.num_processors == 1:
             for i in xrange(FLAGS.batch_size):
-                s, y, px, py = self._next_svg()
-
-                self.s_batch[i,:,:,:] = np.reshape(s, [FLAGS.image_height, FLAGS.image_width, 1])
-                self.y_batch[i,:,:,:] = np.reshape(y, [FLAGS.image_height, FLAGS.image_width, 1])
-                
-                if FLAGS.use_two_channels:
-                    self.x_batch[i,:,:,0] = s
-                    x_point = np.zeros(s.shape)
-                    x_point[px, py] = 1.0
-                    self.x_batch[i,:,:,1] = x_point
-                else:
-                    x = s / FLAGS.intensity_ratio
-                    x[px, py] = 1.0
-                    self.x_batch[i,:,:,:] = np.reshape(x, [FLAGS.image_height, FLAGS.image_width, 1])
+                train_set(0, [self._svg_list[self._next_svg_id]], self.s_batch, self.x_batch, self.y_batch)
+                self._next_svg_id = (self._next_svg_id + 1) % len(self._svg_list)
+                if self._next_svg_id == 0:
+                    self.num_epoch = self.num_epoch + 1
+                    shuffle(self._svg_list)
         else:
             for i in xrange(FLAGS.batch_size):
                 self._svg_batch[i] = self._svg_list[self._next_svg_id]
@@ -176,31 +128,52 @@ class BatchManager(object):
 
 
 def train_set(i, svg_batch, s_batch, x_batch, y_batch):
-    svg_xml = svg_batch[i]
-    svg = et.tostring(svg_xml, method='xml')
-    s_png = cairosvg.svg2png(bytestring=svg)
-    s_img = Image.open(io.BytesIO(s_png))
-    s = np.array(s_img)[:,:,3].astype(np.float) / 255.0
+    while True:
+        r = np.random.randint(-180, 181)
+        s_sign = np.random.choice([1, -1], 1)[0]
+        s = 1.75 * np.random.random_sample(2) + 0.25 # [0.25, 2)
+        s[1] = s[1] * s_sign
+        t = np.random.randint(-100, 100, 2) # [-100, 100]
+        if s_sign == 1:
+            t[1] = t[1] + 124
+        else:
+            t[1] = t[1] - 900
+        
+        svg = svg_batch[i].format(
+                w=FLAGS.image_width, h=FLAGS.image_height,
+                r=r, sx=s[0], sy=s[1], tx=t[0], ty=t[1])
+        s_png = cairosvg.svg2png(bytestring=svg)
+        s_img = Image.open(io.BytesIO(s_png))
+        s = np.array(s_img)[:,:,3].astype(np.float) / 255.0
+        
+        if len(np.nonzero(s)[0]) == 0:
+            continue
     
-    # # debug
-    # plt.imshow(s, cmap=plt.cm.gray)
-    # plt.show()
+        # # debug
+        # plt.imshow(s, cmap=plt.cm.gray)
+        # plt.show()
 
-    # leave only one path
-    path_id = np.random.randint(len(svg_xml[0]._children))
-    svg_xml[0]._children = [svg_xml[0]._children[path_id]]
-    
-    svg = et.tostring(svg_xml, method='xml')
-    y_png = cairosvg.svg2png(bytestring=svg)
-    y_img = Image.open(io.BytesIO(y_png))
-    y = np.array(y_img)[:,:,3].astype(np.float) / 255.0
-    
-    # # debug
-    # plt.imshow(y, cmap=plt.cm.gray)
-    # plt.show()
+        # leave only one path
+        svg_xml = et.fromstring(svg)
+        path_id = np.random.randint(len(svg_xml[0]._children))
+        svg_xml[0]._children = [svg_xml[0]._children[path_id]]
+        
+        svg = et.tostring(svg_xml, method='xml')
+        y_png = cairosvg.svg2png(bytestring=svg)
+        y_img = Image.open(io.BytesIO(y_png))
+        y = np.array(y_img)[:,:,3].astype(np.float) / 255.0
+        
+        # # debug
+        # plt.imshow(y, cmap=plt.cm.gray)
+        # plt.show()
 
-    # select arbitrary marking pixel
-    line_ids = np.nonzero(y)
+        # select arbitrary marking pixel
+        line_ids = np.nonzero(y)
+        if len(line_ids[0]) == 0:
+            continue
+        else:
+            break
+
     point_id = np.random.randint(len(line_ids[0]))
     px, py = line_ids[0][point_id], line_ids[1][point_id]
     

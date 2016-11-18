@@ -84,22 +84,23 @@ def preprocess_makemeahanzi(file_path):
                 if first_g is False:
                     first_g = True
                 else:
-                    # svg = svg + '<g transform="rotate({r},512,512) translate({tx},{ty})">\n'
-                    svg = svg + svg_line
+                    # sy=-1, ty=-900, sy=1, ty=124 (1024-900)
+                    svg = svg + '<g transform="rotate({r},512,512) scale({sx},{sy}) translate({tx},{ty})">\n'
                     break
 
         while True:
             svg_line = f.readline()
             if svg_line.find('<clipPath id=') >= 0:
+                # read and add a path
                 svg_line = f.readline()
                 svg = svg + svg_line
             elif svg_line.find('</g>') >= 0:
-                # svg = svg + '</g>\n'
                 svg = svg + '</g>\n</svg>'
                 break
 
     # # debug: test svg
-    # img = cairosvg.svg2png(bytestring=svg.format(w=48, h=48))
+    # img = cairosvg.svg2png(bytestring=svg.format(
+    #                        w=96, h=96, r=20, sx=1.5, sy=2, tx=100, ty=224))
     # img = Image.open(io.BytesIO(img))
     # img = np.array(img)[:,:,3].astype(np.float) / 255.0
     # img = 1.0 - img
@@ -200,11 +201,11 @@ def preprocess(run_id):
 def init_arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('dst_dir',
-                    default='linenet/data/chinese2', # 'data_tmp/gc_test',
+                    default='linenet/data/chinese1', # 'data_tmp/gc_test',
                     help='destination directory',
                     nargs='?') # optional arg.
     parser.add_argument('dst_tar',
-                    default='linenet/data/chinese2.tar.gz', # 'data_tmp/gc_test',
+                    default='linenet/data/chinese1_trans.tar.gz', # 'data_tmp/gc_test',
                     help='destination tar file',
                     nargs='?') # optional arg.
     return parser.parse_args()
@@ -224,6 +225,6 @@ if __name__ == '__main__':
         os.makedirs(FLAGS.dst_dir)
 
     # run [0-2]
-    preprocess(2)
+    preprocess(1)
 
     print('Done')

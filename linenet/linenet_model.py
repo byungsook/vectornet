@@ -192,6 +192,6 @@ def inference(x, phase_train, model=1):
 
 def loss(y_hat, y):
     # y_hat: estimate, y: training set
-    denom = FLAGS.batch_size * FLAGS.image_width * FLAGS.image_height
-    l2_loss = tf.nn.l2_loss(y_hat - y, name='l2_loss') / float(denom) * 1e5
+    loss_scale = float(1e5) / FLAGS.batch_size * FLAGS.image_width * FLAGS.image_height
+    l2_loss = tf.mul(tf.nn.l2_loss(y_hat - y), loss_scale, name='l2_loss')
     return l2_loss

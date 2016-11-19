@@ -31,15 +31,15 @@ import tensorflow as tf
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_integer('batch_size', 32,
+tf.app.flags.DEFINE_integer('batch_size', 8,
                             """Number of images to process in a batch.""")
 tf.app.flags.DEFINE_string('data_tar', 'data/chinese1.tar.gz',
                            """Path to the Sketch data file.""")
 tf.app.flags.DEFINE_string('data_dir', 'data/chinese1',
                            """Path to the data directory.""")
-tf.app.flags.DEFINE_integer('image_width', 96, # 48-24-12-6
+tf.app.flags.DEFINE_integer('image_width', 128, # 48-24-12-6
                             """Image Width.""")
-tf.app.flags.DEFINE_integer('image_height', 96, # 48-24-12-6
+tf.app.flags.DEFINE_integer('image_height', 128, # 48-24-12-6
                             """Image Height.""")
 tf.app.flags.DEFINE_float('intensity_ratio', 10.0,
                           """intensity ratio of point to lines""")
@@ -129,15 +129,20 @@ class BatchManager(object):
 
 def train_set(i, svg_batch, s_batch, x_batch, y_batch):
     while True:
-        r = np.random.randint(-180, 181)
-        s_sign = np.random.choice([1, -1], 1)[0]
-        s = 1.75 * np.random.random_sample(2) + 0.25 # [0.25, 2)
-        s[1] = s[1] * s_sign
-        t = np.random.randint(-100, 100, 2) # [-100, 100]
-        if s_sign == 1:
-            t[1] = t[1] + 124
+        if FLAGS.transform:
+            r = np.random.randint(-180, 181)
+            s_sign = np.random.choice([1, -1], 1)[0]
+            s = 1.75 * np.random.random_sample(2) + 0.25 # [0.25, 2)
+            s[1] = s[1] * s_sign
+            t = np.random.randint(-100, 100, 2) # [-100, 100]
+            if s_sign == 1:
+                t[1] = t[1] + 124
+            else:
+                t[1] = t[1] - 900
         else:
-            t[1] = t[1] - 900
+            r = 0
+            s = [1, -1]
+            t = [0, -900]
         
         svg = svg_batch[i].format(
                 w=FLAGS.image_width, h=FLAGS.image_height,

@@ -37,8 +37,9 @@ def preprocess_kanji(file_path):
             else:
                 svg = svg + svg_line
 
-        # # optional: transform
-        # svg = svg + '<g transform="scale({sx}, {sy}) translate({tx}, {ty})">\n'
+        # optional: transform
+        # sy=-1, ty=-109, sy=1, ty=0
+        svg = svg + '<g transform="rotate({r},54,54) scale({sx},{sy}) translate({tx},{ty})">\n'
         
         while True:
             svg_line = f.readline()
@@ -49,14 +50,14 @@ def preprocess_kanji(file_path):
                 continue
                 
             if svg_line.find('<g id="kvg:StrokeNumbers') >= 0:
-                # svg = svg + '</g>\n' # optional: transform
+                svg = svg + '</g>\n' # optional: transform
                 svg = svg + '</svg>'
                 break
             else:
                 svg = svg + svg_line
         
     # # debug: test svg
-    # img = cairosvg.svg2png(bytestring=svg.format(w=48, h=48, sx=1, sy=1, tx=0, ty=0))
+    # img = cairosvg.svg2png(bytestring=svg.format(w=128, h=128, r=30, sx=1, sy=1, tx=0, ty=0))
     # img = Image.open(io.BytesIO(img))
     # img = np.array(img)[:,:,3].astype(np.float) / 255.0
     # # img = scipy.stats.threshold(img, threshmax=0.0001, newval=1.0)
@@ -201,11 +202,11 @@ def preprocess(run_id):
 def init_arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('dst_dir',
-                    default='linenet/data/chinese1', # 'data_tmp/gc_test',
+                    default='linenet/data/chinese2', # 'data_tmp/gc_test',
                     help='destination directory',
                     nargs='?') # optional arg.
     parser.add_argument('dst_tar',
-                    default='linenet/data/chinese1_trans.tar.gz', # 'data_tmp/gc_test',
+                    default='linenet/data/chinese2_trans.tar.gz', # 'data_tmp/gc_test',
                     help='destination tar file',
                     nargs='?') # optional arg.
     return parser.parse_args()
@@ -225,6 +226,6 @@ if __name__ == '__main__':
         os.makedirs(FLAGS.dst_dir)
 
     # run [0-2]
-    preprocess(1)
+    preprocess(2)
 
     print('Done')

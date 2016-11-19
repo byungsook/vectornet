@@ -140,7 +140,7 @@ class LinenetManager(object):
             bs = min(batch_size, id_end - id_start)
 
             if FLAGS.use_two_channels:
-                x_batch = np.zeros([batch_size, self._h, self._w, 2])        
+                x_batch = np.zeros([batch_size, self._h, self._w, 2])
                 for i in xrange(bs):
                     x_batch[i,:,:,0] = img
                     px, py = line_pixels[0][id_start+i], line_pixels[1][id_start+i]

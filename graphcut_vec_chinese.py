@@ -90,86 +90,86 @@ def graphcut(linenet_manager, file_path):
     sess = tf.InteractiveSession()
     summary_writer = tf.train.SummaryWriter(os.path.join(FLAGS.test_dir, file_name), sess.graph)
     ###################################################################################
-    # debug: generate similarity map
-    img_ph = tf.placeholder(dtype=tf.float32, shape=[None, img.shape[0], img.shape[1], 1])
-    img_summary = tf.image_summary('image', img_ph, max_images=1)
-    summary_str = img_summary.eval(feed_dict={img_ph: np.reshape(1.0-img, [1, img.shape[0], img.shape[1], 1])})
-    summary_tmp = tf.Summary()
-    summary_tmp.ParseFromString(summary_str)
-    summary_tmp.value[0].tag = 'image'
-    summary_writer.add_summary(summary_tmp)
+    # # debug: generate similarity map
+    # img_ph = tf.placeholder(dtype=tf.float32, shape=[None, img.shape[0], img.shape[1], 1])
+    # img_summary = tf.image_summary('image', img_ph, max_images=1)
+    # summary_str = img_summary.eval(feed_dict={img_ph: np.reshape(1.0-img, [1, img.shape[0], img.shape[1], 1])})
+    # summary_tmp = tf.Summary()
+    # summary_tmp.ParseFromString(summary_str)
+    # summary_tmp.value[0].tag = 'image'
+    # summary_writer.add_summary(summary_tmp)
 
 
-    pred_map_ph = tf.placeholder(dtype=tf.float32, shape=[None, img.shape[0], img.shape[1], 3])
-    pred_map_summary = tf.image_summary('pred_map', pred_map_ph, max_images=1)
-    prediction_list = []
+    # pred_map_ph = tf.placeholder(dtype=tf.float32, shape=[None, img.shape[0], img.shape[1], 3])
+    # pred_map_summary = tf.image_summary('pred_map', pred_map_ph, max_images=1)
+    # prediction_list = []
 
-    for i in xrange(num_line_pixels):
-        p1 = np.array([line_pixels[0][i], line_pixels[1][i]])
-        pred_p1 = np.load(prob_file_path.format(id=i))
-        prediction_map = np.zeros([img.shape[0], img.shape[1], 3], dtype=np.float)
+    # for i in xrange(num_line_pixels):
+    #     p1 = np.array([line_pixels[0][i], line_pixels[1][i]])
+    #     pred_p1 = np.load(prob_file_path.format(id=i))
+    #     prediction_map = np.zeros([img.shape[0], img.shape[1], 3], dtype=np.float)
         
-        for j in xrange(num_line_pixels):
-            if i == j:
-                continue
-            p2 = np.array([line_pixels[0][j], line_pixels[1][j]])
-            pred_p2 = np.load(prob_file_path.format(id=j))
-            pred = (pred_p1[p2[0],p2[1]] + pred_p2[p1[0],p1[1]]) * 0.5
-            pred = np.exp(-0.5 * (1.0-pred)**2 / FLAGS.prediction_sigma**2)
+    #     for j in xrange(num_line_pixels):
+    #         if i == j:
+    #             continue
+    #         p2 = np.array([line_pixels[0][j], line_pixels[1][j]])
+    #         pred_p2 = np.load(prob_file_path.format(id=j))
+    #         pred = (pred_p1[p2[0],p2[1]] + pred_p2[p1[0],p1[1]]) * 0.5
+    #         pred = np.exp(-0.5 * (1.0-pred)**2 / FLAGS.prediction_sigma**2)
 
-            if i < j:
-                prediction_list.append(pred)
+    #         if i < j:
+    #             prediction_list.append(pred)
 
-            if FLAGS.neighbor_sigma > 0:
-                d12 = LA.norm(p1-p2, 2)
-                spatial = np.exp(-0.5 * d12**2 / FLAGS.neighbor_sigma**2)
-                pred = spatial * pred
-            prediction_map[p2[0],p2[1]] = np.array([pred, pred, pred])
+    #         if FLAGS.neighbor_sigma > 0:
+    #             d12 = LA.norm(p1-p2, 2)
+    #             spatial = np.exp(-0.5 * d12**2 / FLAGS.neighbor_sigma**2)
+    #             pred = spatial * pred
+    #         prediction_map[p2[0],p2[1]] = np.array([pred, pred, pred])
 
-        prediction_map = prediction_map / np.amax(prediction_map)
-        prediction_map[p1[0],p1[1]] = np.array([1, 0, 0])
-        # plt.imshow(prediction_map)
-        # plt.show()
-        # save_path = os.path.join(FLAGS.test_dir, 'prediction_map_%d_%s' % (i, file_name))
-        # scipy.misc.imsave(save_path, prediction_map)
+    #     prediction_map = prediction_map / np.amax(prediction_map)
+    #     prediction_map[p1[0],p1[1]] = np.array([1, 0, 0])
+    #     # plt.imshow(prediction_map)
+    #     # plt.show()
+    #     # save_path = os.path.join(FLAGS.test_dir, 'prediction_map_%d_%s' % (i, file_name))
+    #     # scipy.misc.imsave(save_path, prediction_map)
 
-        prediction_map = np.reshape(prediction_map, [1, img.shape[0], img.shape[1], 3])
-        summary_str = pred_map_summary.eval(feed_dict={pred_map_ph: prediction_map})
-        summary_tmp.ParseFromString(summary_str)
-        summary_tmp.value[0].tag = 'pred_map/%04d' % i
-        summary_writer.add_summary(summary_tmp)
+    #     prediction_map = np.reshape(prediction_map, [1, img.shape[0], img.shape[1], 3])
+    #     summary_str = pred_map_summary.eval(feed_dict={pred_map_ph: prediction_map})
+    #     summary_tmp.ParseFromString(summary_str)
+    #     summary_tmp.value[0].tag = 'pred_map/%04d' % i
+    #     summary_writer.add_summary(summary_tmp)
 
-    # the histogram of the data
-    prediction_list = np.array(prediction_list)
+    # # the histogram of the data
+    # prediction_list = np.array(prediction_list)
     
-    fig = plt.figure()
-    weights = np.ones_like(prediction_list)/float(len(prediction_list))
-    plt.hist(prediction_list, bins=50, color='blue', normed=False, alpha=0.75, weights=weights)
-    plt.xlim(0, 1)
-    plt.ylim(0, 0.5)
-    plt.title('Histogram of Kpq')
-    plt.grid(True)
+    # fig = plt.figure()
+    # weights = np.ones_like(prediction_list)/float(len(prediction_list))
+    # plt.hist(prediction_list, bins=50, color='blue', normed=False, alpha=0.75, weights=weights)
+    # plt.xlim(0, 1)
+    # plt.ylim(0, 0.5)
+    # plt.title('Histogram of Kpq')
+    # plt.grid(True)
     
-    # Now we can save it to a numpy array.
-    fig.canvas.draw()
-    pred_hist = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
-    pred_hist = pred_hist.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-    plt.close(fig)
+    # # Now we can save it to a numpy array.
+    # fig.canvas.draw()
+    # pred_hist = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
+    # pred_hist = pred_hist.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+    # plt.close(fig)
 
-    hist_path = os.path.join(FLAGS.test_dir, 'hist_%s_%f_%f.png' % (file_name, FLAGS.neighbor_sigma, FLAGS.prediction_sigma))
-    scipy.misc.imsave(hist_path, pred_hist)
+    # hist_path = os.path.join(FLAGS.test_dir, 'hist_%s_%f_%f.png' % (file_name, FLAGS.neighbor_sigma, FLAGS.prediction_sigma))
+    # scipy.misc.imsave(hist_path, pred_hist)
 
-    pred_hist = np.reshape(pred_hist, [1, pred_hist.shape[0], pred_hist.shape[1], pred_hist.shape[2]])
-    pred_hist_ph = tf.placeholder(dtype=tf.uint8, shape=pred_hist.shape)
-    pred_hist_summary = tf.image_summary('Kpq_hist', pred_hist_ph, max_images=1)
+    # pred_hist = np.reshape(pred_hist, [1, pred_hist.shape[0], pred_hist.shape[1], pred_hist.shape[2]])
+    # pred_hist_ph = tf.placeholder(dtype=tf.uint8, shape=pred_hist.shape)
+    # pred_hist_summary = tf.image_summary('Kpq_hist', pred_hist_ph, max_images=1)
     
-    summary_str = pred_hist_summary.eval(feed_dict={pred_hist_ph: pred_hist})
-    summary_tmp.ParseFromString(summary_str)
-    summary_tmp.value[0].tag = 'pred_Kpq_hist'
-    summary_writer.add_summary(summary_tmp)
+    # summary_str = pred_hist_summary.eval(feed_dict={pred_hist_ph: pred_hist})
+    # summary_tmp.ParseFromString(summary_str)
+    # summary_tmp.value[0].tag = 'pred_Kpq_hist'
+    # summary_writer.add_summary(summary_tmp)
 
-    # print('Done')
-    # return
+    # # print('Done')
+    # # return
     # ###################################################################################
 
     pred_file_path = os.path.join(FLAGS.test_dir + '/tmp', file_name) + '.pred'
@@ -182,7 +182,6 @@ def graphcut(linenet_manager, file_path):
     f.write('%f\n' % FLAGS.neighbor_sigma)
     f.write('%f\n' % FLAGS.prediction_sigma)
     f.write('%d\n' % num_line_pixels)
-
     
     # support only symmetric edge weight
     for i in xrange(num_line_pixels-1):

@@ -84,6 +84,7 @@ def graphcut(linenet_manager, file_path):
     line_pixels = np.nonzero(img)
     num_line_pixels = len(line_pixels[0])
 
+    tf.gfile.MakeDirs(FLAGS.test_dir + '/tmp')
     prob_file_path = os.path.join(FLAGS.test_dir + '/tmp', file_name) + '_{id}.npy'
     linenet_manager.extract_save(img, FLAGS.batch_size, prob_file_path)
     
@@ -275,7 +276,7 @@ def graphcut(linenet_manager, file_path):
         label_map[line_pixels[0][i],line_pixels[1][i]] = color[:3]
     
     # debug
-    label_map_path = os.path.join(FLAGS.test_dir, 'label_map_%s_%f_%f.png' % (file_name, FLAGS.neighbor_sigma, FLAGS.prediction_sigma))
+    label_map_path = os.path.join(FLAGS.test_dir, 'label_map_%s_%.2f_%.2f.png' % (file_name, FLAGS.neighbor_sigma, FLAGS.prediction_sigma))
     scipy.misc.imsave(label_map_path, label_map)
     # plt.imshow(label_map)
     # plt.show()
@@ -392,8 +393,7 @@ def main(_):
     if tf.gfile.Exists(FLAGS.test_dir):
         tf.gfile.DeleteRecursively(FLAGS.test_dir)
     tf.gfile.MakeDirs(FLAGS.test_dir)
-    tf.gfile.MakeDirs(FLAGS.test_dir + '/tmp')
-
+    
     # start
     test()
     # parameter_tune()

@@ -135,7 +135,7 @@ class LinenetManager(object):
             img = img / FLAGS.intensity_ratio
         
         id_start = 0
-        id_end = batch_size
+        id_end = min(batch_size, num_line_pixels)
         while True:
             bs = min(batch_size, id_end - id_start)
 

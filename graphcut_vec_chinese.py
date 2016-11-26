@@ -224,7 +224,10 @@ def graphcut(linenet_manager, file_path):
     gco_path = os.path.join(working_path, 'gco/gco_src')
     os.chdir(gco_path)
     os.environ['LD_LIBRARY_PATH'] = os.getcwd()
-    call(['./gco_linenet', '../../' + pred_file_path])
+    pred_fp = pred_file_path
+    if pred_file_path[0] != '/': # relative path
+        pred_fp = '../../'
+    call(['./gco_linenet', pred_fp])
     os.chdir(working_path)
     
     # read result
@@ -461,7 +464,10 @@ def graphcut_(linenet_manager, file_path):
     gco_path = os.path.join(working_path, 'gco/gco_src')
     os.chdir(gco_path)
     os.environ['LD_LIBRARY_PATH'] = os.getcwd()
-    call(['./gco_linenet', '../../' + pred_file_path])
+    pred_fp = pred_file_path
+    if pred_file_path[0] != '/': # relative path
+        pred_fp = '../../'
+    call(['./gco_linenet', pred_fp])
     os.chdir(working_path)
     
     # read result

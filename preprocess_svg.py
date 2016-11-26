@@ -43,12 +43,12 @@ def preprocess_kanji(file_path):
         
         while True:
             svg_line = f.readline()
-            # optional: stroke-width
-            if svg_line.find('<g id="kvg:StrokePaths') >= 0:
-                id_style = svg_line.find('stroke-width')
-                svg = svg + svg_line[:id_style] + '">'
-                continue
-                
+            # # optional: stroke-width
+            # if svg_line.find('<g id="kvg:StrokePaths') >= 0:
+            #     id_style = svg_line.find('stroke-width')
+            #     svg = svg + svg_line[:id_style] + '">'
+            #     continue
+
             if svg_line.find('<g id="kvg:StrokeNumbers') >= 0:
                 svg = svg + '</g>\n' # optional: transform
                 svg = svg + '</svg>'
@@ -160,6 +160,29 @@ def preprocess_sketch(file_path):
     return svg
 
 
+def preprocess_fidelity(file_path):
+    with open(file_path, 'r') as f:
+        svg = f.read()
+
+    # debug
+    img = cairosvg.svg2png(bytestring=svg)
+    img = Image.open(io.BytesIO(img))
+    # ratio = 512 / max(img.size[0], img.size[0])
+    # width = int(ratio * img.size[0])
+    # height = int(ratio * img.size[1])
+    # img = img.resize((width, height))
+    img = np.array(img)[:,:,3].astype(np.float) / 255.0
+    # img = scipy.stats.threshold(img, threshmax=0.0001, newval=1.0)
+    # img = 1.0 - img
+    
+    plt.imshow(img, cmap=plt.cm.gray)
+    plt.show()
+
+    save_path = os.path.join(FLAGS.dst_dir, os.path.splitext(os.path.basename(file_path))[0] + '.png')
+    scipy.misc.imsave(save_path, img)
+     
+
+
 def preprocess(run_id):
     if run_id == 0:
         data_dir = 'data_tmp/svg_test' 
@@ -167,6 +190,8 @@ def preprocess(run_id):
         data_dir = 'linenet/data/chinese/makemeahanzi/svgs'
     elif run_id == 2:
         data_dir = 'linenet/data/chinese/kanjivg-20160426-all/kanji'
+    elif run_id == 3:
+        data_dir = 'data_tmp/fidelity/output/svg'
 
     for root, _, files in os.walk(data_dir):
         for file in files:
@@ -188,6 +213,9 @@ def preprocess(run_id):
                 svg_pre = preprocess_makemeahanzi(file_path)
             elif run_id == 2:
                 svg_pre = preprocess_kanji(file_path)
+            elif run_id == 3:
+                svg_pre = preprocess_fidelity(file_path)
+
 
             # write preprocessed svg
             write_path = os.path.join(FLAGS.dst_dir, file[:-3] + 'svg_pre')
@@ -202,11 +230,11 @@ def preprocess(run_id):
 def init_arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('dst_dir',
-                    default='linenet/data/chinese2', # 'data_tmp/gc_test',
+                    default='data_tmp/fidelity/output/png', # 'data_tmp/gc_test',
                     help='destination directory',
                     nargs='?') # optional arg.
     parser.add_argument('dst_tar',
-                    default='linenet/data/chinese2_trans.tar.gz', # 'data_tmp/gc_test',
+                    default='linenet/data/fidelity.tar.gz', # 'data_tmp/gc_test',
                     help='destination tar file',
                     nargs='?') # optional arg.
     return parser.parse_args()
@@ -225,7 +253,7 @@ if __name__ == '__main__':
     if not os.path.exists(FLAGS.dst_dir):
         os.makedirs(FLAGS.dst_dir)
 
-    # run [0-2]
-    preprocess(2)
+    # run [0-3]
+    preprocess(1)
 
     print('Done')

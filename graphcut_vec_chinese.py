@@ -40,13 +40,13 @@ tf.app.flags.DEFINE_string('test_dir', 'test/chinese',
                            """and checkpoint.""")
 tf.app.flags.DEFINE_string('data_dir', 'data/chinese', 
                            """Data directory""")
-tf.app.flags.DEFINE_integer('image_width', 48, # 48-24-12-6
+tf.app.flags.DEFINE_integer('image_width', 48,
                             """Image Width.""")
-tf.app.flags.DEFINE_integer('image_height', 48, # 48-24-12-6
+tf.app.flags.DEFINE_integer('image_height', 48,
                             """Image Height.""")
-tf.app.flags.DEFINE_integer('batch_size', 64,
+tf.app.flags.DEFINE_integer('batch_size', 256, # 48-256, 128-32
                             """batch_size""")
-tf.app.flags.DEFINE_integer('max_num_labels', 20, 
+tf.app.flags.DEFINE_integer('max_num_labels', 20,
                            """the maximum number of labels""")
 # tf.app.flags.DEFINE_integer('label_cost', 100,
 #                            """label cost""")
@@ -56,12 +56,21 @@ tf.app.flags.DEFINE_float('prediction_sigma', 0.7, # 0.7 for 0.5 threshold
                            """prediction sigma""")
 
 
+def _imread(img_file_name, inv=False):
+    """ Read, grayscale and normalize the image"""
+    img = np.array(Image.open(img_file_name).convert('L')).astype(np.float) / 255.0
+    if inv:
+        return scipy.stats.threshold(1.0 - img, threshmax=0.0001, newval=1.0)
+    else: 
+        return scipy.stats.threshold(img, threshmax=0.0001, newval=1.0)
+
+
 def _read_svg(svg_file_path):
     with open(svg_file_path, 'r') as f:
         svg = f.read()
         r = 0
-        s = [1, -1]
-        t = [0, -900]
+        s = [1, 1] # c1: [1, -1], c2: [1, 1] 
+        t = [0, 0] # c1: [0, -900], c2: [0, 0]
         svg = svg.format(
                 w=FLAGS.image_width, h=FLAGS.image_height,
                 r=r, sx=s[0], sy=s[1], tx=t[0], ty=t[1])
@@ -76,6 +85,7 @@ def graphcut(linenet_manager, file_path):
     print('%s: %s, start graphcut opt.' % (datetime.now(), file_name))
     
     img = _read_svg(file_path)
+    # img = _imread(file_path)
 
     # # debug
     # plt.imshow(img, cmap=plt.cm.gray)
@@ -90,17 +100,18 @@ def graphcut(linenet_manager, file_path):
     
     sess = tf.InteractiveSession()
     summary_writer = tf.train.SummaryWriter(os.path.join(FLAGS.test_dir, file_name), sess.graph)
+    
+    # original
+    img_ph = tf.placeholder(dtype=tf.float32, shape=[None, img.shape[0], img.shape[1], 1])
+    img_summary = tf.image_summary('image', img_ph, max_images=1)
+    summary_str = img_summary.eval(feed_dict={img_ph: np.reshape(1.0-img, [1, img.shape[0], img.shape[1], 1])})
+    summary_tmp = tf.Summary()
+    summary_tmp.ParseFromString(summary_str)
+    summary_tmp.value[0].tag = 'image'
+    summary_writer.add_summary(summary_tmp)
+
     ###################################################################################
     # # debug: generate similarity map
-    # img_ph = tf.placeholder(dtype=tf.float32, shape=[None, img.shape[0], img.shape[1], 1])
-    # img_summary = tf.image_summary('image', img_ph, max_images=1)
-    # summary_str = img_summary.eval(feed_dict={img_ph: np.reshape(1.0-img, [1, img.shape[0], img.shape[1], 1])})
-    # summary_tmp = tf.Summary()
-    # summary_tmp.ParseFromString(summary_str)
-    # summary_tmp.value[0].tag = 'image'
-    # summary_writer.add_summary(summary_tmp)
-
-
     # pred_map_ph = tf.placeholder(dtype=tf.float32, shape=[None, img.shape[0], img.shape[1], 3])
     # pred_map_summary = tf.image_summary('pred_map', pred_map_ph, max_images=1)
     # prediction_list = []
@@ -326,7 +337,7 @@ def parameter_tune():
                     print('p_sig: %.4f' % FLAGS.prediction_sigma)
                     file_path = os.path.join(root, file)
                     start_time = time.time()
-                    num_labels = graphcut(linenet_manager, file_path)               
+                    num_labels = graphcut(linenet_manager, file_path)
                     duration = time.time() - start_time
                     print('%s: %s processed (%.3f sec)' % (datetime.now(), file, duration))
 
@@ -358,7 +369,7 @@ def test():
     
     for root, _, files in os.walk(FLAGS.data_dir):
         for file in files:
-            if not file.lower().endswith('svg_pre'):
+            if not file.lower().endswith('svg_pre'): # 'png'):
                 continue
             
             file_path = os.path.join(root, file)

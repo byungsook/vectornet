@@ -19,9 +19,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{C3198443-9850-4C7F-A115-2A3CE982D9AA}</ProjectGuid>
+    <ProjectGuid>{78A9958D-F788-4845-9F9E-6AB529DA87C0}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>gco_vs2015</RootNamespace>
+    <RootNamespace>qpbo_vs2015</RootNamespace>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -88,6 +88,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <SDLCheck>true</SDLCheck>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -100,7 +101,9 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>../qpbo_src;</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -116,6 +119,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <SDLCheck>true</SDLCheck>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -132,7 +136,9 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>../qpbo_src;</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -142,31 +148,46 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <Text Include="..\gco_src\GCO_README.TXT" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="..\gco_src\example.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+    <ClCompile Include="..\qpbo_src\example.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="..\gco_src\GCoptimization.cpp" />
-    <ClCompile Include="..\gco_src\gco_linenet.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+    <ClCompile Include="..\qpbo_src\GCoptimization.cpp" />
+    <ClCompile Include="..\qpbo_src\gco_linenet.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="..\gco_src\graph.cpp" />
-    <ClCompile Include="..\gco_src\linetest.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
+    <ClCompile Include="..\qpbo_src\graph.cpp" />
+    <ClCompile Include="..\qpbo_src\linetest.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="..\gco_src\LinkedBlockList.cpp" />
-    <ClCompile Include="..\gco_src\maxflow.cpp" />
+    <ClCompile Include="..\qpbo_src\LinkedBlockList.cpp" />
+    <ClCompile Include="..\qpbo_src\maxflow.cpp" />
+    <ClCompile Include="..\qpbo_src\QPBO.cpp" />
+    <ClCompile Include="..\qpbo_src\QPBO_example.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\qpbo_src\QPBO_extra.cpp" />
+    <ClCompile Include="..\qpbo_src\QPBO_maxflow.cpp" />
+    <ClCompile Include="..\qpbo_src\QPBO_postprocessing.cpp" />
+    <ClCompile Include="energy_example.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\gco_src\block.h" />
-    <ClInclude Include="..\gco_src\energy.h" />
-    <ClInclude Include="..\gco_src\GCoptimization.h" />
-    <ClInclude Include="..\gco_src\graph.h" />
-    <ClInclude Include="..\gco_src\LinkedBlockList.h" />
+    <ClInclude Include="..\qpbo_src\energy.h" />
+    <ClInclude Include="..\qpbo_src\GCoptimization.h" />
+    <ClInclude Include="..\qpbo_src\graph.h" />
+    <ClInclude Include="..\qpbo_src\LinkedBlockList.h" />
+    <ClInclude Include="..\qpbo_src\QPBO.h" />
+    <ClInclude Include="..\qpbo_src\qpbo\block.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\qpbo_src\CHANGES.TXT" />
+    <Text Include="..\qpbo_src\GCO_README.TXT" />
+    <Text Include="..\qpbo_src\GPL.TXT" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\qpbo_src\instances.inc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

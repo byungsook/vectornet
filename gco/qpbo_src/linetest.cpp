@@ -84,11 +84,12 @@ void test() {
 		//	gc->setLabel(i * 2 + 1, (i+1) % n_sites);
 		//}
 
-		gc->setLabelOrder(true);
+		gc->setLabelOrder(true); // random order
 			
 		printf("\nBefore optimization energy is %f", gc->compute_energy());
 		gc->expansion(n_iters);
 		//gc->swap(n_iters);
+		//gc->fusion(n_iters);
 		printf("\nAfter optimization energy is %f", gc->compute_energy());
 
 		for (int i = 0; i < n_sites; i++) {

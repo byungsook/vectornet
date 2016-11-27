@@ -44,6 +44,8 @@ tf.app.flags.DEFINE_integer('image_width', 48,
                             """Image Width.""")
 tf.app.flags.DEFINE_integer('image_height', 48,
                             """Image Height.""")
+tf.app.flags.DEFINE_boolean('use_batch', False,
+                            """whether use batch or not""")
 tf.app.flags.DEFINE_integer('batch_size', 256, # 48-256, 128-32
                             """batch_size""")
 tf.app.flags.DEFINE_integer('max_num_labels', 20,
@@ -312,7 +314,7 @@ def graphcut(linenet_manager, file_path):
     return num_labels
 
 
-def graphcut_(linenet_manager, file_path):
+def graphcut_batch(linenet_manager, file_path):
     file_name = os.path.splitext(basename(file_path))[0]
     print('%s: %s, start graphcut opt.' % (datetime.now(), file_name))
     
@@ -609,10 +611,13 @@ def test():
     # create managers
     start_time = time.time()
     print('%s: manager loading...' % datetime.now())
-    linenet_manager = LinenetManager([FLAGS.image_height, FLAGS.image_width])
-    # dist = 2 * FLAGS.neighbor_sigma
-    # crop_size = 2 * dist + 1
-    # linenet_manager = LinenetManager([FLAGS.image_height, FLAGS.image_width], crop_size)    
+
+    if FLAGS.use_batch:
+        dist = 2 * FLAGS.neighbor_sigma
+        crop_size = 2 * dist + 1
+        linenet_manager = LinenetManager([FLAGS.image_height, FLAGS.image_width], crop_size)
+    else:
+        linenet_manager = LinenetManager([FLAGS.image_height, FLAGS.image_width])
     duration = time.time() - start_time
     print('%s: manager loaded (%.3f sec)' % (datetime.now(), duration))
     

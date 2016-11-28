@@ -76,7 +76,7 @@ int main(int argc, char **argv)
 	// return 0;
 
 
-	int n_iters = -1;
+	int n_iters = 3;
 
 	float *data = new float[n_sites*n_labels];
 	for (int i = 0; i < n_sites*n_labels; ++i)

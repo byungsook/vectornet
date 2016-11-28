@@ -1516,7 +1516,8 @@ void GCoptimization::alpha_beta_swap(LabelID alpha_label, LabelID beta_label)
 		e.Solve();
 		e.ComputeWeakPersistencies();
 		bool improve = true;
-		while (improve)
+		//while (improve)
+		for (int i = 0; i < 10 && improve; ++i)
 			improve = e.Improve();
 #endif
 		checkInterrupt();

@@ -48,7 +48,7 @@ tf.app.flags.DEFINE_boolean('use_batch', False,
                             """whether use batch or not""")
 tf.app.flags.DEFINE_integer('batch_size', 256, # 48-256, 128-32
                             """batch_size""")
-tf.app.flags.DEFINE_integer('max_num_labels', 50,
+tf.app.flags.DEFINE_integer('max_num_labels',64,
                            """the maximum number of labels""")
 tf.app.flags.DEFINE_integer('label_cost', 0,
                            """label cost""")
@@ -70,7 +70,7 @@ def _imread(img_file_name, inv=False):
 def _read_svg(svg_file_path):
     with open(svg_file_path, 'r') as f:
         svg = f.read()
-        num_path = svg.count('path') * 0.5
+        num_path = int(svg.count('path') * 0.5)
         r = 0
         s = [1, -1] # c1: [1, -1], c2: [1, 1] 
         t = [0, -900] # c1: [0, -900], c2: [0, 0]
@@ -249,7 +249,7 @@ def graphcut(linenet_manager, file_path):
     # graphcut opt.
     u = np.unique(labels)
     num_labels = u.size
-    diff_labels = abs(num_paths-num_labels)
+    diff_labels = num_labels-num_paths
     # print('%s: %s, label: %s' % (datetime.now(), file_name, labels))
     print('%s: %s, the number of labels %d, truth %d, diff %d' % (datetime.now(), file_name, num_labels, num_paths, diff_labels))
     print('%s: %s, energy before optimization %.4f' % (datetime.now(), file_name, e_before))
@@ -319,7 +319,7 @@ def graphcut(linenet_manager, file_path):
 
     tf.gfile.DeleteRecursively(FLAGS.test_dir + '/tmp')
 
-    return num_labels, diff_labels
+    return num_labels, abs(diff_labels)
 
 
 def graphcut_batch(linenet_manager, file_path):
@@ -496,7 +496,7 @@ def graphcut_batch(linenet_manager, file_path):
     # graphcut opt.
     u = np.unique(labels)
     num_labels = u.size
-    diff_labels = abs(num_paths-num_labels)
+    diff_labels = num_labels-num_paths
     # print('%s: %s, label: %s' % (datetime.now(), file_name, labels))
     print('%s: %s, the number of labels %d, truth %d, diff %d' % (datetime.now(), file_name, num_labels, num_paths, diff_labels))
     print('%s: %s, energy before optimization %.4f' % (datetime.now(), file_name, e_before))
@@ -566,7 +566,7 @@ def graphcut_batch(linenet_manager, file_path):
 
     tf.gfile.DeleteRecursively(FLAGS.test_dir + '/tmp')
 
-    return num_labels, diff_labels
+    return num_labels, abs(diff_labels)
 
 
 def parameter_tune():
@@ -638,6 +638,7 @@ def test():
     
     num_files = 0
     sum_diff_labels = 0
+    diff_list = []
     for root, _, files in os.walk(FLAGS.data_dir):
         for file in files:
             if not file.lower().endswith('svg_pre'): # 'png'):
@@ -648,10 +649,31 @@ def test():
             num_labels, diff_labels = graphcut(linenet_manager, file_path)
             sum_diff_labels = sum_diff_labels + diff_labels
             num_files = num_files + 1
+            diff_list.append(diff_labels)
             duration = time.time() - start_time
             print('%s: %s processed (%.3f sec)' % (datetime.now(), file, duration))
 
-    print('avg. diff labels/file: %d\n' % sum_diff_labels / num_files)
+    # the histogram of the data
+    diff_list = np.array(diff_list)
+    
+    fig = plt.figure()
+    weights = np.ones_like(diff_list)/float(len(diff_list))
+    plt.hist(diff_list, bins=11, color='blue', normed=False, alpha=0.75, weights=weights)
+    plt.xlim(-10, 10)
+    plt.ylim(0, 1)
+    plt.title('Histogram of Label Difference')
+    plt.grid(True)
+    
+    # Now we can save it to a numpy array.
+    fig.canvas.draw()
+    pred_hist = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
+    pred_hist = pred_hist.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+    plt.close(fig)
+
+    hist_path = os.path.join(FLAGS.test_dir, 'label_diff_hist.png')
+    scipy.misc.imsave(hist_path, pred_hist)
+
+    print('avg. abs diff labels/file: %d\n' % (sum_diff_labels / num_files))
     print('Done')
 
 

@@ -110,7 +110,7 @@
 #include "maxflow.cpp"
 #include "QPBO.h"
 
-#define _USE_QPBO_
+// #define _USE_QPBO_
 
 #ifndef _USE_QPBO_
 #include "energy.h"

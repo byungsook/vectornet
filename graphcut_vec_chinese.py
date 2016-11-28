@@ -48,10 +48,10 @@ tf.app.flags.DEFINE_boolean('use_batch', False,
                             """whether use batch or not""")
 tf.app.flags.DEFINE_integer('batch_size', 256, # 48-256, 128-32
                             """batch_size""")
-tf.app.flags.DEFINE_integer('max_num_labels', 20,
+tf.app.flags.DEFINE_integer('max_num_labels', 50,
                            """the maximum number of labels""")
-# tf.app.flags.DEFINE_integer('label_cost', 100,
-#                            """label cost""")
+tf.app.flags.DEFINE_integer('label_cost', 0,
+                           """label cost""")
 tf.app.flags.DEFINE_float('neighbor_sigma', 8,
                            """neighbor sigma""")
 tf.app.flags.DEFINE_float('prediction_sigma', 0.7, # 0.7 for 0.5 threshold
@@ -70,6 +70,7 @@ def _imread(img_file_name, inv=False):
 def _read_svg(svg_file_path):
     with open(svg_file_path, 'r') as f:
         svg = f.read()
+        num_path = svg.count('path')
         r = 0
         s = [1, -1] # c1: [1, -1], c2: [1, 1] 
         t = [0, -900] # c1: [0, -900], c2: [0, 0]
@@ -79,14 +80,14 @@ def _read_svg(svg_file_path):
         s_png = cairosvg.svg2png(bytestring=svg)
         s_img = Image.open(io.BytesIO(s_png))
         s = np.array(s_img)[:,:,3].astype(np.float) / 255.0
-    return s
+    return s, num_path
 
 
 def graphcut(linenet_manager, file_path):
     file_name = os.path.splitext(basename(file_path))[0]
     print('%s: %s, start graphcut opt.' % (datetime.now(), file_name))
     
-    img = _read_svg(file_path)
+    img, num_paths = _read_svg(file_path)
     # img = _imread(file_path)
 
     # # debug
@@ -195,7 +196,7 @@ def graphcut(linenet_manager, file_path):
     f.write(pred_file_path + '\n')
     f.write(FLAGS.data_dir + '\n')
     f.write('%d\n' % FLAGS.max_num_labels)
-    # f.write('%d\n' % FLAGS.label_cost)
+    f.write('%d\n' % FLAGS.label_cost)
     f.write('%f\n' % FLAGS.neighbor_sigma)
     f.write('%f\n' % FLAGS.prediction_sigma)
     f.write('%d\n' % num_line_pixels)
@@ -223,12 +224,12 @@ def graphcut(linenet_manager, file_path):
     # run gco_linenet
     start_time = time.time()
     working_path = os.getcwd()
-    gco_path = os.path.join(working_path, 'gco/gco_src')
+    gco_path = os.path.join(working_path, 'gco/qpbo_src')
     os.chdir(gco_path)
     os.environ['LD_LIBRARY_PATH'] = os.getcwd()
     pred_fp = pred_file_path
-    if pred_file_path[0] != '/': # relative path
-        pred_fp = '../../'
+    if pred_fp[0] != '/': # relative path
+        pred_fp = '../../' + pred_fp
     call(['./gco_linenet', pred_fp])
     os.chdir(working_path)
     
@@ -311,14 +312,14 @@ def graphcut(linenet_manager, file_path):
 
     tf.gfile.DeleteRecursively(FLAGS.test_dir + '/tmp')
 
-    return num_labels
+    return abs(num_labels-num_paths)
 
 
 def graphcut_batch(linenet_manager, file_path):
     file_name = os.path.splitext(basename(file_path))[0]
     print('%s: %s, start graphcut opt.' % (datetime.now(), file_name))
     
-    img = _read_svg(file_path)
+    img, num_paths = _read_svg(file_path)
     # img = _imread(file_path)
 
     # # debug
@@ -463,12 +464,12 @@ def graphcut_batch(linenet_manager, file_path):
     # run gco_linenet
     start_time = time.time()
     working_path = os.getcwd()
-    gco_path = os.path.join(working_path, 'gco/gco_src')
+    gco_path = os.path.join(working_path, 'gco/qpbo_src')
     os.chdir(gco_path)
     os.environ['LD_LIBRARY_PATH'] = os.getcwd()
     pred_fp = pred_file_path
-    if pred_file_path[0] != '/': # relative path
-        pred_fp = '../../'
+    if pred_fp[0] != '/': # relative path
+        pred_fp = '../../' + pred_fp
     call(['./gco_linenet', pred_fp])
     os.chdir(working_path)
     
@@ -551,7 +552,7 @@ def graphcut_batch(linenet_manager, file_path):
 
     tf.gfile.DeleteRecursively(FLAGS.test_dir + '/tmp')
 
-    return num_labels
+    return abs(num_labels-num_paths)
 
 
 def parameter_tune():
@@ -621,6 +622,8 @@ def test():
     duration = time.time() - start_time
     print('%s: manager loaded (%.3f sec)' % (datetime.now(), duration))
     
+    num_files = 0
+    sum_diff_labels = 0
     for root, _, files in os.walk(FLAGS.data_dir):
         for file in files:
             if not file.lower().endswith('svg_pre'): # 'png'):
@@ -628,10 +631,13 @@ def test():
             
             file_path = os.path.join(root, file)
             start_time = time.time()
-            graphcut(linenet_manager, file_path)
+            diff_labels = graphcut(linenet_manager, file_path)
+            sum_diff_labels = sum_diff_labels + diff_labels
+            num_files = num_files + 1
             duration = time.time() - start_time
             print('%s: %s processed (%.3f sec)' % (datetime.now(), file, duration))
 
+    print('avg. diff labels/file: %d\n', sum_diff_labels / num_files)
     print('Done')
 
 
@@ -645,7 +651,7 @@ def main(_):
     # make gco
     print('%s: start to compile gco' % datetime.now())
     # http://vision.csd.uwo.ca/code/
-    gco_path = os.path.join(working_path, 'gco/gco_src')
+    gco_path = os.path.join(working_path, 'gco/qpbo_src')
     
     os.chdir(gco_path)
     call(['make', 'rm'])

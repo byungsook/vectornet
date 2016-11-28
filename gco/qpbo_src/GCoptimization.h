@@ -106,10 +106,15 @@
 #endif
 
 #include <cstddef>
-//#include "energy.h"
 #include "graph.cpp"
 #include "maxflow.cpp"
 #include "QPBO.h"
+
+#define _USE_QPBO_
+
+#ifndef _USE_QPBO_
+#include "energy.h"
+#endif
 
 /////////////////////////////////////////////////////////////////////
 // Utility functions, classes, and macros
@@ -170,10 +175,14 @@ public:
 #endif
 	typedef float EnergyTermType;    // 32-bit energy terms
 #endif
-	//typedef Energy<EnergyTermType,EnergyTermType,EnergyType> EnergyT;
-	//typedef EnergyT::Var VarID;
+
+#ifndef _USE_QPBO_
+	typedef Energy<EnergyTermType,EnergyTermType,EnergyType> EnergyT;
+	typedef EnergyT::Var VarID;
+#else
 	typedef QPBO<EnergyType> EnergyT;
 	typedef int VarID;
+#endif
 	typedef int LabelID;                     // Type for labels
 	typedef VarID SiteID;                    // Type for sites
 	typedef EnergyTermType (*SmoothCostFn)(SiteID s1, SiteID s2, LabelID l1, LabelID l2);
@@ -333,8 +342,8 @@ protected:
 	void (GCoptimization::*m_setupSmoothCostsExpansion)(SiteID,LabelID,EnergyT*,SiteID*);
 	void (GCoptimization::*m_setupDataCostsSwap)(SiteID,LabelID,LabelID,EnergyT*,SiteID*);
 	void (GCoptimization::*m_setupSmoothCostsSwap)(SiteID,LabelID,LabelID,EnergyT*,SiteID*);
-	void (GCoptimization::*m_setupDataCostsFusion)(SiteID, EnergyT*);
-	void (GCoptimization::*m_setupSmoothCostsFusion)(SiteID, EnergyT*);
+	void (GCoptimization::*m_setupDataCostsFusion)(SiteID, QPBO<EnergyType>*);
+	void (GCoptimization::*m_setupSmoothCostsFusion)(SiteID, QPBO<EnergyType>*);
 	void (GCoptimization::*m_applyNewLabeling)(EnergyT*,SiteID*,SiteID,LabelID);
 	void (GCoptimization::*m_updateLabelingDataCosts)();
 
@@ -460,10 +469,10 @@ protected:
 	template <typename DataCostT> SiteID queryActiveSitesExpansion(LabelID alpha_label, SiteID* activeSites);
 	template <typename DataCostT>   void setupDataCostsExpansion(SiteID size,LabelID alpha_label,EnergyT *e,SiteID *activeSites);
 	template <typename DataCostT>   void setupDataCostsSwap(SiteID size,LabelID alpha_label,LabelID beta_label,EnergyT *e,SiteID *activeSites);
-	template <typename DataCostT>   void setupDataCostsFusion(SiteID size, EnergyT *e);
+	template <typename DataCostT>   void setupDataCostsFusion(SiteID size, QPBO<EnergyType> *e);
 	template <typename SmoothCostT> void setupSmoothCostsExpansion(SiteID size,LabelID alpha_label,EnergyT *e,SiteID *activeSites);
 	template <typename SmoothCostT> void setupSmoothCostsSwap(SiteID size, LabelID alpha_label, LabelID beta_label, EnergyT *e, SiteID *activeSites);
-	template <typename SmoothCostT> void setupSmoothCostsFusion(SiteID size, EnergyT *e);
+	template <typename SmoothCostT> void setupSmoothCostsFusion(SiteID size, QPBO<EnergyType> *e);
 	template <typename DataCostT>   void applyNewLabeling(EnergyT *e,SiteID *activeSites,SiteID size,LabelID alpha_label);
 	template <typename DataCostT>   void updateLabelingDataCosts();
 	template <typename UserFunctor> void specializeDataCostFunctor(const UserFunctor f);

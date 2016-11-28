@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS=-fPIC
+CFLAGS=-O2 -fPIC
 
 all: libgco.so
 

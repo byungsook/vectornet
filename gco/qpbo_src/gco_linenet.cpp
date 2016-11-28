@@ -39,7 +39,7 @@ int main(int argc, char **argv)
 	is >> pred_file_path;
 	is >> data_dir;
 	is >> n_labels;
-	//is >> label_cost;
+	is >> label_cost;
 	is >> neighbor_sigma;
 	is >> prediction_sigma;
 	is >> n_sites;
@@ -93,7 +93,7 @@ int main(int argc, char **argv)
 				gc->setNeighbors(i, j, w[i][j]);
 			}
 		}
-		//gc->setLabelCost(label_cost);
+		gc->setLabelCost(label_cost);
 		gc->setLabelOrder(true);
 
 		std::string label_file_path = argv[1];
@@ -104,12 +104,13 @@ int main(int argc, char **argv)
 			return -1;
 		}
 
-		//printf("\nBefore optimization energy is %d", gc->compute_energy());
+		// printf("\nBefore optimization energy is %f", gc->compute_energy());
 		os << gc->compute_energy() << std::endl;
-		//gc->expansion(n_iters);
+		// gc->expansion(n_iters);
 		gc->swap(n_iters);
+		// gc->fusion(n_iters);
 		os << gc->compute_energy() << std::endl;
-		//printf("\nAfter optimization energy is %d", gc->compute_energy());
+		// printf("\nAfter optimization energy is %f", gc->compute_energy());
 
 		for (int i = 0; i < n_sites; i++) {
 			labels[i] = gc->whatLabel(i);

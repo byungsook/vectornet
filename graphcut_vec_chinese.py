@@ -70,7 +70,7 @@ def _imread(img_file_name, inv=False):
 def _read_svg(svg_file_path):
     with open(svg_file_path, 'r') as f:
         svg = f.read()
-        num_path = svg.count('path')
+        num_path = svg.count('path') * 0.5
         r = 0
         s = [1, -1] # c1: [1, -1], c2: [1, 1] 
         t = [0, -900] # c1: [0, -900], c2: [0, 0]

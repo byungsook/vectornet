@@ -70,10 +70,17 @@ def _imread(img_file_name, inv=False):
 def _read_svg(svg_file_path):
     with open(svg_file_path, 'r') as f:
         svg = f.read()
-        num_path = int(svg.count('path') * 0.5)
-        r = 0
-        s = [1, -1] # c1: [1, -1], c2: [1, 1] 
-        t = [0, -900] # c1: [0, -900], c2: [0, 0]
+        num_path = svg.count('path d')
+        if num_path == 0:
+            # c2
+            num_path = svg.count('path id')
+            r = 0
+            s = [1, 1] # c1: [1, -1], c2: [1, 1] 
+            t = [0, 0] # c1: [0, -900], c2: [0, 0]
+        else:
+            r = 0
+            s = [1, -1] # c1: [1, -1], c2: [1, 1] 
+            t = [0, -900] # c1: [0, -900], c2: [0, 0]
         svg = svg.format(
                 w=FLAGS.image_width, h=FLAGS.image_height,
                 r=r, sx=s[0], sy=s[1], tx=t[0], ty=t[1])
@@ -104,17 +111,17 @@ def graphcut(linenet_manager, file_path):
     duration = time.time() - start_time
     print('%s: %s, linenet process (%.3f sec)' % (datetime.now(), file_name, duration))
     
-    sess = tf.InteractiveSession()
-    summary_writer = tf.train.SummaryWriter(os.path.join(FLAGS.test_dir, file_name), sess.graph)
+    # sess = tf.InteractiveSession()
+    # summary_writer = tf.train.SummaryWriter(os.path.join(FLAGS.test_dir, file_name), sess.graph)
 
-    # original
-    img_ph = tf.placeholder(dtype=tf.float32, shape=[None, img.shape[0], img.shape[1], 1])
-    img_summary = tf.image_summary('image', img_ph, max_images=1)
-    summary_str = img_summary.eval(feed_dict={img_ph: np.reshape(1.0-img, [1, img.shape[0], img.shape[1], 1])})
-    summary_tmp = tf.Summary()
-    summary_tmp.ParseFromString(summary_str)
-    summary_tmp.value[0].tag = 'image'
-    summary_writer.add_summary(summary_tmp)
+    # # original
+    # img_ph = tf.placeholder(dtype=tf.float32, shape=[None, img.shape[0], img.shape[1], 1])
+    # img_summary = tf.image_summary('image', img_ph, max_images=1)
+    # summary_str = img_summary.eval(feed_dict={img_ph: np.reshape(1.0-img, [1, img.shape[0], img.shape[1], 1])})
+    # summary_tmp = tf.Summary()
+    # summary_tmp.ParseFromString(summary_str)
+    # summary_tmp.value[0].tag = 'image'
+    # summary_writer.add_summary(summary_tmp)
 
     ###################################################################################
     # # debug: generate similarity map
@@ -249,45 +256,45 @@ def graphcut(linenet_manager, file_path):
     # graphcut opt.
     u = np.unique(labels)
     num_labels = u.size
-    diff_labels = num_labels-num_paths
+    diff_labels = num_labels - num_paths
     # print('%s: %s, label: %s' % (datetime.now(), file_name, labels))
     print('%s: %s, the number of labels %d, truth %d, diff %d' % (datetime.now(), file_name, num_labels, num_paths, diff_labels))
     print('%s: %s, energy before optimization %.4f' % (datetime.now(), file_name, e_before))
     print('%s: %s, energy after optimization %.4f' % (datetime.now(), file_name, e_after))
     
-    # write summary
-    num_labels_summary = tf.scalar_summary('num_lables', tf.constant(num_labels, dtype=tf.int16))
-    summary_writer.add_summary(num_labels_summary.eval())
+    # # write summary
+    # num_labels_summary = tf.scalar_summary('num_lables', tf.constant(num_labels, dtype=tf.int16))
+    # summary_writer.add_summary(num_labels_summary.eval())
 
-    ground_truth_summary = tf.scalar_summary('ground truth', tf.constant(num_paths, dtype=tf.int16))
-    summary_writer.add_summary(ground_truth_summary.eval())
+    # ground_truth_summary = tf.scalar_summary('ground truth', tf.constant(num_paths, dtype=tf.int16))
+    # summary_writer.add_summary(ground_truth_summary.eval())
 
-    diff_labels_summary = tf.scalar_summary('diff', tf.constant(diff_labels, dtype=tf.int16))
-    summary_writer.add_summary(diff_labels_summary.eval())
+    # diff_labels_summary = tf.scalar_summary('diff', tf.constant(diff_labels, dtype=tf.int16))
+    # summary_writer.add_summary(diff_labels_summary.eval())
 
-    # smooth_energy = tf.placeholder(dtype=tf.int32)
-    # label_energy = tf.placeholder(dtype=tf.int32)
-    # total_energy = tf.placeholder(dtype=tf.int32)
-    energy = tf.placeholder(dtype=tf.float64)
-    # smooth_energy_summary = tf.scalar_summary('smooth_energy', smooth_energy)
-    # label_energy_summary = tf.scalar_summary('label_energy', label_energy)
-    # total_energy_summary = tf.scalar_summary('total_energy', total_energy)
-    energy_summary = tf.scalar_summary('energy', energy)
-    # energy_summary = tf.merge_summary([smooth_energy_summary, label_energy_summary, total_energy_summary])
+    # # smooth_energy = tf.placeholder(dtype=tf.int32)
+    # # label_energy = tf.placeholder(dtype=tf.int32)
+    # # total_energy = tf.placeholder(dtype=tf.int32)
+    # energy = tf.placeholder(dtype=tf.float64)
+    # # smooth_energy_summary = tf.scalar_summary('smooth_energy', smooth_energy)
+    # # label_energy_summary = tf.scalar_summary('label_energy', label_energy)
+    # # total_energy_summary = tf.scalar_summary('total_energy', total_energy)
+    # energy_summary = tf.scalar_summary('energy', energy)
+    # # energy_summary = tf.merge_summary([smooth_energy_summary, label_energy_summary, total_energy_summary])
+    # # # energy before optimization
+    # # summary_writer.add_summary(energy_summary.eval(feed_dict={
+    # #     smooth_energy:e_before[0], label_energy:e_before[1], total_energy:e_before[2]}), 0)
+    # # # energy after optimization
+    # # summary_writer.add_summary(energy_summary.eval(feed_dict={
+    # #     smooth_energy:e_after[0], label_energy:e_after[1], total_energy:e_after[2]}), 1)
     # # energy before optimization
-    # summary_writer.add_summary(energy_summary.eval(feed_dict={
-    #     smooth_energy:e_before[0], label_energy:e_before[1], total_energy:e_before[2]}), 0)
+    # summary_writer.add_summary(energy_summary.eval(feed_dict={energy:e_before}), 0)
     # # energy after optimization
-    # summary_writer.add_summary(energy_summary.eval(feed_dict={
-    #     smooth_energy:e_after[0], label_energy:e_after[1], total_energy:e_after[2]}), 1)
-    # energy before optimization
-    summary_writer.add_summary(energy_summary.eval(feed_dict={energy:e_before}), 0)
-    # energy after optimization
-    summary_writer.add_summary(energy_summary.eval(feed_dict={energy:e_after}), 1)
+    # summary_writer.add_summary(energy_summary.eval(feed_dict={energy:e_after}), 1)
     
-    duration_ph = tf.placeholder(dtype=tf.float32)
-    duration_summary = tf.scalar_summary('duration', duration_ph)
-    summary_writer.add_summary(duration_summary.eval(feed_dict={duration_ph:duration}))
+    # duration_ph = tf.placeholder(dtype=tf.float32)
+    # duration_summary = tf.scalar_summary('duration', duration_ph)
+    # summary_writer.add_summary(duration_summary.eval(feed_dict={duration_ph:duration}))
     
     # save label map image
     cmap = plt.get_cmap('jet')    
@@ -308,14 +315,14 @@ def graphcut(linenet_manager, file_path):
     # plt.imshow(label_map)
     # plt.show()
     
-    label_map_ph = tf.placeholder(dtype=tf.float32, shape=[None, img.shape[0], img.shape[1], 3])
-    label_map_summary = tf.image_summary('label_map', label_map_ph, max_images=1)
-    label_map = np.reshape(label_map, [1, img.shape[0], img.shape[1], 3])
-    summary_str = sess.run(label_map_summary, feed_dict={label_map_ph: label_map})
-    summary_tmp = tf.Summary()
-    summary_tmp.ParseFromString(summary_str)
-    summary_tmp.value[0].tag = 'label_map'
-    summary_writer.add_summary(summary_tmp)
+    # label_map_ph = tf.placeholder(dtype=tf.float32, shape=[None, img.shape[0], img.shape[1], 3])
+    # label_map_summary = tf.image_summary('label_map', label_map_ph, max_images=1)
+    # label_map = np.reshape(label_map, [1, img.shape[0], img.shape[1], 3])
+    # summary_str = sess.run(label_map_summary, feed_dict={label_map_ph: label_map})
+    # summary_tmp = tf.Summary()
+    # summary_tmp.ParseFromString(summary_str)
+    # summary_tmp.value[0].tag = 'label_map'
+    # summary_writer.add_summary(summary_tmp)
 
     tf.gfile.DeleteRecursively(FLAGS.test_dir + '/tmp')
 
@@ -636,6 +643,9 @@ def test():
     duration = time.time() - start_time
     print('%s: manager loaded (%.3f sec)' % (datetime.now(), duration))
     
+    stat_path = os.path.join(FLAGS.test_dir, 'stat.txt')
+    sf = open(stat_path, 'w')
+
     num_files = 0
     sum_diff_labels = 0
     min_diff_labels = 100
@@ -658,7 +668,7 @@ def test():
             if diff_labels > max_diff_labels:
                 max_diff_labels = diff_labels
             num_files = num_files + 1
-            diff_list.append(diff_labels)
+            diff_list.append(diff_labels)            
             duration = time.time() - start_time
             sum_duration = sum_duration + duration
             if duration < min_duration:
@@ -666,6 +676,7 @@ def test():
             if duration > max_duration:
                 max_duration = duration
             print('%s:%d-%s processed (%.3f sec)' % (datetime.now(), num_files, file, duration))
+            sf.write('%s %d %d %.3f\n' % (file, num_labels, diff_labels, duration))
 
     # the histogram of the data
     diff_list = np.array(diff_list)
@@ -688,10 +699,14 @@ def test():
     scipy.misc.imsave(hist_path, pred_hist)
 
     print('total # files: %d' % num_files)
-    print('min/max/avg. abs diff labels: %d,%d,%d' % (min_diff_labels, max_diff_labels, sum_diff_labels/num_files))
+    print('min/max/avg. abs diff labels: %d,%d,%.3f' % (min_diff_labels, max_diff_labels, sum_diff_labels/num_files))
     print('min/max/avg. duration: %.3f,%.3f,%.3f' % (min_duration, max_duration, sum_duration/num_files))
+    sf.write('total # files: %d\n' % num_files)
+    sf.write('min/max/avg. abs diff labels: %d,%d,%.3f\n' % (min_diff_labels, max_diff_labels, sum_diff_labels/num_files))
+    sf.write('min/max/avg. duration: %.3f,%.3f,%.3f\n' % (min_duration, max_duration, sum_duration/num_files))
+    sf.close()
     print('Done')
-
+    
 
 def main(_):
     # if release mode, change current path

@@ -249,14 +249,21 @@ def graphcut(linenet_manager, file_path):
     # graphcut opt.
     u = np.unique(labels)
     num_labels = u.size
+    diff_labels = abs(num_paths-num_labels)
     # print('%s: %s, label: %s' % (datetime.now(), file_name, labels))
-    print('%s: %s, the number of labels %d' % (datetime.now(), file_name, num_labels))
+    print('%s: %s, the number of labels %d, truth %d, diff %d' % (datetime.now(), file_name, num_labels, num_paths, diff_labels))
     print('%s: %s, energy before optimization %.4f' % (datetime.now(), file_name, e_before))
     print('%s: %s, energy after optimization %.4f' % (datetime.now(), file_name, e_after))
     
     # write summary
     num_labels_summary = tf.scalar_summary('num_lables', tf.constant(num_labels, dtype=tf.int16))
     summary_writer.add_summary(num_labels_summary.eval())
+
+    ground_truth_summary = tf.scalar_summary('ground truth', tf.constant(num_paths, dtype=tf.int16))
+    summary_writer.add_summary(ground_truth_summary.eval())
+
+    diff_labels_summary = tf.scalar_summary('diff', tf.constant(diff_labels, dtype=tf.int16))
+    summary_writer.add_summary(diff_labels_summary.eval())
 
     # smooth_energy = tf.placeholder(dtype=tf.int32)
     # label_energy = tf.placeholder(dtype=tf.int32)
@@ -312,7 +319,7 @@ def graphcut(linenet_manager, file_path):
 
     tf.gfile.DeleteRecursively(FLAGS.test_dir + '/tmp')
 
-    return abs(num_labels-num_paths)
+    return num_labels, diff_labels
 
 
 def graphcut_batch(linenet_manager, file_path):
@@ -489,14 +496,21 @@ def graphcut_batch(linenet_manager, file_path):
     # graphcut opt.
     u = np.unique(labels)
     num_labels = u.size
+    diff_labels = abs(num_paths-num_labels)
     # print('%s: %s, label: %s' % (datetime.now(), file_name, labels))
-    print('%s: %s, the number of labels %d' % (datetime.now(), file_name, num_labels))
+    print('%s: %s, the number of labels %d, truth %d, diff %d' % (datetime.now(), file_name, num_labels, num_paths, diff_labels))
     print('%s: %s, energy before optimization %.4f' % (datetime.now(), file_name, e_before))
     print('%s: %s, energy after optimization %.4f' % (datetime.now(), file_name, e_after))
     
     # write summary
     num_labels_summary = tf.scalar_summary('num_lables', tf.constant(num_labels, dtype=tf.int16))
     summary_writer.add_summary(num_labels_summary.eval())
+
+    ground_truth_summary = tf.scalar_summary('ground truth', tf.constant(num_paths, dtype=tf.int16))
+    summary_writer.add_summary(ground_truth_summary.eval())
+
+    diff_labels_summary = tf.scalar_summary('diff', tf.constant(diff_labels, dtype=tf.int16))
+    summary_writer.add_summary(diff_labels_summary.eval())
 
     # smooth_energy = tf.placeholder(dtype=tf.int32)
     # label_energy = tf.placeholder(dtype=tf.int32)
@@ -552,7 +566,7 @@ def graphcut_batch(linenet_manager, file_path):
 
     tf.gfile.DeleteRecursively(FLAGS.test_dir + '/tmp')
 
-    return abs(num_labels-num_paths)
+    return num_labels, diff_labels
 
 
 def parameter_tune():
@@ -631,13 +645,13 @@ def test():
             
             file_path = os.path.join(root, file)
             start_time = time.time()
-            diff_labels = graphcut(linenet_manager, file_path)
+            num_labels, diff_labels = graphcut(linenet_manager, file_path)
             sum_diff_labels = sum_diff_labels + diff_labels
             num_files = num_files + 1
             duration = time.time() - start_time
             print('%s: %s processed (%.3f sec)' % (datetime.now(), file, duration))
 
-    print('avg. diff labels/file: %d\n', sum_diff_labels / num_files)
+    print('avg. diff labels/file: %d\n' % sum_diff_labels / num_files)
     print('Done')
 
 

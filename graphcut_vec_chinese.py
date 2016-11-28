@@ -319,7 +319,7 @@ def graphcut(linenet_manager, file_path):
 
     tf.gfile.DeleteRecursively(FLAGS.test_dir + '/tmp')
 
-    return num_labels, abs(diff_labels)
+    return num_labels, diff_labels
 
 
 def graphcut_batch(linenet_manager, file_path):
@@ -566,7 +566,7 @@ def graphcut_batch(linenet_manager, file_path):
 
     tf.gfile.DeleteRecursively(FLAGS.test_dir + '/tmp')
 
-    return num_labels, abs(diff_labels)
+    return num_labels, diff_labels
 
 
 def parameter_tune():
@@ -638,7 +638,12 @@ def test():
     
     num_files = 0
     sum_diff_labels = 0
+    min_diff_labels = 100
+    max_diff_labels = -100
     diff_list = []
+    sum_duration = 0
+    min_duration = 10000
+    max_duration = -1
     for root, _, files in os.walk(FLAGS.data_dir):
         for file in files:
             if not file.lower().endswith('svg_pre'): # 'png'):
@@ -647,19 +652,28 @@ def test():
             file_path = os.path.join(root, file)
             start_time = time.time()
             num_labels, diff_labels = graphcut(linenet_manager, file_path)
-            sum_diff_labels = sum_diff_labels + diff_labels
+            sum_diff_labels = sum_diff_labels + abs(diff_labels)
+            if diff_labels < min_diff_labels:
+                min_diff_labels = diff_labels
+            if diff_labels > max_diff_labels:
+                max_diff_labels = diff_labels
             num_files = num_files + 1
             diff_list.append(diff_labels)
             duration = time.time() - start_time
-            print('%s: %s processed (%.3f sec)' % (datetime.now(), file, duration))
+            sum_duration = sum_duration + duration
+            if duration < min_duration:
+                min_duration = duration
+            if duration > max_duration:
+                max_duration = duration
+            print('%s:%d-%s processed (%.3f sec)' % (datetime.now(), num_files, file, duration))
 
     # the histogram of the data
     diff_list = np.array(diff_list)
     
     fig = plt.figure()
     weights = np.ones_like(diff_list)/float(len(diff_list))
-    plt.hist(diff_list, bins=11, color='blue', normed=False, alpha=0.75, weights=weights)
-    plt.xlim(-10, 10)
+    plt.hist(diff_list, bins=21, color='blue', normed=False, alpha=0.75, weights=weights)
+    plt.xlim(-5, 15)
     plt.ylim(0, 1)
     plt.title('Histogram of Label Difference')
     plt.grid(True)
@@ -673,7 +687,9 @@ def test():
     hist_path = os.path.join(FLAGS.test_dir, 'label_diff_hist.png')
     scipy.misc.imsave(hist_path, pred_hist)
 
-    print('avg. abs diff labels/file: %d\n' % (sum_diff_labels / num_files))
+    print('total # files: %d' % num_files)
+    print('min/max/avg. abs diff labels: %d,%d,%d' % (min_diff_labels, max_diff_labels, sum_diff_labels/num_files))
+    print('min/max/avg. duration: %.3f,%.3f,%.3f' % (min_duration, max_duration, sum_duration/num_files))
     print('Done')
 
 

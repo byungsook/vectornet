@@ -47,33 +47,48 @@ tf.app.flags.DEFINE_boolean('use_two_channels', True,
                             """use two channels for input""")
 tf.app.flags.DEFINE_integer('num_processors', 8,
                             """# of processors for batch generation.""")
+tf.app.flags.DEFINE_string('file_list', 'train.txt',
+                           """file_list""")
 
 
 class BatchManager(object):
     def __init__(self, num_max=-1):
-        # untar sketch file
-        with tarfile.open(FLAGS.data_tar, 'r:gz') as tar:
-            tar.extractall(FLAGS.data_dir)
+        # # untar sketch file
+        # with tarfile.open(FLAGS.data_tar, 'r:gz') as tar:
+        #     tar.extractall(FLAGS.data_dir)
 
         # read all svg files
-        self._svg_list = []
         self._next_svg_id = 0
-        for root, _, files in os.walk(FLAGS.data_dir):
-            for file in files:
-                if not file.lower().endswith('svg_pre'):
-                    continue
+        self._svg_list = []
+        if FLAGS.file_list:
+            file_list_path = os.path.join(FLAGS.data_dir, FLAGS.file_list)
+            with open(file_list_path, 'r') as f:
+                while True:
+                    line = f.readline()
+                    if not line: break
 
-                file_path = os.path.join(root, file)
-                with open(file_path, 'r') as f:
-                    svg = f.read()
-                    self._svg_list.append(svg)
-        
-        # delete data
-        tf.gfile.DeleteRecursively(FLAGS.data_dir)
+                    file_path = os.path.join(FLAGS.data_dir, line.rstrip())
+                    with open(file_path, 'r') as sf:
+                        svg = sf.read()
+                        self._svg_list.append(svg)
+
+        else:
+            for root, _, files in os.walk(FLAGS.data_dir):
+                for file in files:
+                    if not file.lower().endswith('svg_pre'):
+                        continue
+
+                    file_path = os.path.join(root, file)
+                    with open(file_path, 'r') as f:
+                        svg = f.read()
+                        self._svg_list.append(svg)
+
+        # # delete data
+        # tf.gfile.DeleteRecursively(FLAGS.data_dir)
 
         self.num_examples_per_epoch = len(self._svg_list)
         self.num_epoch = 1
-        
+
         d = 2 if FLAGS.use_two_channels else 1
 
         if FLAGS.num_processors > FLAGS.batch_size:

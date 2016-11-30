@@ -24,6 +24,26 @@ import scipy.stats
 import scipy.misc
 
 
+def split_dataset():
+    file_list = []
+    for root, _, files in os.walk(FLAGS.dst_dir):
+        for file in files:
+            if not file.lower().endswith('svg_pre'):
+                continue
+
+            file_list.append(file)
+
+    num_files = len(file_list)
+    ids = np.random.permutation(num_files)
+    train_id = int(num_files * 0.9)
+    with open(os.path.join(FLAGS.dst_dir,'train.txt'), 'w') as f: 
+        for id in ids[:train_id]:
+            f.write(file_list[id] + '\n')
+    with open(os.path.join(FLAGS.dst_dir,'test.txt'), 'w') as f: 
+        for id in ids[train_id:]:
+            f.write(file_list[id] + '\n')
+
+
 def preprocess_kanji(file_path):
     with open(file_path, 'r') as f:
         svg = ''
@@ -208,7 +228,7 @@ def preprocess(run_id):
             
             # parsing..
             if run_id == 0:
-                svg_pre = preprocess_sketch(file_path) 
+                svg_pre = preprocess_sketch(file_path)
             elif run_id == 1:
                 svg_pre = preprocess_makemeahanzi(file_path)
             elif run_id == 2:
@@ -222,6 +242,9 @@ def preprocess(run_id):
             with open(write_path, 'w') as f:
                 f.write(svg_pre)
 
+    # split train/test dataset
+    split_dataset()
+
     # compress
     with tarfile.open(FLAGS.dst_tar, "w:gz") as tar:
         tar.add(FLAGS.dst_dir, arcname=os.path.basename(FLAGS.dst_dir))
@@ -229,12 +252,16 @@ def preprocess(run_id):
 
 def init_arg_parser():
     parser = argparse.ArgumentParser()
+    parser.add_argument('process_num',
+                    default=1,
+                    help='process number',
+                    nargs='?') 
     parser.add_argument('dst_dir',
-                    default='data_tmp/fidelity/output/png', # 'data_tmp/gc_test',
+                    default='linenet/data/chinese1', # 'data_tmp/gc_test',
                     help='destination directory',
                     nargs='?') # optional arg.
     parser.add_argument('dst_tar',
-                    default='linenet/data/fidelity.tar.gz', # 'data_tmp/gc_test',
+                    default='linenet/data/chinese1.tar.gz', # 'data_tmp/gc_test',
                     help='destination tar file',
                     nargs='?') # optional arg.
     return parser.parse_args()
@@ -254,6 +281,6 @@ if __name__ == '__main__':
         os.makedirs(FLAGS.dst_dir)
 
     # run [0-3]
-    preprocess(1)
+    preprocess(FLAGS.process_num)
 
     print('Done')

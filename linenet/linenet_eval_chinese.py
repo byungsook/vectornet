@@ -35,6 +35,8 @@ tf.app.flags.DEFINE_boolean('transform', False,
                             """Whether to transform character.""")
 tf.app.flags.DEFINE_string('file_list', 'test.txt',
                            """file_list""")
+tf.app.flags.DEFINE_integer('num_epoch', 10,
+                            """# epoch""")
 
 
 def evaluate():
@@ -96,7 +98,7 @@ def evaluate():
                 print('%s: Pre-trained model restored from %s' %
                     (datetime.now(), FLAGS.pretrained_model_checkpoint_path))
             
-            num_eval = batch_manager.num_examples_per_epoch
+            num_eval = batch_manager.num_examples_per_epoch * FLAGS.num_epoch
             num_iter = int(math.ceil(num_eval / FLAGS.batch_size))
             print('total iter: %d' % num_iter)
             total_loss = 0

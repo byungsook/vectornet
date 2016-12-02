@@ -96,7 +96,8 @@ def evaluate():
                 print('%s: Pre-trained model restored from %s' %
                     (datetime.now(), FLAGS.pretrained_model_checkpoint_path))
             
-            num_iter = int(math.ceil(FLAGS.num_eval / FLAGS.batch_size))
+            num_eval = batch_manager.num_examples_per_epoch
+            num_iter = int(math.ceil(num_eval / FLAGS.batch_size))
             print('total iter: %d' % num_iter)
             total_loss = 0
             for step in range(num_iter):

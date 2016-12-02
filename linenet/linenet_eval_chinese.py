@@ -31,10 +31,10 @@ tf.app.flags.DEFINE_float('moving_avg_decay', 0.9999,
                           """The decay to use for the moving average.""")
 tf.app.flags.DEFINE_integer('max_images', FLAGS.batch_size,
                             """max # images to save.""")
-tf.app.flags.DEFINE_integer('num_eval', 960,
-                            """# images for evaluation""")
 tf.app.flags.DEFINE_boolean('transform', False,
                             """Whether to transform character.""")
+tf.app.flags.DEFINE_string('file_list', 'test.txt',
+                           """file_list""")
 
 
 def evaluate():
@@ -85,7 +85,7 @@ def evaluate():
         y_hat_ph = tf.placeholder(tf.float32)
         y_hat_summary = tf.image_summary('y_hat_ph', y_hat_ph, max_images=FLAGS.max_images)
         
-        batch_manager = linenet_data_chinese.BatchManager(num_max=FLAGS.num_eval)
+        batch_manager = linenet_data_chinese.BatchManager()
         print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
         
         # Start evaluation

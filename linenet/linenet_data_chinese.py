@@ -47,12 +47,10 @@ tf.app.flags.DEFINE_boolean('use_two_channels', True,
                             """use two channels for input""")
 tf.app.flags.DEFINE_integer('num_processors', 8,
                             """# of processors for batch generation.""")
-tf.app.flags.DEFINE_string('file_list', 'train.txt',
-                           """file_list""")
 
 
 class BatchManager(object):
-    def __init__(self, num_max=-1):
+    def __init__(self):
         # # untar sketch file
         # with tarfile.open(FLAGS.data_tar, 'r:gz') as tar:
         #     tar.extractall(FLAGS.data_dir)

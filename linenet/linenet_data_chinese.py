@@ -35,7 +35,7 @@ tf.app.flags.DEFINE_integer('batch_size', 8,
                             """Number of images to process in a batch.""")
 tf.app.flags.DEFINE_string('data_tar', 'data/chinese1.tar.gz',
                            """Path to the Sketch data file.""")
-tf.app.flags.DEFINE_string('data_dir', 'data/chinese1',
+tf.app.flags.DEFINE_string('data_dir', 'data/chinese2',
                            """Path to the data directory.""")
 tf.app.flags.DEFINE_integer('image_width', 128, # 48-24-12-6
                             """Image Width.""")
@@ -47,6 +47,8 @@ tf.app.flags.DEFINE_boolean('use_two_channels', True,
                             """use two channels for input""")
 tf.app.flags.DEFINE_integer('num_processors', 8,
                             """# of processors for batch generation.""")
+tf.app.flags.DEFINE_boolean('chinese1', True,
+                            """whether chinese1 or not""")
 
 
 class BatchManager(object):
@@ -142,20 +144,34 @@ class BatchManager(object):
 
 def train_set(i, svg_batch, s_batch, x_batch, y_batch):
     while True:
-        if FLAGS.transform:
-            r = np.random.randint(-180, 181)
-            s_sign = np.random.choice([1, -1], 1)[0]
-            s = 1.75 * np.random.random_sample(2) + 0.25 # [0.25, 2)
-            s[1] = s[1] * s_sign
-            t = np.random.randint(-100, 100, 2) # [-100, 100]
-            if s_sign == 1:
-                t[1] = t[1] + 124
+        if FLAGS.chinese1:
+            if FLAGS.transform:
+                r = np.random.randint(-180, 181)
+                s_sign = np.random.choice([1, -1], 1)[0]
+                s = 1.75 * np.random.random_sample(2) + 0.25 # [0.25, 2)
+                s[1] = s[1] * s_sign
+                t = np.random.randint(-100, 100, 2)
+                if s_sign == 1:
+                    t[1] = t[1] + 124
+                else:
+                    t[1] = t[1] - 900
             else:
-                t[1] = t[1] - 900
+                r = 0
+                s = [1, -1]
+                t = [0, -900]
         else:
-            r = 0
-            s = [1, -1]
-            t = [0, -900]
+            if FLAGS.transform:
+                r = np.random.randint(-180, 181)
+                s_sign = np.random.choice([1, -1], 1)[0]
+                s = 1.75 * np.random.random_sample(2) + 0.25 # [0.25, 2)
+                s[1] = s[1] * s_sign
+                t = np.random.randint(-10, 10, 2)
+                if s_sign == -1:
+                    t[1] = t[1] - 109
+            else:
+                r = 0
+                s = [1, 1]
+                t = [0, 0]
         
         svg = svg_batch[i].format(
                 w=FLAGS.image_width, h=FLAGS.image_height,
@@ -172,11 +188,28 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
         # plt.show()
 
         # leave only one path
-        svg_xml = et.fromstring(svg)
-        path_id = np.random.randint(len(svg_xml[0]._children))
-        svg_xml[0]._children = [svg_xml[0]._children[path_id]]
-        
-        svg = et.tostring(svg_xml, method='xml')
+        if FLAGS.chinese1:
+            svg_xml = et.fromstring(svg)
+            path_id = np.random.randint(len(svg_xml[0]._children))
+            svg_xml[0]._children = [svg_xml[0]._children[path_id]]
+            svg = et.tostring(svg_xml, method='xml')
+        else:
+            id = 0
+            count_paths = 0
+            while id != -1:
+                id = svg.find('path id', id + 1)
+                count_paths = count_paths + 1
+            count_paths = count_paths - 1 # uncount last one
+
+            path_id = np.random.randint(count_paths)
+            id = len(svg)
+            for i in xrange(count_paths):
+                id = svg.rfind('path id', 0, id)
+                if i != path_id:
+                    id_start = svg.rfind('>', 0, id) + 1
+                    id_end = svg.find('/>', id_start) + 2
+                    svg = svg[:id_start] + svg[id_end:]
+
         y_png = cairosvg.svg2png(bytestring=svg)
         y_img = Image.open(io.BytesIO(y_png))
         y = np.array(y_img)[:,:,3].astype(np.float) / 255.0
@@ -215,6 +248,12 @@ if __name__ == '__main__':
     if not current_path.endswith('linenet'):
         working_path = os.path.join(current_path, 'vectornet/linenet')
         os.chdir(working_path)
+
+    tf.app.flags.DEFINE_boolean('transform', True, """Whether to transform character.""")
+    tf.app.flags.DEFINE_string('file_list', 'train.txt', """file_list""")
+    FLAGS.num_processors = 1
+    FLAGS.data_dir = 'data/chinese2'
+    FLAGS.chinese1 = False
 
     batch_manager = BatchManager()
     s_batch, x_batch, y_batch = batch_manager.batch()

@@ -35,7 +35,7 @@ tf.app.flags.DEFINE_integer('batch_size', 8,
                             """Number of images to process in a batch.""")
 tf.app.flags.DEFINE_string('data_tar', 'data/chinese1.tar.gz',
                            """Path to the Sketch data file.""")
-tf.app.flags.DEFINE_string('data_dir', 'data/chinese2',
+tf.app.flags.DEFINE_string('data_dir', 'data/chinese1',
                            """Path to the data directory.""")
 tf.app.flags.DEFINE_integer('image_width', 128, # 48-24-12-6
                             """Image Width.""")
@@ -123,8 +123,13 @@ class BatchManager(object):
 
     def batch(self):
         if FLAGS.num_processors == 1:
+            svg_batch = []
             for i in xrange(FLAGS.batch_size):
-                train_set(0, [self._svg_list[self._next_svg_id]], self.s_batch, self.x_batch, self.y_batch)
+                svg_batch.append(self._svg_list[self._next_svg_id])
+                self._next_svg_id = (self._next_svg_id + 1) % len(self._svg_list)
+
+            for i in xrange(FLAGS.batch_size):
+                train_set(i, svg_batch, self.s_batch, self.x_batch, self.y_batch)
                 self._next_svg_id = (self._next_svg_id + 1) % len(self._svg_list)
                 if self._next_svg_id == 0:
                     self.num_epoch = self.num_epoch + 1
@@ -203,9 +208,9 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
 
             path_id = np.random.randint(count_paths)
             id = len(svg)
-            for i in xrange(count_paths):
+            for c in xrange(count_paths):
                 id = svg.rfind('path id', 0, id)
-                if i != path_id:
+                if c != path_id:
                     id_start = svg.rfind('>', 0, id) + 1
                     id_end = svg.find('/>', id_start) + 2
                     svg = svg[:id_start] + svg[id_end:]
@@ -252,6 +257,14 @@ if __name__ == '__main__':
     tf.app.flags.DEFINE_boolean('transform', True, """Whether to transform character.""")
     tf.app.flags.DEFINE_string('file_list', 'train.txt', """file_list""")
     FLAGS.num_processors = 1
+
+    # FLAGS.image_width = 128
+    # FLAGS.image_height = 128
+    # FLAGS.data_dir = 'data/chinese1'
+    # FLAGS.chinese1 = True
+
+    FLAGS.image_width = 128
+    FLAGS.image_height = 128
     FLAGS.data_dir = 'data/chinese2'
     FLAGS.chinese1 = False
 

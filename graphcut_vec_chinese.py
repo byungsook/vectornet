@@ -59,7 +59,7 @@ tf.app.flags.DEFINE_float('prediction_sigma', 0.7, # 0.7 for 0.5 threshold
                            """prediction sigma""")
 tf.app.flags.DEFINE_float('window_size', 2.0,
                            """window size""")
-tf.app.flags.DEFINE_boolean('chinese1', True,
+tf.app.flags.DEFINE_boolean('chinese1', False,
                             """whether chinese1 or not""")
 tf.app.flags.DEFINE_boolean('compile', True,
                             """whether compile gco or not""")
@@ -114,27 +114,56 @@ def _compute_accuracy(svg_file_path, labels, line_pixels):
             w=FLAGS.image_width, h=FLAGS.image_height,
             r=r, sx=s[0], sy=s[1], tx=t[0], ty=t[1])
 
-        svg_xml = et.fromstring(svg)
-        num_paths = len(svg_xml[0]._children)
-
-        for i in xrange(num_paths):
+        if FLAGS.chinese1:
             svg_xml = et.fromstring(svg)
-            svg_xml[0]._children = [svg_xml[0]._children[i]]
-            svg_one_stroke = et.tostring(svg_xml, method='xml')
+            num_paths = len(svg_xml[0]._children)
 
-            y_png = cairosvg.svg2png(bytestring=svg_one_stroke)
-            y_img = Image.open(io.BytesIO(y_png))
-            y = (np.array(y_img)[:,:,3] > 0)
+            for i in xrange(num_paths):
+                svg_xml = et.fromstring(svg)
+                svg_xml[0]._children = [svg_xml[0]._children[i]]
+                svg_one_stroke = et.tostring(svg_xml, method='xml')
 
-            # # debug
-            # y_img = np.array(y_img)[:,:,3].astype(np.float) / 255.0
-            # plt.imshow(y_img, cmap=plt.cm.gray)
-            # plt.show()
+                y_png = cairosvg.svg2png(bytestring=svg_one_stroke)
+                y_img = Image.open(io.BytesIO(y_png))
+                y = (np.array(y_img)[:,:,3] > 0)
 
-            stroke_list.append(y)
+                # # debug
+                # y_img = np.array(y_img)[:,:,3].astype(np.float) / 255.0
+                # plt.imshow(y_img, cmap=plt.cm.gray)
+                # plt.show()
+
+                stroke_list.append(y)
+        else:
+            id = 0
+            num_paths = 0
+            while id != -1:
+                id = svg.find('path id', id + 1)
+                num_paths = num_paths + 1
+            num_paths = num_paths - 1 # uncount last one
+
+            for i in reversed(xrange(num_paths)):
+                id = len(svg)
+                svg_one_stroke = svg
+                for c in xrange(num_paths):
+                    id = svg_one_stroke.rfind('path id', 0, id)
+                    if c != i:
+                        id_start = svg_one_stroke.rfind('>', 0, id) + 1
+                        id_end = svg_one_stroke.find('/>', id_start) + 2
+                        svg_one_stroke = svg_one_stroke[:id_start] + svg_one_stroke[id_end:]
+
+                y_png = cairosvg.svg2png(bytestring=svg_one_stroke)
+                y_img = Image.open(io.BytesIO(y_png))
+                y = (np.array(y_img)[:,:,3] > 0)
+
+                # debug
+                y_img = np.array(y_img)[:,:,3].astype(np.float) / 255.0
+                plt.imshow(y_img, cmap=plt.cm.gray)
+                plt.show()
+
+                stroke_list.append(y)
 
     acc_id_list = []
-    acc_list = [] 
+    acc_list = []
     for i in xrange(len(labels)):
         label = np.nonzero(labels == i)
         # print('%d: # labels %d' % (i, len(label[0])))

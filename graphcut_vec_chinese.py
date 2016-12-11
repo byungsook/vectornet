@@ -61,6 +61,9 @@ tf.app.flags.DEFINE_float('window_size', 2.0,
                            """window size""")
 tf.app.flags.DEFINE_boolean('chinese1', True,
                             """whether chinese1 or not""")
+tf.app.flags.DEFINE_boolean('compile', True,
+                            """whether compile gco or not""")
+
 
 def _imread(img_file_name, inv=False):
     """ Read, grayscale and normalize the image"""
@@ -733,16 +736,17 @@ def main(_):
         os.chdir(working_path)
     
     # make gco
-    print('%s: start to compile gco' % datetime.now())
-    # http://vision.csd.uwo.ca/code/
-    gco_path = os.path.join(working_path, 'gco/qpbo_src')
-    
-    os.chdir(gco_path)
-    call(['make', 'rm'])
-    call(['make'])
-    call(['make', 'gco_linenet'])
-    os.chdir(working_path)
-    print('%s: gco compiled' % datetime.now())
+    if FLAGS.compile:
+        print('%s: start to compile gco' % datetime.now())
+        # http://vision.csd.uwo.ca/code/
+        gco_path = os.path.join(working_path, 'gco/qpbo_src')
+        
+        os.chdir(gco_path)
+        call(['make', 'rm'])
+        call(['make'])
+        call(['make', 'gco_linenet'])
+        os.chdir(working_path)
+        print('%s: gco compiled' % datetime.now())
 
     # create test directory
     if tf.gfile.Exists(FLAGS.test_dir):

@@ -155,10 +155,10 @@ def _compute_accuracy(svg_file_path, labels, line_pixels):
                 y_img = Image.open(io.BytesIO(y_png))
                 y = (np.array(y_img)[:,:,3] > 0)
 
-                # debug
-                y_img = np.array(y_img)[:,:,3].astype(np.float) / 255.0
-                plt.imshow(y_img, cmap=plt.cm.gray)
-                plt.show()
+                # # debug
+                # y_img = np.array(y_img)[:,:,3].astype(np.float) / 255.0
+                # plt.imshow(y_img, cmap=plt.cm.gray)
+                # plt.show()
 
                 stroke_list.append(y)
 

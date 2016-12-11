@@ -151,8 +151,9 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
     while True:
         if FLAGS.chinese1:
             if FLAGS.transform:
-                r = np.random.randint(-180, 181)
-                s_sign = np.random.choice([1, -1], 1)[0]
+                r = np.random.randint(-45, 45)
+                # s_sign = np.random.choice([1, -1], 1)[0]
+                s_sign = -1
                 s = 1.75 * np.random.random_sample(2) + 0.25 # [0.25, 2)
                 s[1] = s[1] * s_sign
                 t = np.random.randint(-100, 100, 2)
@@ -166,8 +167,9 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
                 t = [0, -900]
         else:
             if FLAGS.transform:
-                r = np.random.randint(-180, 181)
-                s_sign = np.random.choice([1, -1], 1)[0]
+                r = np.random.randint(-45, 45)
+                # s_sign = np.random.choice([1, -1], 1)[0]
+                s_sign = 1
                 s = 1.75 * np.random.random_sample(2) + 0.25 # [0.25, 2)
                 s[1] = s[1] * s_sign
                 t = np.random.randint(-10, 10, 2)

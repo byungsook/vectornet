@@ -196,17 +196,17 @@ def graphcut(linenet_manager, file_path):
     duration = time.time() - start_time
     print('%s: %s, linenet process (%.3f sec)' % (datetime.now(), file_name, duration))
     
-    sess = tf.InteractiveSession()
-    summary_writer = tf.train.SummaryWriter(os.path.join(FLAGS.test_dir, file_name), sess.graph)
+    # sess = tf.InteractiveSession()
+    # summary_writer = tf.train.SummaryWriter(os.path.join(FLAGS.test_dir, file_name), sess.graph)
 
-    # original
-    img_ph = tf.placeholder(dtype=tf.float32, shape=[None, img.shape[0], img.shape[1], 1])
-    img_summary = tf.image_summary('image', img_ph, max_images=1)
-    summary_str = img_summary.eval(feed_dict={img_ph: np.reshape(1.0-img, [1, img.shape[0], img.shape[1], 1])})
-    summary_tmp = tf.Summary()
-    summary_tmp.ParseFromString(summary_str)
-    summary_tmp.value[0].tag = 'image'
-    summary_writer.add_summary(summary_tmp)
+    # # original
+    # img_ph = tf.placeholder(dtype=tf.float32, shape=[None, img.shape[0], img.shape[1], 1])
+    # img_summary = tf.image_summary('image', img_ph, max_images=1)
+    # summary_str = img_summary.eval(feed_dict={img_ph: np.reshape(1.0-img, [1, img.shape[0], img.shape[1], 1])})
+    # summary_tmp = tf.Summary()
+    # summary_tmp.ParseFromString(summary_str)
+    # summary_tmp.value[0].tag = 'image'
+    # summary_writer.add_summary(summary_tmp)
 
     if FLAGS.use_batch:
         map_height = map_width = crop_size
@@ -420,39 +420,39 @@ def graphcut(linenet_manager, file_path):
     print('%s: %s, accuracy computed, avg.: %.3f (%.3f sec)' % (datetime.now(), file_name, acc_avg, duration))
     
 
-    # write summary
-    num_labels_summary = tf.scalar_summary('num_lables', tf.constant(num_labels, dtype=tf.int16))
-    summary_writer.add_summary(num_labels_summary.eval())
+    # # write summary
+    # num_labels_summary = tf.scalar_summary('num_lables', tf.constant(num_labels, dtype=tf.int16))
+    # summary_writer.add_summary(num_labels_summary.eval())
 
-    ground_truth_summary = tf.scalar_summary('ground truth', tf.constant(num_paths, dtype=tf.int16))
-    summary_writer.add_summary(ground_truth_summary.eval())
+    # ground_truth_summary = tf.scalar_summary('ground truth', tf.constant(num_paths, dtype=tf.int16))
+    # summary_writer.add_summary(ground_truth_summary.eval())
 
-    diff_labels_summary = tf.scalar_summary('diff', tf.constant(diff_labels, dtype=tf.int16))
-    summary_writer.add_summary(diff_labels_summary.eval())
+    # diff_labels_summary = tf.scalar_summary('diff', tf.constant(diff_labels, dtype=tf.int16))
+    # summary_writer.add_summary(diff_labels_summary.eval())
 
-    # smooth_energy = tf.placeholder(dtype=tf.int32)
-    # label_energy = tf.placeholder(dtype=tf.int32)
-    # total_energy = tf.placeholder(dtype=tf.int32)
-    energy = tf.placeholder(dtype=tf.float64)
-    # smooth_energy_summary = tf.scalar_summary('smooth_energy', smooth_energy)
-    # label_energy_summary = tf.scalar_summary('label_energy', label_energy)
-    # total_energy_summary = tf.scalar_summary('total_energy', total_energy)
-    energy_summary = tf.scalar_summary('energy', energy)
-    # energy_summary = tf.merge_summary([smooth_energy_summary, label_energy_summary, total_energy_summary])
+    # # smooth_energy = tf.placeholder(dtype=tf.int32)
+    # # label_energy = tf.placeholder(dtype=tf.int32)
+    # # total_energy = tf.placeholder(dtype=tf.int32)
+    # energy = tf.placeholder(dtype=tf.float64)
+    # # smooth_energy_summary = tf.scalar_summary('smooth_energy', smooth_energy)
+    # # label_energy_summary = tf.scalar_summary('label_energy', label_energy)
+    # # total_energy_summary = tf.scalar_summary('total_energy', total_energy)
+    # energy_summary = tf.scalar_summary('energy', energy)
+    # # energy_summary = tf.merge_summary([smooth_energy_summary, label_energy_summary, total_energy_summary])
+    # # # energy before optimization
+    # # summary_writer.add_summary(energy_summary.eval(feed_dict={
+    # #     smooth_energy:e_before[0], label_energy:e_before[1], total_energy:e_before[2]}), 0)
+    # # # energy after optimization
+    # # summary_writer.add_summary(energy_summary.eval(feed_dict={
+    # #     smooth_energy:e_after[0], label_energy:e_after[1], total_energy:e_after[2]}), 1)
     # # energy before optimization
-    # summary_writer.add_summary(energy_summary.eval(feed_dict={
-    #     smooth_energy:e_before[0], label_energy:e_before[1], total_energy:e_before[2]}), 0)
+    # summary_writer.add_summary(energy_summary.eval(feed_dict={energy:e_before}), 0)
     # # energy after optimization
-    # summary_writer.add_summary(energy_summary.eval(feed_dict={
-    #     smooth_energy:e_after[0], label_energy:e_after[1], total_energy:e_after[2]}), 1)
-    # energy before optimization
-    summary_writer.add_summary(energy_summary.eval(feed_dict={energy:e_before}), 0)
-    # energy after optimization
-    summary_writer.add_summary(energy_summary.eval(feed_dict={energy:e_after}), 1)
+    # summary_writer.add_summary(energy_summary.eval(feed_dict={energy:e_after}), 1)
     
-    duration_ph = tf.placeholder(dtype=tf.float32)
-    duration_summary = tf.scalar_summary('duration', duration_ph)
-    summary_writer.add_summary(duration_summary.eval(feed_dict={duration_ph:duration}))
+    # duration_ph = tf.placeholder(dtype=tf.float32)
+    # duration_summary = tf.scalar_summary('duration', duration_ph)
+    # summary_writer.add_summary(duration_summary.eval(feed_dict={duration_ph:duration}))
     
     # save label map image
     cmap = plt.get_cmap('jet')    
@@ -473,16 +473,16 @@ def graphcut(linenet_manager, file_path):
     # plt.imshow(label_map)
     # plt.show()
     
-    label_map_ph = tf.placeholder(dtype=tf.float32, shape=[None, img.shape[0], img.shape[1], 3])
-    label_map_summary = tf.image_summary('label_map', label_map_ph, max_images=1)
-    label_map = np.reshape(label_map, [1, img.shape[0], img.shape[1], 3])
-    summary_str = sess.run(label_map_summary, feed_dict={label_map_ph: label_map})
-    summary_tmp = tf.Summary()
-    summary_tmp.ParseFromString(summary_str)
-    summary_tmp.value[0].tag = 'label_map'
-    summary_writer.add_summary(summary_tmp)
+    # label_map_ph = tf.placeholder(dtype=tf.float32, shape=[None, img.shape[0], img.shape[1], 3])
+    # label_map_summary = tf.image_summary('label_map', label_map_ph, max_images=1)
+    # label_map = np.reshape(label_map, [1, img.shape[0], img.shape[1], 3])
+    # summary_str = sess.run(label_map_summary, feed_dict={label_map_ph: label_map})
+    # summary_tmp = tf.Summary()
+    # summary_tmp.ParseFromString(summary_str)
+    # summary_tmp.value[0].tag = 'label_map'
+    # summary_writer.add_summary(summary_tmp)
 
-    tf.gfile.DeleteRecursively(FLAGS.test_dir + '/tmp')
+    # tf.gfile.DeleteRecursively(FLAGS.test_dir + '/tmp')
 
     return num_labels, diff_labels, acc_avg
 

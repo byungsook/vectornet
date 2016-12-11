@@ -28,6 +28,7 @@ import matplotlib.colors as colors
 import matplotlib.cm as cmx
 import cairosvg
 from sklearn.neighbors import NearestNeighbors
+import xml.etree.ElementTree as et
 
 import tensorflow as tf
 from linenet.linenet_manager_chinese import LinenetManager
@@ -58,7 +59,8 @@ tf.app.flags.DEFINE_float('prediction_sigma', 0.7, # 0.7 for 0.5 threshold
                            """prediction sigma""")
 tf.app.flags.DEFINE_float('window_size', 2.0,
                            """window size""")
-
+tf.app.flags.DEFINE_boolean('chinese1', True,
+                            """whether chinese1 or not""")
 
 def _imread(img_file_name, inv=False):
     """ Read, grayscale and normalize the image"""
@@ -90,6 +92,77 @@ def _read_svg(svg_file_path):
         s_img = Image.open(io.BytesIO(s_png))
         s = np.array(s_img)[:,:,3].astype(np.float) / 255.0
     return s, num_path
+
+
+def _compute_accuracy(svg_file_path, labels, line_pixels):
+    stroke_list = []
+    with open(svg_file_path, 'r') as f:
+        svg = f.read()
+        if FLAGS.chinese1:
+            r = 0
+            s = [1, -1]
+            t = [0, -900]
+        else:
+            r = 0
+            s = [1, 1]
+            t = [0, 0]
+        
+        svg = svg.format(
+            w=FLAGS.image_width, h=FLAGS.image_height,
+            r=r, sx=s[0], sy=s[1], tx=t[0], ty=t[1])
+
+        svg_xml = et.fromstring(svg)
+        num_paths = len(svg_xml[0]._children)
+
+        for i in xrange(num_paths):
+            svg_xml = et.fromstring(svg)
+            svg_xml[0]._children = [svg_xml[0]._children[i]]
+            svg_one_stroke = et.tostring(svg_xml, method='xml')
+
+            y_png = cairosvg.svg2png(bytestring=svg_one_stroke)
+            y_img = Image.open(io.BytesIO(y_png))
+            y = (np.array(y_img)[:,:,3] > 0)
+
+            # # debug
+            # y_img = np.array(y_img)[:,:,3].astype(np.float) / 255.0
+            # plt.imshow(y_img, cmap=plt.cm.gray)
+            # plt.show()
+
+            stroke_list.append(y)
+
+    acc_id_list = []
+    acc_list = [] 
+    for i in xrange(len(labels)):
+        label = np.nonzero(labels == i)
+        # print('%d: # labels %d' % (i, len(label[0])))
+        if len(label[0]) == 0:
+            continue
+
+        label_map = np.zeros([FLAGS.image_height, FLAGS.image_width], dtype=np.bool)
+        # for j in label:
+        #     label_map[line_pixels[0][j],line_pixels[1][j]] = True
+        label_map[line_pixels[0][label],line_pixels[1][label]] = True
+        
+        # # debug
+        # label_map_img = label_map.astype(np.float)
+        # plt.imshow(label_map_img, cmap=plt.cm.gray)
+        # plt.show()
+
+        accuracy_list = []
+        for j, stroke in enumerate(stroke_list):
+            intersect = np.sum(np.logical_and(label_map, stroke))
+            union = np.sum(np.logical_or(label_map, stroke))
+            accuracy = intersect / float(union)
+            # print('compare with %d-th path, intersect: %d, union :%d, accuracy %.2f' % 
+            #     (j, intersect, union, accuracy))
+            accuracy_list.append(accuracy)
+
+        acc_id_list.append(np.argmax(accuracy_list))
+        acc_list.append(np.amax(accuracy_list))
+        # print('%d-th label, match to %d-th path, max: %.2f' % (i, np.argmax(accuracy_list), np.amax(accuracy_list)))
+
+    # print('avg: %.2f' % np.average(acc_list))
+    return acc_list
 
 
 def graphcut(linenet_manager, file_path):
@@ -338,6 +411,15 @@ def graphcut(linenet_manager, file_path):
     print('%s: %s, energy before optimization %.4f' % (datetime.now(), file_name, e_before))
     print('%s: %s, energy after optimization %.4f' % (datetime.now(), file_name, e_after))
     
+
+    # compute accuracy
+    start_time = time.time()
+    accuracy_list = _compute_accuracy(file_path, labels, line_pixels)
+    acc_avg = np.average(accuracy_list)
+    duration = time.time() - start_time
+    print('%s: %s, accuracy computed, avg.: %.3f (%.3f sec)' % (datetime.now(), file_name, acc_avg, duration))
+    
+
     # write summary
     num_labels_summary = tf.scalar_summary('num_lables', tf.constant(num_labels, dtype=tf.int16))
     summary_writer.add_summary(num_labels_summary.eval())
@@ -402,7 +484,7 @@ def graphcut(linenet_manager, file_path):
 
     tf.gfile.DeleteRecursively(FLAGS.test_dir + '/tmp')
 
-    return num_labels, diff_labels
+    return num_labels, diff_labels, acc_avg
 
 
 def postprocess():
@@ -456,9 +538,10 @@ def postprocess():
     bins = max_diff_labels - min_diff_labels + 1
     fig = plt.figure()
     weights = np.ones_like(diff_list)/float(len(diff_list))
-    plt.hist(diff_list, bins=bins, color='blue', normed=False, alpha=0.75, weights=weights)
+    # plt.hist(diff_list, bins=bins, color='blue', normed=False, alpha=0.75, weights=weights)
+    plt.hist(diff_list, bins=bins, color='blue', normed=False, alpha=0.75)
     plt.xlim(min_diff_labels, max_diff_labels)
-    plt.ylim(0, 1)
+    # plt.ylim(0, 1)
     plt.title('Histogram of Label Difference')
     plt.grid(True)
     
@@ -468,7 +551,7 @@ def postprocess():
     pred_hist = pred_hist.reshape(fig.canvas.get_width_height()[::-1] + (3,))
     plt.close(fig)
 
-    hist_path = os.path.join(FLAGS.data_dir, 'label_diff_hist_norm.png')
+    hist_path = os.path.join(FLAGS.data_dir, 'label_diff_hist.png')
     scipy.misc.imsave(hist_path, pred_hist)
 
     print('total # files: %d' % num_files)
@@ -563,6 +646,7 @@ def test():
     sum_duration = 0
     min_duration = 10000
     max_duration = -1
+    acc_avg_list = []
     for root, _, files in os.walk(FLAGS.data_dir):
         for file in files:
             if not file.lower().endswith('svg_pre'): # 'png'):
@@ -570,7 +654,7 @@ def test():
             
             file_path = os.path.join(root, file)
             start_time = time.time()
-            num_labels, diff_labels = graphcut(linenet_manager, file_path)
+            num_labels, diff_labels, acc_avg = graphcut(linenet_manager, file_path)
             sum_diff_labels = sum_diff_labels + abs(diff_labels)
             if diff_labels < min_diff_labels:
                 min_diff_labels = diff_labels
@@ -584,8 +668,9 @@ def test():
                 min_duration = duration
             if duration > max_duration:
                 max_duration = duration
+            acc_avg_list.append(acc_avg)
             print('%s:%d-%s processed (%.3f sec)' % (datetime.now(), num_files, file, duration))
-            sf.write('%s %d %d %.3f\n' % (file, num_labels, diff_labels, duration))
+            sf.write('%s %d %d %.3f %.3f\n' % (file, num_labels, diff_labels, acc_avg, duration))
 
     # the histogram of the data
     diff_list = np.array(diff_list)
@@ -607,12 +692,35 @@ def test():
     hist_path = os.path.join(FLAGS.test_dir, 'label_diff_hist.png')
     scipy.misc.imsave(hist_path, pred_hist)
 
+
+    # the histogram of the data
+    acc_avg_list = np.array(acc_avg_list)
+    
+    fig = plt.figure()
+    weights = np.ones_like(acc_avg_list)/float(len(acc_avg_list))
+    plt.hist(acc_avg_list, bins=21, color='blue', normed=False, alpha=0.75, weights=weights)
+    plt.xlim(0, 1)
+    plt.ylim(0, 1)
+    plt.title('Histogram of Accuracy')
+    plt.grid(True)
+    
+    # Now we can save it to a numpy array.
+    fig.canvas.draw()
+    pred_hist = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
+    pred_hist = pred_hist.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+    plt.close(fig)
+
+    hist_path = os.path.join(FLAGS.test_dir, 'acc_hist.png')
+    scipy.misc.imsave(hist_path, pred_hist)
+
     print('total # files: %d' % num_files)
-    print('min/max/avg. abs diff labels: %d,%d,%.3f' % (min_diff_labels, max_diff_labels, sum_diff_labels/num_files))
-    print('min/max/avg. duration (sec): %.3f,%.3f,%.3f' % (min_duration, max_duration, sum_duration/num_files))
+    print('min/max/avg. abs diff labels: %d, %d, %.3f' % (min_diff_labels, max_diff_labels, sum_diff_labels/num_files))
+    print('avg. accuracy: %.3f' % np.average(acc_avg_list))
+    print('min/max/avg. duration (sec): %.3f, %.3f, %.3f' % (min_duration, max_duration, sum_duration/num_files))
     sf.write('total # files: %d\n' % num_files)
-    sf.write('min/max/avg. abs diff labels: %d,%d,%.3f\n' % (min_diff_labels, max_diff_labels, sum_diff_labels/num_files))
-    sf.write('min/max/avg. duration (sec): %.3f,%.3f,%.3f\n' % (min_duration, max_duration, sum_duration/num_files))
+    sf.write('min/max/avg. abs diff labels: %d, %d, %.3f\n' % (min_diff_labels, max_diff_labels, sum_diff_labels/num_files))
+    sf.write('avg. accuracy: %.3f\n' % np.average(acc_avg_list))    
+    sf.write('min/max/avg. duration (sec): %.3f, %.3f, %.3f\n' % (min_duration, max_duration, sum_duration/num_files))
     sf.close()
     print('Done')
 

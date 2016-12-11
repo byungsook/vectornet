@@ -30,7 +30,7 @@ tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', '',
                            """If specified, restore this pretrained model """
                            """before beginning any training.
                            e.g. log/second_train/linenet.ckpt """)
-tf.app.flags.DEFINE_boolean('transform', True,
+tf.app.flags.DEFINE_boolean('transform', False,
                             """Whether to transform character.""")
 tf.app.flags.DEFINE_string('file_list', 'train.txt',
                            """file_list""")
@@ -119,7 +119,7 @@ def train():
         
 
         ####################################################################
-        # Start running operations on the Graph. 
+        # Start running operations on the Graph.
         sess = tf.Session(config=tf.ConfigProto(
             log_device_placement=FLAGS.log_device_placement))
 
@@ -131,7 +131,7 @@ def train():
             print('%s: Pre-trained model restored from %s' %
                 (datetime.now(), FLAGS.pretrained_model_checkpoint_path))
         else:
-            sess.run(tf.initialize_all_variables())
+            sess.run(tf.global_variables_initializer(), feed_dict={phase_train: is_train})
 
         # Build the summary operation.
         summary_op = tf.merge_all_summaries()

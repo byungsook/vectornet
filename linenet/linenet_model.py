@@ -72,7 +72,7 @@ def _batch_normalization(name, x, d_next, phase_train, is_conv=True):
         batch_mean, batch_var = tf.nn.moments(x, [0, 1, 2])
     else:
         batch_mean, batch_var = tf.nn.moments(x, [0])
-    scale = _variable_on_cpu(name+'/1_scale', [d_next], tf.ones_initializer) # gamma
+    scale = _variable_on_cpu(name+'/1_scale', [d_next], tf.ones_initializer()) # gamma
     offset = _variable_on_cpu(name+'/2_offset', [d_next], tf.zeros_initializer) # beta
     
     ema = tf.train.ExponentialMovingAverage(decay=0.5)

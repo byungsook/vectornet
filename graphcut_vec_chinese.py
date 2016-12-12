@@ -707,43 +707,43 @@ def test():
     # the histogram of the data
     diff_list = np.array(diff_list)
     
-    fig = plt.figure()
-    weights = np.ones_like(diff_list)/float(len(diff_list))
-    plt.hist(diff_list, bins=21, color='blue', normed=False, alpha=0.75, weights=weights)
-    plt.xlim(-5, 15)
-    plt.ylim(0, 1)
-    plt.title('Histogram of Label Difference')
-    plt.grid(True)
+    # fig = plt.figure()
+    # weights = np.ones_like(diff_list)/float(len(diff_list))
+    # plt.hist(diff_list, bins=21, color='blue', normed=False, alpha=0.75, weights=weights)
+    # plt.xlim(-5, 15)
+    # plt.ylim(0, 1)
+    # plt.title('Histogram of Label Difference')
+    # plt.grid(True)
     
-    # Now we can save it to a numpy array.
-    fig.canvas.draw()
-    pred_hist = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
-    pred_hist = pred_hist.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-    plt.close(fig)
+    # # Now we can save it to a numpy array.
+    # fig.canvas.draw()
+    # pred_hist = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
+    # pred_hist = pred_hist.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+    # plt.close(fig)
 
-    hist_path = os.path.join(FLAGS.test_dir, 'label_diff_hist.png')
-    scipy.misc.imsave(hist_path, pred_hist)
+    # hist_path = os.path.join(FLAGS.test_dir, 'label_diff_hist.png')
+    # scipy.misc.imsave(hist_path, pred_hist)
 
 
     # the histogram of the data
     acc_avg_list = np.array(acc_avg_list)
     
-    fig = plt.figure()
-    weights = np.ones_like(acc_avg_list)/float(len(acc_avg_list))
-    plt.hist(acc_avg_list, bins=21, color='blue', normed=False, alpha=0.75, weights=weights)
-    plt.xlim(0, 1)
-    plt.ylim(0, 1)
-    plt.title('Histogram of Accuracy')
-    plt.grid(True)
+    # fig = plt.figure()
+    # weights = np.ones_like(acc_avg_list)/float(len(acc_avg_list))
+    # plt.hist(acc_avg_list, bins=21, color='blue', normed=False, alpha=0.75, weights=weights)
+    # plt.xlim(0, 1)
+    # plt.ylim(0, 1)
+    # plt.title('Histogram of Accuracy')
+    # plt.grid(True)
     
-    # Now we can save it to a numpy array.
-    fig.canvas.draw()
-    pred_hist = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
-    pred_hist = pred_hist.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-    plt.close(fig)
+    # # Now we can save it to a numpy array.
+    # fig.canvas.draw()
+    # pred_hist = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
+    # pred_hist = pred_hist.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+    # plt.close(fig)
 
-    hist_path = os.path.join(FLAGS.test_dir, 'acc_hist.png')
-    scipy.misc.imsave(hist_path, pred_hist)
+    # hist_path = os.path.join(FLAGS.test_dir, 'acc_hist.png')
+    # scipy.misc.imsave(hist_path, pred_hist)
 
     print('total # files: %d' % num_files)
     print('min/max/avg. abs diff labels: %d, %d, %.3f' % (min_diff_labels, max_diff_labels, sum_diff_labels/num_files))

@@ -93,7 +93,7 @@ def evaluate():
         # Start evaluation
         with tf.Session() as sess:
             if FLAGS.pretrained_model_checkpoint_path:
-                assert tf.gfile.Exists(FLAGS.pretrained_model_checkpoint_path)
+                # assert tf.gfile.Exists(FLAGS.pretrained_model_checkpoint_path)
                 saver.restore(sess, FLAGS.pretrained_model_checkpoint_path)
                 print('%s: Pre-trained model restored from %s' %
                     (datetime.now(), FLAGS.pretrained_model_checkpoint_path))

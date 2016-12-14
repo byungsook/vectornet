@@ -165,11 +165,11 @@ def preprocess_sketch(file_path):
 
 
     # # debug
-    # img = cairosvg.svg2png(bytestring=svg.format(w=48, h=48))
+    # img = cairosvg.svg2png(bytestring=svg.format(w=128, h=96))
     # img = Image.open(io.BytesIO(img))                
     # img = np.array(img)[:,:,3].astype(np.float) / 255.0
-    # img = scipy.stats.threshold(img, threshmax=0.0001, newval=1.0)
-    # img = 1.0 - img
+    # # img = scipy.stats.threshold(img, threshmax=0.0001, newval=1.0)
+    # # img = 1.0 - img
     
     # plt.imshow(img, cmap=plt.cm.gray)
     # plt.show()
@@ -200,47 +200,72 @@ def preprocess_fidelity(file_path):
 
     save_path = os.path.join(FLAGS.dst_dir, os.path.splitext(os.path.basename(file_path))[0] + '.png')
     scipy.misc.imsave(save_path, img)
-     
 
 
 def preprocess(run_id):
     if run_id == 0:
-        data_dir = 'data_tmp/svg_test' 
-    elif run_id == 1:    
+        data_dir = 'linenet/data/sketches'
+    elif run_id == 1:
         data_dir = 'linenet/data/chinese/makemeahanzi/svgs'
     elif run_id == 2:
         data_dir = 'linenet/data/chinese/kanjivg-20160426-all/kanji'
     elif run_id == 3:
         data_dir = 'data_tmp/fidelity/output/svg'
 
-    for root, _, files in os.walk(data_dir):
-        for file in files:
-            if not file.lower().endswith('svg'):
+    if run_id == 0:
+        valid_file_list_name = 'checked.txt'
+        for root, _, files in os.walk(data_dir):
+            if not valid_file_list_name in files:
                 continue
 
-            file_path = os.path.join(root, file)
+            valid_file_list_path = os.path.join(root, valid_file_list_name)
+            with open(valid_file_list_path, 'r') as f:
+                while True:
+                    line = f.readline()
+                    if not line: break
+                    file = line.rstrip('\n') + '.svg'
+                    file_path = os.path.join(root, file)
 
-            # check validity of svg file
-            try:
-                cairosvg.svg2png(url=file_path)
-            except Exception as e:
-                continue
-            
-            # parsing..
-            if run_id == 0:
-                svg_pre = preprocess_sketch(file_path)
-            elif run_id == 1:
-                svg_pre = preprocess_makemeahanzi(file_path)
-            elif run_id == 2:
-                svg_pre = preprocess_kanji(file_path)
-            elif run_id == 3:
-                svg_pre = preprocess_fidelity(file_path)
+                    # check validity of svg file
+                    try:
+                        cairosvg.svg2png(url=file_path)
+                    except Exception as e:
+                        continue
+
+                    svg_pre = preprocess_sketch(file_path)
+
+                    # write preprocessed svg
+                    write_path = os.path.join(FLAGS.dst_dir, file[:-3] + 'svg_pre')
+                    with open(write_path, 'w') as wf:
+                        wf.write(svg_pre)
+
+    else:
+        for root, _, files in os.walk(data_dir):
+            for file in files:
+                if not file.lower().endswith('svg'):
+                    continue
+
+                file_path = os.path.join(root, file)
+
+                # check validity of svg file
+                try:
+                    cairosvg.svg2png(url=file_path)
+                except Exception as e:
+                    continue
+                
+                # parsing..
+                if run_id == 1:
+                    svg_pre = preprocess_makemeahanzi(file_path)
+                elif run_id == 2:
+                    svg_pre = preprocess_kanji(file_path)
+                elif run_id == 3:
+                    svg_pre = preprocess_fidelity(file_path)
 
 
-            # write preprocessed svg
-            write_path = os.path.join(FLAGS.dst_dir, file[:-3] + 'svg_pre')
-            with open(write_path, 'w') as f:
-                f.write(svg_pre)
+                # write preprocessed svg
+                write_path = os.path.join(FLAGS.dst_dir, file[:-3] + 'svg_pre')
+                with open(write_path, 'w') as f:
+                    f.write(svg_pre)
 
     # split train/test dataset
     split_dataset()
@@ -253,15 +278,15 @@ def preprocess(run_id):
 def init_arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('process_num',
-                    default=1,
+                    default=0,
                     help='process number',
                     nargs='?') 
     parser.add_argument('dst_dir',
-                    default='linenet/data/chinese1', # 'data_tmp/gc_test',
+                    default='linenet/data/sketch', # 'data_tmp/gc_test',
                     help='destination directory',
                     nargs='?') # optional arg.
     parser.add_argument('dst_tar',
-                    default='linenet/data/chinese1.tar.gz', # 'data_tmp/gc_test',
+                    default='linenet/data/sketch.tar.gz', # 'data_tmp/gc_test',
                     help='destination tar file',
                     nargs='?') # optional arg.
     return parser.parse_args()

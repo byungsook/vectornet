@@ -27,14 +27,14 @@ tf.app.flags.DEFINE_string('eval_dir', 'eval/sketch',
                            """and checkpoint.""")
 tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', 'log/sketch/linenet.ckpt',
                            """If specified, restore this pretrained model.""")
-tf.app.flags.DEFINE_float('initial_min_ratio', 0.001,
-                          """initial_min_ratio for minimum length of line""")
 tf.app.flags.DEFINE_float('moving_avg_decay', 0.9999,
                           """The decay to use for the moving average.""")
 tf.app.flags.DEFINE_integer('max_images', FLAGS.batch_size,
                             """max # images to save.""")
-tf.app.flags.DEFINE_integer('num_eval', 960,
-                            """# images for evaluation""")
+tf.app.flags.DEFINE_string('file_list', 'test.txt',
+                           """file_list""")
+tf.app.flags.DEFINE_integer('num_epoch', 10,
+                            """# epoch""")
 
 
 def evaluate():
@@ -43,8 +43,7 @@ def evaluate():
         is_train = True
         phase_train = tf.placeholder(tf.bool, name='phase_train')
 
-        d = 2 if FLAGS.use_two_channels else 1
-        x = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, d])
+        x = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 2])
         y = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 1])
         
         # Build a Graph that computes the logits predictions from the inference model.
@@ -65,38 +64,36 @@ def evaluate():
 
         loss_ph = tf.placeholder(tf.float32)
         loss_summary = tf.scalar_summary('l2 loss (raw)', loss_ph)
-        
+
         loss_avg = tf.placeholder(tf.float32)
         loss_avg_summary = tf.scalar_summary('l2 loss (avg)', loss_avg)
 
         summary_x_writer = tf.train.SummaryWriter(FLAGS.eval_dir + '/x', g)
         summary_y_writer = tf.train.SummaryWriter(FLAGS.eval_dir + '/y', g)
         summary_y_hat_writer = tf.train.SummaryWriter(FLAGS.eval_dir + '/y_hat', g)
-        
+
         s = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 1])
         s_summary = tf.image_summary('s', s, max_images=FLAGS.max_images)
-        if FLAGS.use_two_channels:
-            x_rgb = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 3])
-            x_summary = tf.image_summary('x', x_rgb, max_images=FLAGS.max_images)
-            b_channel = np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1]) # to make x RGB
-        else:
-            x_summary = tf.image_summary('x', x, max_images=FLAGS.max_images)
+        x_rgb = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 3])
+        x_summary = tf.image_summary('x', x_rgb, max_images=FLAGS.max_images)
+        b_channel = np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1]) # to make x RGB
         y_summary = tf.image_summary('y', y, max_images=FLAGS.max_images)
         y_hat_ph = tf.placeholder(tf.float32)
         y_hat_summary = tf.image_summary('y_hat_ph', y_hat_ph, max_images=FLAGS.max_images)
-        
+
         batch_manager = linenet_data_sketch.BatchManager(num_max=FLAGS.num_eval)
         print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
-        
+
         # Start evaluation
         with tf.Session() as sess:
             if FLAGS.pretrained_model_checkpoint_path:
-                assert tf.gfile.Exists(FLAGS.pretrained_model_checkpoint_path)
+                # assert tf.gfile.Exists(FLAGS.pretrained_model_checkpoint_path)
                 saver.restore(sess, FLAGS.pretrained_model_checkpoint_path)
                 print('%s: Pre-trained model restored from %s' %
                     (datetime.now(), FLAGS.pretrained_model_checkpoint_path))
-            
-            num_iter = int(math.ceil(FLAGS.num_eval / FLAGS.batch_size))
+
+            num_eval = batch_manager.num_examples_per_epoch * FLAGS.num_epoch
+            num_iter = int(math.ceil(num_eval / FLAGS.batch_size))
             print('total iter: %d' % num_iter)
             total_loss = 0
             for step in range(num_iter):
@@ -110,18 +107,11 @@ def evaluate():
                 print('%s: epoch %d, step %d, loss = %.2f (%.1f examples/sec; %.3f sec/batch)' % (
                         datetime.now(), batch_manager.num_epoch, step, loss_value, examples_per_sec, duration))
 
-                if FLAGS.use_two_channels:
-                    loss_summary_str, s_summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
-                        [loss_summary, s_summary, x_summary, y_summary, y_hat_summary],
-                        feed_dict={loss_ph: loss_value,
-                                s: s_batch, x: x_batch, y: y_batch, y_hat_ph: y_hat_value,
-                                x_rgb: np.concatenate((x_batch, b_channel), axis=3)})
-                else:
-                    loss_summary_str, s_summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
-                        [loss_summary, s_summary, x_summary, y_summary, y_hat_summary],
-                        feed_dict={loss_ph: loss_value,
-                                s: s_batch, x: x_batch, y: y_batch, y_hat_ph: y_hat_value})
-
+                loss_summary_str, s_summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
+                    [loss_summary, s_summary, x_summary, y_summary, y_hat_summary],
+                    feed_dict={loss_ph: loss_value,
+                            s: s_batch, x: x_batch, y: y_batch, y_hat_ph: y_hat_value,
+                            x_rgb: np.concatenate((x_batch, b_channel), axis=3)})
                 summary_writer.add_summary(loss_summary_str, step)
 
                 s_summary_tmp = tf.Summary()

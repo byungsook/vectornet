@@ -62,7 +62,7 @@ def _weight_variable(name, shape):
     truncate the values more than 2 stddev and re-pick
     """
     W = _variable_on_cpu(name, shape, tf.truncated_normal_initializer(stddev=0.1))
-    _variable_summaries(W)
+    # _variable_summaries(W)
     return W
 
 
@@ -87,9 +87,9 @@ def _batch_normalization(name, x, d_next, phase_train, is_conv=True):
                         lambda: (ema.average(batch_mean), ema.average(batch_var)))
     
     n = tf.nn.batch_normalization(x, mean, var, offset, scale, 1e-3, name=name+'/3_batch')
-    _variable_summaries(scale)
-    _variable_summaries(offset)
-    _variable_summaries(n)
+    # _variable_summaries(scale)
+    # _variable_summaries(offset)
+    # _variable_summaries(n)
     return n
 
 
@@ -99,10 +99,10 @@ def _conv2d(layer_name, x, k, s, d_next, phase_train):
         d_prev = x.get_shape()[3].value
         W = _weight_variable('1_filter_weights', [k, k, d_prev, d_next])
         conv = tf.nn.conv2d(x, W, strides=[1, s, s, 1], padding='SAME', name='2_conv_feature')
-        _variable_summaries(conv)
+        # _variable_summaries(conv)
         batch = _batch_normalization('3_batch_norm', conv, d_next, phase_train)
         relu = tf.nn.relu(batch, name='4_relu')
-        _variable_summaries(relu)
+        # _variable_summaries(relu)
         return relu
 
 
@@ -114,10 +114,10 @@ def _up_conv2d(layer_name, x, k, s, d_next, out_h, out_w, phase_train):
         W = _weight_variable('1_filter_weights', [k, k, d_prev, d_next])
         o = tf.pack([batch_size, out_h, out_w, d_next])
         conv = tf.nn.conv2d_transpose(x, W, output_shape=o, strides=[1, s, s, 1], padding='SAME', name='2_upconv_feature')
-        _variable_summaries(conv)
+        # _variable_summaries(conv)
         batch = _batch_normalization('3_batch_norm', conv, d_next, phase_train)
         relu = tf.nn.relu(batch, name='4_relu')
-        _variable_summaries(relu)
+        # _variable_summaries(relu)
         return relu
 
 

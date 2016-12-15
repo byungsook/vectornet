@@ -166,11 +166,21 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
         num_line_pixels = len(line_ids[0])
         proportion = num_line_pixels / (FLAGS.image_width*FLAGS.image_height)
 
+        # # debug
+        # print(path_id, proportion)
+
         # check if valid stroke
         if num_line_pixels == 0 or proportion < FLAGS.min_prop:
             svg_xml = et.fromstring(svg)
+            if num_line_pixels > 0:
+                last_valid = y
         else:
             break
+
+    if num_line_pixels == 0:
+        y = last_valid
+        line_ids = np.nonzero(y)
+        num_line_pixels = len(line_ids[0])
 
     point_id = np.random.randint(num_line_pixels)
     px, py = line_ids[0][point_id], line_ids[1][point_id]
@@ -194,7 +204,7 @@ if __name__ == '__main__':
     # parameters 
     tf.app.flags.DEFINE_string('file_list', 'train.txt', """file_list""")
     FLAGS.num_processors = 1
-    FLAGS.min_prop = 0.003
+    FLAGS.min_prop = 0.01
 
     batch_manager = BatchManager()
     s_batch, x_batch, y_batch = batch_manager.batch()

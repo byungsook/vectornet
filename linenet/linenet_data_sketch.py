@@ -114,6 +114,7 @@ class BatchManager(object):
                 self._next_svg_id = (self._next_svg_id + 1) % len(self._svg_list)
                 if self._next_svg_id == 0:
                     self.num_epoch = self.num_epoch + 1
+                    if FLAGS.min_prop > 0.001: FLAGS.min_prop = FLAGS.min_prop * 0.5
                     shuffle(self._svg_list)
         else:
             for i in xrange(FLAGS.batch_size):
@@ -121,6 +122,7 @@ class BatchManager(object):
                 self._next_svg_id = (self._next_svg_id + 1) % len(self._svg_list)
                 if self._next_svg_id == 0:
                     self.num_epoch = self.num_epoch + 1
+                    if FLAGS.min_prop > 0.001: FLAGS.min_prop = FLAGS.min_prop * 0.5
                     shuffle(self._svg_list)
 
             self._pool.map(self._func, range(FLAGS.batch_size))

@@ -54,9 +54,10 @@ class BatchManager(object):
                     if not line: break
 
                     file_path = os.path.join(FLAGS.data_dir, line.rstrip())
-                    with open(file_path, 'r') as sf:
-                        svg = sf.read()
-                        self._svg_list.append(svg)
+                    self._svg_list.append(file_path)
+                    # with open(file_path, 'r') as sf:
+                    #     svg = sf.read()
+                    #     self._svg_list.append(svg)
 
         else:
             for root, _, files in os.walk(FLAGS.data_dir):
@@ -128,8 +129,11 @@ class BatchManager(object):
 
 
 def train_set(i, svg_batch, s_batch, x_batch, y_batch):
+    with open(svg_batch[i], 'r') as sf:
+        svg = sf.read().format(w=FLAGS.image_width, h=FLAGS.image_height)
+
     # while True:
-    svg = svg_batch[i].format(w=FLAGS.image_width, h=FLAGS.image_height)
+    # svg = svg_batch[i].format(w=FLAGS.image_width, h=FLAGS.image_height)
     s_png = cairosvg.svg2png(bytestring=svg)
     s_img = Image.open(io.BytesIO(s_png))
     s = np.array(s_img)[:,:,3].astype(np.float) / 255.0

@@ -149,9 +149,9 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
         num_paths = len(svg_xml[0]._children) - 1
         path_id = np.random.randint(num_paths) + 1
         svg_xml[0]._children = [svg_xml[0]._children[path_id]]
-        svg = et.tostring(svg_xml, method='xml')
+        svg_new = et.tostring(svg_xml, method='xml')
 
-        y_png = cairosvg.svg2png(bytestring=svg)
+        y_png = cairosvg.svg2png(bytestring=svg_new)
         y_img = Image.open(io.BytesIO(y_png))
         y = np.array(y_img)[:,:,3].astype(np.float) / 255.0
 

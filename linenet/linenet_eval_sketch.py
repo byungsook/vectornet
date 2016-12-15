@@ -35,6 +35,9 @@ tf.app.flags.DEFINE_string('file_list', 'test.txt',
                            """file_list""")
 tf.app.flags.DEFINE_integer('num_epoch', 10,
                             """# epoch""")
+tf.app.flags.DEFINE_float('min_prop', 0.0,
+                          """min_prop""")
+
 
 
 def evaluate():

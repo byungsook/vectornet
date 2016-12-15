@@ -32,10 +32,12 @@ tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', '',
                            e.g. log/second_train/linenet.ckpt """)
 tf.app.flags.DEFINE_string('file_list', 'train.txt',
                            """file_list""")
+tf.app.flags.DEFINE_float('min_prop', 0.003,
+                          """min_prop""")
 tf.app.flags.DEFINE_integer('max_steps', 3,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_integer('decay_steps', 30000,
-                          """Decay steps""")
+                            """Decay steps""")
 tf.app.flags.DEFINE_float('initial_learning_rate', 0.01,
                           """Initial learning rate.""")
 tf.app.flags.DEFINE_float('learning_decay_factor', 0.1,

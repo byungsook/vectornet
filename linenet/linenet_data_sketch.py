@@ -142,12 +142,12 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
     # plt.show()
 
     # leave only one path
-    while True:
-        svg_xml = et.fromstring(svg)
+    svg_xml = et.fromstring(svg)
+    # the first child of [0] is title
+    num_paths = len(svg_xml[0]._children) - 1
+    path_id_list = np.random.permutation(xrange(1,num_paths+1))
 
-        # the first child of [0] is title
-        num_paths = len(svg_xml[0]._children) - 1
-        path_id = np.random.randint(num_paths) + 1
+    for path_id in path_id_list:
         svg_xml[0]._children = [svg_xml[0]._children[path_id]]
         svg_new = et.tostring(svg_xml, method='xml')
 
@@ -161,17 +161,21 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
 
         # select arbitrary marking pixel
         line_ids = np.nonzero(y)
-        if len(line_ids[0]) == 0:
-            continue
+        num_line_pixels = len(line_ids[0])
+        proportion = num_line_pixels / (FLAGS.image_width*FLAGS.image_height)
+
+        # check if valid stroke
+        if num_line_pixels == 0 or proportion < FLAGS.min_prop:
+            svg_xml = et.fromstring(svg)
         else:
             break
 
-    point_id = np.random.randint(len(line_ids[0]))
+    point_id = np.random.randint(num_line_pixels)
     px, py = line_ids[0][point_id], line_ids[1][point_id]
-    
+
     s_batch[i,:,:,:] = np.reshape(s, [FLAGS.image_height, FLAGS.image_width, 1])
     y_batch[i,:,:,:] = np.reshape(y, [FLAGS.image_height, FLAGS.image_width, 1])
-    
+
     x_batch[i,:,:,0] = s
     x_point = np.zeros(s.shape)
     x_point[px, py] = 1.0
@@ -188,6 +192,7 @@ if __name__ == '__main__':
     # parameters 
     tf.app.flags.DEFINE_string('file_list', 'train.txt', """file_list""")
     FLAGS.num_processors = 1
+    FLAGS.min_prop = 0.003
 
     batch_manager = BatchManager()
     s_batch, x_batch, y_batch = batch_manager.batch()

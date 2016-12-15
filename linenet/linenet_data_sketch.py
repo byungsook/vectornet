@@ -142,9 +142,9 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
     # plt.show()
 
     # leave only one path
-    svg_xml = et.fromstring(svg)
-    
     while True:
+        svg_xml = et.fromstring(svg)
+
         # the first child of [0] is title
         num_paths = len(svg_xml[0]._children) - 1
         path_id = np.random.randint(num_paths) + 1
@@ -154,7 +154,7 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
         y_png = cairosvg.svg2png(bytestring=svg)
         y_img = Image.open(io.BytesIO(y_png))
         y = np.array(y_img)[:,:,3].astype(np.float) / 255.0
-        
+
         # # debug
         # plt.imshow(y, cmap=plt.cm.gray)
         # plt.show()

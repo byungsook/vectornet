@@ -132,7 +132,6 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
     with open(svg_batch[i], 'r') as sf:
         svg = sf.read().format(w=FLAGS.image_width, h=FLAGS.image_height)
 
-    # while True:
     # svg = svg_batch[i].format(w=FLAGS.image_width, h=FLAGS.image_height)
     s_png = cairosvg.svg2png(bytestring=svg)
     s_img = Image.open(io.BytesIO(s_png))
@@ -144,25 +143,28 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
 
     # leave only one path
     svg_xml = et.fromstring(svg)
-    # [0] is title
-    path_id = np.random.randint(len(svg_xml[0]._children) - 1) + 1
-    svg_xml[0]._children = [svg_xml[0]._children[path_id]]
-    svg = et.tostring(svg_xml, method='xml')
-
-    y_png = cairosvg.svg2png(bytestring=svg)
-    y_img = Image.open(io.BytesIO(y_png))
-    y = np.array(y_img)[:,:,3].astype(np.float) / 255.0
     
-    # # debug
-    # plt.imshow(y, cmap=plt.cm.gray)
-    # plt.show()
+    while True:
+        # the first child of [0] is title
+        num_paths = len(svg_xml[0]._children) - 1
+        path_id = np.random.randint(num_paths) + 1
+        svg_xml[0]._children = [svg_xml[0]._children[path_id]]
+        svg = et.tostring(svg_xml, method='xml')
 
-    # select arbitrary marking pixel
-    line_ids = np.nonzero(y)
-    # if len(line_ids[0]) == 0:
-    #     continue
-    # else:
-    #     break
+        y_png = cairosvg.svg2png(bytestring=svg)
+        y_img = Image.open(io.BytesIO(y_png))
+        y = np.array(y_img)[:,:,3].astype(np.float) / 255.0
+        
+        # # debug
+        # plt.imshow(y, cmap=plt.cm.gray)
+        # plt.show()
+
+        # select arbitrary marking pixel
+        line_ids = np.nonzero(y)
+        if len(line_ids[0]) == 0:
+            continue
+        else:
+            break
 
     point_id = np.random.randint(len(line_ids[0]))
     px, py = line_ids[0][point_id], line_ids[1][point_id]

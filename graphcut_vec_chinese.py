@@ -510,7 +510,7 @@ def graphcut(linenet_manager, file_path):
         label_map[line_pixels[0][i],line_pixels[1][i]] = color[:3]
     
     # debug
-    label_map_path = os.path.join(FLAGS.test_dir, 'label_map_%s_%.2f_%.2f.png' % (file_name, FLAGS.neighbor_sigma, FLAGS.prediction_sigma))
+    label_map_path = os.path.join(FLAGS.test_dir, 'label_map_%s_%.2f_%.2f_%d_%d_%.2f.png' % (file_name, FLAGS.neighbor_sigma, FLAGS.prediction_sigma, num_labels, diff_labels, acc_avg))
     scipy.misc.imsave(label_map_path, label_map)
     # plt.imshow(label_map)
     # plt.show()

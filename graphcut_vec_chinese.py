@@ -39,13 +39,13 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('test_dir', 'test/chinese',
                            """Directory where to write event logs """
                            """and checkpoint.""")
-tf.app.flags.DEFINE_string('data_dir', 'result/chinese_result/gc_ch2-1',
+tf.app.flags.DEFINE_string('data_dir', 'data/chinese',
                            """Data directory""")
-tf.app.flags.DEFINE_integer('image_width', 48,
+tf.app.flags.DEFINE_integer('image_width', 64,
                             """Image Width.""")
-tf.app.flags.DEFINE_integer('image_height', 48,
+tf.app.flags.DEFINE_integer('image_height', 64,
                             """Image Height.""")
-tf.app.flags.DEFINE_boolean('use_batch', False,
+tf.app.flags.DEFINE_boolean('use_batch', True,
                             """whether use batch or not""")
 tf.app.flags.DEFINE_integer('batch_size', 256,
                             """batch_size""")
@@ -61,7 +61,7 @@ tf.app.flags.DEFINE_float('window_size', 2.0,
                            """window size""")
 tf.app.flags.DEFINE_boolean('chinese1', False,
                             """whether chinese1 or not""")
-tf.app.flags.DEFINE_boolean('compile', True,
+tf.app.flags.DEFINE_boolean('compile', False,
                             """whether compile gco or not""")
 
 
@@ -82,11 +82,11 @@ def _read_svg(svg_file_path):
             # c2
             num_path = svg.count('path id')
             r = 0
-            s = [1, 1] # c1: [1, -1], c2: [1, 1] 
+            s = [1, 1] # c1: [1, -1], c2: [1, 1]
             t = [0, 0] # c1: [0, -900], c2: [0, 0]
         else:
             r = 0
-            s = [1, -1] # c1: [1, -1], c2: [1, 1] 
+            s = [1, -1] # c1: [1, -1], c2: [1, 1]
             t = [0, -900] # c1: [0, -900], c2: [0, 0]
         svg = svg.format(
                 w=FLAGS.image_width, h=FLAGS.image_height,
@@ -109,7 +109,7 @@ def _compute_accuracy(svg_file_path, labels, line_pixels):
             r = 0
             s = [1, 1]
             t = [0, 0]
-        
+
         svg = svg.format(
             w=FLAGS.image_width, h=FLAGS.image_height,
             r=r, sx=s[0], sy=s[1], tx=t[0], ty=t[1])
@@ -189,9 +189,13 @@ def _compute_accuracy(svg_file_path, labels, line_pixels):
             #     (j, intersect, union, accuracy))
             accuracy_list.append(accuracy)
 
-        acc_id_list.append(np.argmax(accuracy_list))
-        acc_list.append(np.amax(accuracy_list))
-        # print('%d-th label, match to %d-th path, max: %.2f' % (i, np.argmax(accuracy_list), np.amax(accuracy_list)))
+        id = np.argmax(accuracy_list)
+        acc = np.amax(accuracy_list)
+        # print('%d-th label, match to %d-th path, max: %.2f' % (i, id, acc))
+        # consider only large label set
+        if acc > 0.1:
+            acc_id_list.append(id)
+            acc_list.append(acc)
 
     # print('avg: %.2f' % np.average(acc_list))
     return acc_list
@@ -200,34 +204,35 @@ def _compute_accuracy(svg_file_path, labels, line_pixels):
 def graphcut(linenet_manager, file_path):
     file_name = os.path.splitext(basename(file_path))[0]
     print('%s: %s, start graphcut opt.' % (datetime.now(), file_name))
-    
+
     img, num_paths = _read_svg(file_path)
     # img = _imread(file_path)
 
     # # debug
     # plt.imshow(img, cmap=plt.cm.gray)
     # plt.show()
-    
+
     start_time = time.time()
-    dist = center = int(FLAGS.window_size * FLAGS.neighbor_sigma + 0.5)
-    crop_size = int(2 * dist + 1)
-    
+    tf.gfile.MakeDirs(FLAGS.test_dir + '/tmp')
     line_pixels = np.nonzero(img)
     num_line_pixels = len(line_pixels[0])
 
-    nb = NearestNeighbors(radius=dist)
-    nb.fit(np.array(line_pixels).transpose())
-    tf.gfile.MakeDirs(FLAGS.test_dir + '/tmp')
+    dist = center = int(FLAGS.window_size * FLAGS.neighbor_sigma + 0.5)
+    crop_size = int(2 * dist + 1)
+
+    # nb = NearestNeighbors(radius=dist)
+    # nb.fit(np.array(line_pixels).transpose())
 
     if FLAGS.use_batch:
         prob_file_path = os.path.join(FLAGS.test_dir + '/tmp', file_name) + '_{id}.npy'
         linenet_manager.extract_save_crop(img, FLAGS.batch_size, prob_file_path)
+        # linenet_manager.extract_save(img, FLAGS.batch_size, prob_file_path)
     else:
         y_batch, _ = linenet_manager.extract_all(img)
-    
+
     duration = time.time() - start_time
     print('%s: %s, linenet process (%.3f sec)' % (datetime.now(), file_name, duration))
-    
+
     # sess = tf.InteractiveSession()
     # summary_writer = tf.train.SummaryWriter(os.path.join(FLAGS.test_dir, file_name), sess.graph)
 
@@ -376,39 +381,44 @@ def graphcut(linenet_manager, file_path):
         for i in xrange(num_line_pixels-1):
             p1 = np.array([line_pixels[0][i], line_pixels[1][i]])
             pred_p1 = np.load(prob_file_path.format(id=i))
-            rng = nb.radius_neighbors([p1])
-            for rj, j in enumerate(rng[1][0]): # ids
-                if j <= i:
-                    continue
+            # rng = nb.radius_neighbors([p1])
+            # for rj, j in enumerate(rng[1][0]): # ids
+            #     if j <= i:
+            #         continue
+            for j in xrange(i+1, num_line_pixels):
                 p2 = np.array([line_pixels[0][j], line_pixels[1][j]])
                 pred_p2 = np.load(prob_file_path.format(id=j))
-                rp2 = [center+p2[0]-p1[0],center+p2[1]-p1[1]]
-                rp1 = [center+p1[0]-p2[0],center+p1[1]-p2[1]]
-                pred = (pred_p1[rp2[0],rp2[1]] + pred_p2[rp1[0],rp1[1]]) * 0.5
+                # rp2 = [center+p2[0]-p1[0],center+p2[1]-p1[1]]
+                # rp1 = [center+p1[0]-p2[0],center+p1[1]-p2[1]]
+                # pred = (pred_p1[rp2[0],rp2[1]] + pred_p2[rp1[0],rp1[1]]) * 0.5
+                pred = (pred_p1[p2[0],p2[1]] + pred_p2[p1[0],p1[1]]) * 0.5
                 pred = np.exp(-0.5 * (1.0-pred)**2 / FLAGS.prediction_sigma**2)
 
-                d12 = rng[0][0][rj]
+                # d12 = rng[0][0][rj]
+                d12 = LA.norm(p1-p2, 2)
                 spatial = np.exp(-0.5 * d12**2 / FLAGS.neighbor_sigma**2)
                 f.write('%d %d %f %f\n' % (i, j, pred, spatial))
     else:
         for i in xrange(num_line_pixels-1):
             p1 = np.array([line_pixels[0][i], line_pixels[1][i]])
             pred_p1 = np.reshape(y_batch[i,:,:,:], [map_height, map_width])
-            rng = nb.radius_neighbors([p1])
-            for rj, j in enumerate(rng[1][0]): # ids
-                if j <= i:
-                    continue
+            # rng = nb.radius_neighbors([p1])
+            # for rj, j in enumerate(rng[1][0]): # ids
+            #     if j <= i:
+            #         continue
+            for j in xrange(i+1, num_line_pixels):
                 p2 = np.array([line_pixels[0][j], line_pixels[1][j]])
                 pred_p2 = np.reshape(y_batch[j,:,:,:], [map_height, map_width])
                 pred = (pred_p1[p2[0],p2[1]] + pred_p2[p1[0],p1[1]]) * 0.5
                 pred = np.exp(-0.5 * (1.0-pred)**2 / FLAGS.prediction_sigma**2)
 
-                d12 = rng[0][0][rj]
+                # d12 = rng[0][0][rj]
+                d12 = LA.norm(p1-p2, 2)
                 spatial = np.exp(-0.5 * d12**2 / FLAGS.neighbor_sigma**2)
                 f.write('%d %d %f %f\n' % (i, j, pred, spatial))
     f.close()
     print('%s: %s, prediction computed' % (datetime.now(), file_name))
-    
+
     # run gco_linenet
     start_time = time.time()
     working_path = os.getcwd()
@@ -708,6 +718,7 @@ def test():
         dist = int(FLAGS.window_size * FLAGS.neighbor_sigma + 0.5)
         crop_size = 2 * dist + 1
         linenet_manager = LinenetManager([FLAGS.image_height, FLAGS.image_width], crop_size)
+        # linenet_manager = LinenetManager([FLAGS.image_height, FLAGS.image_width])
     else:
         linenet_manager = LinenetManager([FLAGS.image_height, FLAGS.image_width])
     duration = time.time() - start_time

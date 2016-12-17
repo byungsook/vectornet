@@ -29,7 +29,7 @@ import tensorflow as tf
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_integer('batch_size', 16,
+tf.app.flags.DEFINE_integer('batch_size', 4,
                             """Number of images to process in a batch.""")
 tf.app.flags.DEFINE_string('data_dir', 'data/sketch',
                            """Path to the Sketch data directory.""")
@@ -107,9 +107,6 @@ class BatchManager(object):
             svg_batch = []
             for i in xrange(FLAGS.batch_size):
                 svg_batch.append(self._svg_list[self._next_svg_id])
-                self._next_svg_id = (self._next_svg_id + 1) % len(self._svg_list)
-
-            for i in xrange(FLAGS.batch_size):
                 train_set(i, svg_batch, self.s_batch, self.x_batch, self.y_batch)
                 self._next_svg_id = (self._next_svg_id + 1) % len(self._svg_list)
                 if self._next_svg_id == 0:
@@ -134,7 +131,6 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
     with open(svg_batch[i], 'r') as sf:
         svg = sf.read().format(w=FLAGS.image_width, h=FLAGS.image_height)
 
-    # svg = svg_batch[i].format(w=FLAGS.image_width, h=FLAGS.image_height)
     s_png = cairosvg.svg2png(bytestring=svg)
     s_img = Image.open(io.BytesIO(s_png))
     s = np.array(s_img)[:,:,3].astype(np.float) # / 255.0
@@ -149,6 +145,7 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
     svg_xml = et.fromstring(svg)
     # the first child of [0] is title
     num_paths = len(svg_xml[0]._children) - 1
+    
     path_id_list = np.random.permutation(xrange(1,num_paths+1))
 
     for path_id in path_id_list:

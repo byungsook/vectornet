@@ -126,9 +126,6 @@ class BatchManager(object):
             svg_batch = []
             for i in xrange(FLAGS.batch_size):
                 svg_batch.append(self._svg_list[self._next_svg_id])
-                self._next_svg_id = (self._next_svg_id + 1) % len(self._svg_list)
-
-            for i in xrange(FLAGS.batch_size):
                 train_set(i, svg_batch, self.s_batch, self.x_batch, self.y_batch)
                 self._next_svg_id = (self._next_svg_id + 1) % len(self._svg_list)
                 if self._next_svg_id == 0:

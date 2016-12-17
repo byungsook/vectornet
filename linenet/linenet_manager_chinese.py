@@ -20,7 +20,7 @@ import linenet.linenet_model
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('linenet_ckpt', 'model/chinese/linenet.ckpt',
+tf.app.flags.DEFINE_string('linenet_ckpt', 'model/ch2_0.9/linenet.ckpt',
                            """linenet checkpoint file path.""")  
 tf.app.flags.DEFINE_boolean('use_two_channels', True,
                             """use two channels for input""")

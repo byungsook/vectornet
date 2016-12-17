@@ -38,7 +38,7 @@ tf.app.flags.DEFINE_integer('max_steps', 3,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_integer('decay_steps', 30000,
                             """Decay steps""")
-tf.app.flags.DEFINE_float('initial_learning_rate', 0.01,
+tf.app.flags.DEFINE_float('initial_learning_rate', 0.005,
                           """Initial learning rate.""")
 tf.app.flags.DEFINE_float('learning_decay_factor', 0.1,
                           """Learning rate decay factor.""")
@@ -84,7 +84,7 @@ def train():
         # as the original loss name.
         tf.summary.scalar(loss.op.name + ' (raw)', loss)
         tf.summary.scalar(loss.op.name, loss_averages.average(loss))
-        
+
         # Decay the learning rate exponentially based on the number of steps.
         learning_rate = tf.train.exponential_decay(FLAGS.initial_learning_rate,
                                                    global_step,
@@ -94,7 +94,7 @@ def train():
         tf.summary.scalar('learning_rate', learning_rate)
         # # or use fixed learning rate
         # learning_rate = 1e-3
-        
+
         # Compute gradients.
         with tf.control_dependencies([loss_averages_op]):
             opt = tf.train.AdamOptimizer(learning_rate)

@@ -150,9 +150,9 @@ def graphcut(linenet_manager, file_path):
     img, num_paths = _read_svg(file_path)
     # img = _imread(file_path)
 
-    # debug
-    plt.imshow(img, cmap=plt.cm.gray)
-    plt.show()
+    # # debug
+    # plt.imshow(img, cmap=plt.cm.gray)
+    # plt.show()
 
     start_time = time.time()
     tf.gfile.MakeDirs(FLAGS.test_dir + '/tmp')
@@ -685,7 +685,8 @@ def test():
                 line = f.readline()
                 if not line: break
 
-                file_path = os.path.join(FLAGS.data_dir, line.rstrip())
+                file = line.rstrip()
+                file_path = os.path.join(FLAGS.data_dir, file)
                 start_time = time.time()
                 num_labels, diff_labels, acc_avg = graphcut(linenet_manager, file_path)
                 sum_diff_labels = sum_diff_labels + abs(diff_labels)

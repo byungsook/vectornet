@@ -25,7 +25,7 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('eval_dir', 'eval/sketch',
                            """Directory where to write event logs """
                            """and checkpoint.""")
-tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', 'log/sketch/linenet.ckpt',
+tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', 'log/sketch_train/linenet.ckpt',
                            """If specified, restore this pretrained model.""")
 tf.app.flags.DEFINE_float('moving_avg_decay', 0.9999,
                           """The decay to use for the moving average.""")
@@ -63,28 +63,28 @@ def evaluate():
 
 
         # Build the summary writer
-        summary_writer = tf.train.SummaryWriter(FLAGS.eval_dir, g)
+        summary_writer = tf.summary.FileWriter(FLAGS.eval_dir, g)
 
         loss_ph = tf.placeholder(tf.float32)
-        loss_summary = tf.scalar_summary('l2 loss (raw)', loss_ph)
+        loss_summary = tf.summary.scalar('l2 loss (raw)', loss_ph)
 
         loss_avg = tf.placeholder(tf.float32)
-        loss_avg_summary = tf.scalar_summary('l2 loss (avg)', loss_avg)
+        loss_avg_summary = tf.summary.scalar('l2 loss (avg)', loss_avg)
 
-        summary_x_writer = tf.train.SummaryWriter(FLAGS.eval_dir + '/x', g)
-        summary_y_writer = tf.train.SummaryWriter(FLAGS.eval_dir + '/y', g)
-        summary_y_hat_writer = tf.train.SummaryWriter(FLAGS.eval_dir + '/y_hat', g)
+        summary_x_writer = tf.summary.FileWriter(FLAGS.eval_dir + '/x', g)
+        summary_y_writer = tf.summary.FileWriter(FLAGS.eval_dir + '/y', g)
+        summary_y_hat_writer = tf.summary.FileWriter(FLAGS.eval_dir + '/y_hat', g)
 
         s = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 1])
-        s_summary = tf.image_summary('s', s, max_images=FLAGS.max_images)
+        s_summary = tf.summary.image('s', s, max_outputs=FLAGS.max_images)
         x_rgb = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 3])
-        x_summary = tf.image_summary('x', x_rgb, max_images=FLAGS.max_images)
+        x_summary = tf.summary.image('x', x_rgb, max_outputs=FLAGS.max_images)
         b_channel = np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1]) # to make x RGB
-        y_summary = tf.image_summary('y', y, max_images=FLAGS.max_images)
+        y_summary = tf.summary.image('y', y, max_outputs=FLAGS.max_images)
         y_hat_ph = tf.placeholder(tf.float32)
-        y_hat_summary = tf.image_summary('y_hat_ph', y_hat_ph, max_images=FLAGS.max_images)
+        y_hat_summary = tf.summary.image('y_hat_ph', y_hat_ph, max_outputs=FLAGS.max_images)
 
-        batch_manager = linenet_data_sketch.BatchManager(num_max=FLAGS.num_eval)
+        batch_manager = linenet_data_sketch.BatchManager()
         print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
 
         # Start evaluation

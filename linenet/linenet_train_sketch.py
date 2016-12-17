@@ -61,10 +61,10 @@ def train():
     with tf.Graph().as_default():
         is_train = True
         phase_train = tf.placeholder(tf.bool, name='phase_train')
-        
+
         x = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 2])
         y = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 1])
-            
+
         # Build a Graph that computes the logits predictions from the inference model.
         y_hat = linenet_model.inference(x, phase_train)
 
@@ -75,15 +75,15 @@ def train():
         # Build a Graph that trains the model with one batch of examples and
         # updates the model parameters.
         global_step = tf.Variable(0, name='global_step', trainable=False)
-        
+
         # Compute the moving average of all individual losses and the total loss.
         loss_averages = tf.train.ExponentialMovingAverage(0.9, name='avg')
         loss_averages_op = loss_averages.apply([loss])
 
         # Name each loss as '(raw)' and name the moving average version of the loss
         # as the original loss name.
-        tf.scalar_summary(loss.op.name + ' (raw)', loss)
-        tf.scalar_summary(loss.op.name, loss_averages.average(loss))
+        tf.summary.scalar(loss.op.name + ' (raw)', loss)
+        tf.summary.scalar(loss.op.name, loss_averages.average(loss))
         
         # Decay the learning rate exponentially based on the number of steps.
         learning_rate = tf.train.exponential_decay(FLAGS.initial_learning_rate,
@@ -91,7 +91,7 @@ def train():
                                                    FLAGS.decay_steps,
                                                    FLAGS.learning_decay_factor,
                                                    staircase=True)
-        tf.scalar_summary('learning_rate', learning_rate)
+        tf.summary.scalar('learning_rate', learning_rate)
         # # or use fixed learning rate
         # learning_rate = 1e-3
         
@@ -133,20 +133,20 @@ def train():
             sess.run(tf.global_variables_initializer(), feed_dict={phase_train: is_train})
 
         # Build the summary operation.
-        summary_op = tf.merge_all_summaries()
-        summary_writer = tf.train.SummaryWriter(FLAGS.log_dir, sess.graph)
+        summary_op = tf.summary.merge_all()
+        summary_writer = tf.summary.FileWriter(FLAGS.log_dir, sess.graph)
 
-        summary_x_writer = tf.train.SummaryWriter(FLAGS.log_dir + '/x', sess.graph)
-        summary_y_writer = tf.train.SummaryWriter(FLAGS.log_dir + '/y', sess.graph)
-        summary_y_hat_writer = tf.train.SummaryWriter(FLAGS.log_dir + '/y_hat', sess.graph)
+        summary_x_writer = tf.summary.FileWriter(FLAGS.log_dir + '/x', sess.graph)
+        summary_y_writer = tf.summary.FileWriter(FLAGS.log_dir + '/y', sess.graph)
+        summary_y_hat_writer = tf.summary.FileWriter(FLAGS.log_dir + '/y_hat', sess.graph)
 
         s = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 1])
-        s_summary = tf.image_summary('s', s, max_images=FLAGS.max_images)
+        s_summary = tf.summary.image('s', s, max_outputs=FLAGS.max_images)
         x_rgb = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 3])
-        x_summary = tf.image_summary('x', x_rgb, max_images=FLAGS.max_images)
+        x_summary = tf.summary.image('x', x_rgb, max_outputs=FLAGS.max_images)
         b_channel = np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1]) # to make x RGB
-        y_summary = tf.image_summary('y', y, max_images=FLAGS.max_images)
-        y_hat_summary = tf.image_summary('y_hat', y_hat, max_images=FLAGS.max_images)
+        y_summary = tf.summary.image('y', y, max_outputs=FLAGS.max_images)
+        y_hat_summary = tf.summary.image('y_hat', y_hat, max_outputs=FLAGS.max_images)
 
         # # Start the queue runners.
         # tf.train.start_queue_runners(sess=sess)

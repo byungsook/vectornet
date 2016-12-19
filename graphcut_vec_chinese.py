@@ -166,7 +166,7 @@ def _compute_accuracy(svg_file_path, labels, line_pixels):
 
     acc_id_list = []
     acc_list = []
-    for i in xrange(len(labels)):
+    for i in xrange(FLAGS.max_num_labels):
         label = np.nonzero(labels == i)
         # print('%d: # labels %d' % (i, len(label[0])))
         if len(label[0]) == 0:
@@ -799,7 +799,6 @@ def test():
                 acc_avg_list.append(acc_avg)
                 print('%s:%d-%s processed (%.3f sec)' % (datetime.now(), num_files, file, duration))
                 sf.write('%s %d %d %.3f %.3f\n' % (file, num_labels, diff_labels, acc_avg, duration))
-                break
     else:
         for root, _, files in os.walk(FLAGS.data_dir):
             for file in files:

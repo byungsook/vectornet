@@ -106,7 +106,7 @@ def _compute_accuracy(svg_file_path, labels, line_pixels):
 
     acc_id_list = []
     acc_list = []
-    for i in xrange(len(labels)):
+    for i in xrange(FLAGS.max_num_labels):
         label = np.nonzero(labels == i)
         # print('%d: # labels %d' % (i, len(label[0])))
         if len(label[0]) == 0:
@@ -384,7 +384,34 @@ def graphcut(linenet_manager, file_path):
     duration = time.time() - start_time
     print('%s: %s, labeling finished (%.3f sec)' % (datetime.now(), file_name, duration))
     
-    
+        # merge small label segments
+    knb = NearestNeighbors(n_neighbors=7, algorithm='ball_tree')
+    knb.fit(np.array(line_pixels).transpose())
+
+    for i in xrange(FLAGS.max_num_labels):
+        label = np.nonzero(labels == i)
+        num_label_pixels = len(label[0])
+
+        # if num_label_pixels > 0:
+        #     print('%d: # labels %d' % (i, num_label_pixels))
+
+        if num_label_pixels == 0 or num_label_pixels > 3:
+            continue
+
+        for l in label[0]:
+            p1 = np.array([line_pixels[0][l], line_pixels[1][l]])
+            _, indices = knb.kneighbors([p1], n_neighbors=7)
+            max_label_nb = np.argmax(np.bincount(labels[indices][0]))
+            labels[l] = max_label_nb
+            # print('(%d,%d) %d -> %d' % (p1[0], p1[1], i, max_label_nb))
+
+    # compute accuracy
+    start_time = time.time()
+    accuracy_list = _compute_accuracy(file_path, labels, line_pixels)
+    acc_avg = np.average(accuracy_list)
+    duration = time.time() - start_time
+    print('%s: %s, accuracy computed, avg.: %.3f (%.3f sec)' % (datetime.now(), file_name, acc_avg, duration))
+
     # graphcut opt.
     u = np.unique(labels)
     num_labels = u.size
@@ -393,15 +420,6 @@ def graphcut(linenet_manager, file_path):
     print('%s: %s, the number of labels %d, truth %d, diff %d' % (datetime.now(), file_name, num_labels, num_paths, diff_labels))
     print('%s: %s, energy before optimization %.4f' % (datetime.now(), file_name, e_before))
     print('%s: %s, energy after optimization %.4f' % (datetime.now(), file_name, e_after))
-    
-
-    # compute accuracy
-    start_time = time.time()
-    accuracy_list = _compute_accuracy(file_path, labels, line_pixels)
-    acc_avg = np.average(accuracy_list)
-    duration = time.time() - start_time
-    print('%s: %s, accuracy computed, avg.: %.3f (%.3f sec)' % (datetime.now(), file_name, acc_avg, duration))
-    
 
     # # write summary
     # num_labels_summary = tf.scalar_summary('num_lables', tf.constant(num_labels, dtype=tf.int16))
@@ -705,6 +723,7 @@ def test():
                 acc_avg_list.append(acc_avg)
                 print('%s:%d-%s processed (%.3f sec)' % (datetime.now(), num_files, file, duration))
                 sf.write('%s %d %d %.3f %.3f\n' % (file, num_labels, diff_labels, acc_avg, duration))
+                break
     else:
         for root, _, files in os.walk(FLAGS.data_dir):
             for file in files:

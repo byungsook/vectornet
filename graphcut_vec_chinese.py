@@ -41,11 +41,13 @@ tf.app.flags.DEFINE_string('test_dir', 'test/chinese',
                            """and checkpoint.""")
 tf.app.flags.DEFINE_string('data_dir', 'data/chinese',
                            """Data directory""")
+tf.app.flags.DEFINE_string('file_list', 'test.txt',
+                           """file_list""")
 tf.app.flags.DEFINE_integer('image_width', 64,
                             """Image Width.""")
 tf.app.flags.DEFINE_integer('image_height', 64,
                             """Image Height.""")
-tf.app.flags.DEFINE_boolean('use_batch', True,
+tf.app.flags.DEFINE_boolean('use_batch', False,
                             """whether use batch or not""")
 tf.app.flags.DEFINE_integer('batch_size', 256,
                             """batch_size""")
@@ -381,21 +383,21 @@ def graphcut(linenet_manager, file_path):
         for i in xrange(num_line_pixels-1):
             p1 = np.array([line_pixels[0][i], line_pixels[1][i]])
             pred_p1 = np.load(prob_file_path.format(id=i))
-            # rng = nb.radius_neighbors([p1])
-            # for rj, j in enumerate(rng[1][0]): # ids
-            #     if j <= i:
-            #         continue
-            for j in xrange(i+1, num_line_pixels):
+            rng = nb.radius_neighbors([p1])
+            for rj, j in enumerate(rng[1][0]): # ids
+                if j <= i:
+                    continue
+            # for j in xrange(i+1, num_line_pixels):
                 p2 = np.array([line_pixels[0][j], line_pixels[1][j]])
                 pred_p2 = np.load(prob_file_path.format(id=j))
-                # rp2 = [center+p2[0]-p1[0],center+p2[1]-p1[1]]
-                # rp1 = [center+p1[0]-p2[0],center+p1[1]-p2[1]]
-                # pred = (pred_p1[rp2[0],rp2[1]] + pred_p2[rp1[0],rp1[1]]) * 0.5
-                pred = (pred_p1[p2[0],p2[1]] + pred_p2[p1[0],p1[1]]) * 0.5
+                rp2 = [center+p2[0]-p1[0],center+p2[1]-p1[1]]
+                rp1 = [center+p1[0]-p2[0],center+p1[1]-p2[1]]
+                pred = (pred_p1[rp2[0],rp2[1]] + pred_p2[rp1[0],rp1[1]]) * 0.5
+                # pred = (pred_p1[p2[0],p2[1]] + pred_p2[p1[0],p1[1]]) * 0.5
                 pred = np.exp(-0.5 * (1.0-pred)**2 / FLAGS.prediction_sigma**2)
 
-                # d12 = rng[0][0][rj]
-                d12 = LA.norm(p1-p2, 2)
+                d12 = rng[0][0][rj]
+                # d12 = LA.norm(p1-p2, 2)
                 spatial = np.exp(-0.5 * d12**2 / FLAGS.neighbor_sigma**2)
                 f.write('%d %d %f %f\n' % (i, j, pred, spatial))
     else:
@@ -430,7 +432,7 @@ def graphcut(linenet_manager, file_path):
         pred_fp = '../../' + pred_fp
     call(['./gco_linenet', pred_fp])
     os.chdir(working_path)
-    
+
     # read result
     label_file_path = os.path.join(FLAGS.test_dir + '/tmp', file_name) + '.label'
     f = open(label_file_path, 'r')
@@ -442,8 +444,36 @@ def graphcut(linenet_manager, file_path):
     # os.remove(label_file_path)
     duration = time.time() - start_time
     print('%s: %s, labeling finished (%.3f sec)' % (datetime.now(), file_name, duration))
-    
-    
+
+    # merge small label segments
+    knb = NearestNeighbors(n_neighbors=7, algorithm='ball_tree')
+    knb.fit(np.array(line_pixels).transpose())
+
+    for i in xrange(FLAGS.max_num_labels):
+        label = np.nonzero(labels == i)
+        num_label_pixels = len(label[0])
+
+        # if num_label_pixels > 0:
+        #     print('%d: # labels %d' % (i, num_label_pixels))
+
+        if num_label_pixels == 0 or num_label_pixels > 3:
+            continue
+
+        for l in label[0]:
+            p1 = np.array([line_pixels[0][l], line_pixels[1][l]])
+            _, indices = knb.kneighbors([p1], n_neighbors=7)
+            max_label_nb = np.argmax(np.bincount(labels[indices][0]))
+            labels[l] = max_label_nb
+            # print('(%d,%d) %d -> %d' % (p1[0], p1[1], i, max_label_nb))
+
+    # compute accuracy
+    start_time = time.time()
+    accuracy_list = _compute_accuracy(file_path, labels, line_pixels)
+    acc_avg = np.average(accuracy_list)
+    duration = time.time() - start_time
+    print('%s: %s, accuracy computed, avg.: %.3f (%.3f sec)' % (datetime.now(), file_name, acc_avg, duration))
+
+
     # graphcut opt.
     u = np.unique(labels)
     num_labels = u.size
@@ -454,12 +484,6 @@ def graphcut(linenet_manager, file_path):
     print('%s: %s, energy after optimization %.4f' % (datetime.now(), file_name, e_after))
     
 
-    # compute accuracy
-    start_time = time.time()
-    accuracy_list = _compute_accuracy(file_path, labels, line_pixels)
-    acc_avg = np.average(accuracy_list)
-    duration = time.time() - start_time
-    print('%s: %s, accuracy computed, avg.: %.3f (%.3f sec)' % (datetime.now(), file_name, acc_avg, duration))
     
 
     # # write summary
@@ -524,7 +548,7 @@ def graphcut(linenet_manager, file_path):
     # summary_tmp.value[0].tag = 'label_map'
     # summary_writer.add_summary(summary_tmp)
 
-    # tf.gfile.DeleteRecursively(FLAGS.test_dir + '/tmp')
+    tf.gfile.DeleteRecursively(FLAGS.test_dir + '/tmp')
 
     return num_labels, diff_labels, acc_avg
 
@@ -544,6 +568,18 @@ def postprocess():
             elif line.find('total') > -1: break
             
             name, num_labels, diff_labels, accuracy, duration = line.split()
+            
+    # for root, _, files in os.walk(FLAGS.test_dir):
+    #     for file in files:
+    #         ss = file.split('_')
+    #         if len(ss) < 7: continue
+    #         name = ss[2]
+    #         num_labels = ss[5]
+    #         diff_labels = ss[6]
+    #         accuracy = ss[7]
+    #         accuracy = accuracy.rstrip('.png')
+    #         duration = 0
+            
             num_labels = int(num_labels)
             diff_labels = int(diff_labels)
             accuracy = float(accuracy)
@@ -736,30 +772,60 @@ def test():
     min_duration = 10000
     max_duration = -1
     acc_avg_list = []
-    for root, _, files in os.walk(FLAGS.data_dir):
-        for file in files:
-            if not file.lower().endswith('svg_pre'): # 'png'):
-                continue
-            
-            file_path = os.path.join(root, file)
-            start_time = time.time()
-            num_labels, diff_labels, acc_avg = graphcut(linenet_manager, file_path)
-            sum_diff_labels = sum_diff_labels + abs(diff_labels)
-            if diff_labels < min_diff_labels:
-                min_diff_labels = diff_labels
-            if diff_labels > max_diff_labels:
-                max_diff_labels = diff_labels
-            num_files = num_files + 1
-            diff_list.append(diff_labels)            
-            duration = time.time() - start_time
-            sum_duration = sum_duration + duration
-            if duration < min_duration:
-                min_duration = duration
-            if duration > max_duration:
-                max_duration = duration
-            acc_avg_list.append(acc_avg)
-            print('%s:%d-%s processed (%.3f sec)' % (datetime.now(), num_files, file, duration))
-            sf.write('%s %d %d %.3f %.3f\n' % (file, num_labels, diff_labels, acc_avg, duration))
+    if FLAGS.file_list:
+        file_list_path = os.path.join(FLAGS.data_dir, FLAGS.file_list)
+        with open(file_list_path, 'r') as f:
+            while True:
+                line = f.readline()
+                if not line: break
+
+                file = line.rstrip()
+                file_path = os.path.join(FLAGS.data_dir, file)
+                start_time = time.time()
+                num_labels, diff_labels, acc_avg = graphcut(linenet_manager, file_path)
+                sum_diff_labels = sum_diff_labels + abs(diff_labels)
+                if diff_labels < min_diff_labels:
+                    min_diff_labels = diff_labels
+                if diff_labels > max_diff_labels:
+                    max_diff_labels = diff_labels
+                num_files = num_files + 1
+                diff_list.append(diff_labels)            
+                duration = time.time() - start_time
+                sum_duration = sum_duration + duration
+                if duration < min_duration:
+                    min_duration = duration
+                if duration > max_duration:
+                    max_duration = duration
+                acc_avg_list.append(acc_avg)
+                print('%s:%d-%s processed (%.3f sec)' % (datetime.now(), num_files, file, duration))
+                sf.write('%s %d %d %.3f %.3f\n' % (file, num_labels, diff_labels, acc_avg, duration))
+                break
+    else:
+        for root, _, files in os.walk(FLAGS.data_dir):
+            for file in files:
+                if not file.lower().endswith('svg_pre'): # 'png'):
+                    continue
+                
+                file_path = os.path.join(root, file)
+                start_time = time.time()
+                num_labels, diff_labels, acc_avg = graphcut(linenet_manager, file_path)
+                sum_diff_labels = sum_diff_labels + abs(diff_labels)
+                if diff_labels < min_diff_labels:
+                    min_diff_labels = diff_labels
+                if diff_labels > max_diff_labels:
+                    max_diff_labels = diff_labels
+                num_files = num_files + 1
+                diff_list.append(diff_labels)            
+                duration = time.time() - start_time
+                sum_duration = sum_duration + duration
+                if duration < min_duration:
+                    min_duration = duration
+                if duration > max_duration:
+                    max_duration = duration
+                acc_avg_list.append(acc_avg)
+                print('%s:%d-%s processed (%.3f sec)' % (datetime.now(), num_files, file, duration))
+                sf.write('%s %d %d %.3f %.3f\n' % (file, num_labels, diff_labels, acc_avg, duration))
+
 
     # the histogram of the data
     diff_list = np.array(diff_list)

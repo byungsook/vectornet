@@ -483,7 +483,7 @@ def graphcut(linenet_manager, file_path):
     # summary_tmp.value[0].tag = 'label_map'
     # summary_writer.add_summary(summary_tmp)
 
-    # tf.gfile.DeleteRecursively(FLAGS.test_dir + '/tmp')
+    tf.gfile.DeleteRecursively(FLAGS.test_dir + '/tmp')
 
     return num_labels, diff_labels, acc_avg
 
@@ -723,7 +723,6 @@ def test():
                 acc_avg_list.append(acc_avg)
                 print('%s:%d-%s processed (%.3f sec)' % (datetime.now(), num_files, file, duration))
                 sf.write('%s %d %d %.3f %.3f\n' % (file, num_labels, diff_labels, acc_avg, duration))
-                break
     else:
         for root, _, files in os.walk(FLAGS.data_dir):
             for file in files:

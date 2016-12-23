@@ -384,7 +384,7 @@ def graphcut(linenet_manager, file_path):
     duration = time.time() - start_time
     print('%s: %s, labeling finished (%.3f sec)' % (datetime.now(), file_name, duration))
     
-        # merge small label segments
+    # merge small label segments
     knb = NearestNeighbors(n_neighbors=7, algorithm='ball_tree')
     knb.fit(np.array(line_pixels).transpose())
 
@@ -501,8 +501,20 @@ def postprocess():
             line = f.readline()
             if not line: break
             elif line.find('total') > -1: break
-            
+
             name, num_labels, diff_labels, accuracy, duration = line.split()
+
+    # for root, _, files in os.walk(FLAGS.test_dir):
+    #     for file in files:
+    #         if not file.lower().endswith('png'):
+    #             continue
+    #         ss = file.split('_')
+    #         name = ss[2] + '_' + ss[3]
+    #         num_labels = ss[6]
+    #         diff_labels = ss[7]
+    #         accuracy = ss[8].rstrip('.png')
+    #         duration = 0
+
             num_labels = int(num_labels)
             diff_labels = int(diff_labels)
             accuracy = float(accuracy)
@@ -534,7 +546,7 @@ def postprocess():
     min_duration = np.amin(duration_list)
     avg_duration = np.average(duration_list)
     
-    bins = max_diff_labels - min_diff_labels + 1
+    bins = min(max_diff_labels - min_diff_labels, 50)
     fig = plt.figure()
     weights = np.ones_like(diff_list)/float(len(diff_list))
     plt.hist(diff_list, bins=bins, color='blue', normed=False, alpha=0.75, weights=weights)
@@ -568,6 +580,7 @@ def postprocess():
 
 
     fig = plt.figure()
+    bins = 20
     weights = np.ones_like(acc_list)/float(len(acc_list))
     plt.hist(acc_list, bins=bins, color='blue', normed=False, alpha=0.75, weights=weights)
     # plt.hist(acc_list, bins=bins, color='blue', normed=False, alpha=0.75)
@@ -704,6 +717,7 @@ def test():
                 if not line: break
 
                 file = line.rstrip()
+                # file = 'n02374451_6192-3.svg_pre'
                 file_path = os.path.join(FLAGS.data_dir, file)
                 start_time = time.time()
                 num_labels, diff_labels, acc_avg = graphcut(linenet_manager, file_path)

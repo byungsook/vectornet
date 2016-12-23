@@ -611,7 +611,7 @@ def postprocess():
     min_duration = np.amin(duration_list)
     avg_duration = np.average(duration_list)
     
-    bins = max_diff_labels - min_diff_labels + 1
+    bins = max_diff_labels - min_diff_labels
     fig = plt.figure()
     weights = np.ones_like(diff_list)/float(len(diff_list))
     plt.hist(diff_list, bins=bins, color='blue', normed=False, alpha=0.75, weights=weights)
@@ -645,6 +645,7 @@ def postprocess():
 
 
     fig = plt.figure()
+    bins = 20
     weights = np.ones_like(acc_list)/float(len(acc_list))
     plt.hist(acc_list, bins=bins, color='blue', normed=False, alpha=0.75, weights=weights)
     # plt.hist(acc_list, bins=bins, color='blue', normed=False, alpha=0.75)

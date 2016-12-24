@@ -203,7 +203,7 @@ def graphcut(linenet_manager, file_path):
     #     for i in xrange(num_line_pixels):
     #         p1 = np.array([line_pixels[0][i], line_pixels[1][i]])
     #         pred_p1 = np.load(prob_file_path.format(id=i))
-    #         # prediction_map = np.zeros([map_height, map_width, 3], dtype=np.float)
+    #         prediction_map = np.zeros([map_height, map_width, 3], dtype=np.float)
 
     #         rng = nb.radius_neighbors([p1])
     #         for rj, j in enumerate(rng[1][0]): # ids
@@ -216,8 +216,8 @@ def graphcut(linenet_manager, file_path):
     #             pred = (pred_p1[rp2[0],rp2[1]] + pred_p2[rp1[0],rp1[1]]) * 0.5
     #             pred = np.exp(-0.5 * (1.0-pred)**2 / FLAGS.prediction_sigma**2)
 
-    #             if i < j:
-    #                 prediction_list.append(pred)
+    #             # if i < j:
+    #             #     prediction_list.append(pred)
 
     #             d12 = rng[0][0][rj]
     #             spatial = np.exp(-0.5 * d12**2 / FLAGS.neighbor_sigma**2)
@@ -228,7 +228,7 @@ def graphcut(linenet_manager, file_path):
     #         prediction_map[center,center] = np.array([1, 0, 0])
     #         # plt.imshow(prediction_map)
     #         # plt.show()
-    #         save_path = os.path.join(FLAGS.test_dir, 'prediction_map_%d_%s' % (i, file_name))
+    #         save_path = os.path.join(FLAGS.test_dir, 'pdmap_%d_%s.png' % (i, file_name))
     #         scipy.misc.imsave(save_path, prediction_map)
 
     # #         prediction_map = np.reshape(prediction_map, [1, map_height, map_width, 3])

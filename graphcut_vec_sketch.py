@@ -389,6 +389,34 @@ def graphcut(linenet_manager, file_path):
     knb = NearestNeighbors(n_neighbors=7, algorithm='ball_tree')
     knb.fit(np.array(line_pixels).transpose())
 
+    for iter in xrange(2):
+        print('%d-th iter' % iter)
+        for i in xrange(FLAGS.max_num_labels):
+            label = np.nonzero(labels == i)
+            num_label_pixels = len(label[0])
+
+            if num_label_pixels == 0:
+                continue
+
+            # cc analysis
+            label_map = np.zeros([FLAGS.image_height, FLAGS.image_width], dtype=np.float)
+            label_map[line_pixels[0][label],line_pixels[1][label]] = 1.0
+            lm, num_cc = measure.label(label_map, background=0, return_num=True)
+
+            print('%d: # labels %d, # cc %d' % (i, num_label_pixels, num_cc))
+
+            # plt.imshow(lm, cmap='spectral')
+            # plt.show()
+
+            if num_label_pixels <= 5 or num_cc > 5:
+                for l in label[0]:
+                    p1 = np.array([line_pixels[0][l], line_pixels[1][l]])
+                    _, indices = knb.kneighbors([p1], n_neighbors=7)
+                    max_label_nb = np.argmax(np.bincount(labels[indices][0]))
+                    labels[l] = max_label_nb
+                    print(' (%d,%d) %d -> %d' % (p1[0], p1[1], i, max_label_nb))
+
+    
     for i in xrange(FLAGS.max_num_labels):
         label = np.nonzero(labels == i)
         num_label_pixels = len(label[0])
@@ -400,20 +428,9 @@ def graphcut(linenet_manager, file_path):
         label_map = np.zeros([FLAGS.image_height, FLAGS.image_width], dtype=np.float)
         label_map[line_pixels[0][label],line_pixels[1][label]] = 1.0
         lm, num_cc = measure.label(label_map, background=0, return_num=True)
+        label_map_path = os.path.join(FLAGS.test_dir, 'lm_%s_%d_%d.png' % (file_name, i, num_cc))
+        scipy.misc.imsave(label_map_path, label_map)
 
-        print('%d: # labels %d, # cc %d' % (i, num_label_pixels, num_cc))
-        
-        # plt.imshow(lm, cmap='spectral')
-        # plt.show()
-
-        if num_label_pixels <= 5 or num_cc > 5:
-            for l in label[0]:
-                p1 = np.array([line_pixels[0][l], line_pixels[1][l]])
-                _, indices = knb.kneighbors([p1], n_neighbors=7)
-                max_label_nb = np.argmax(np.bincount(labels[indices][0]))
-                labels[l] = max_label_nb
-                print(' (%d,%d) %d -> %d' % (p1[0], p1[1], i, max_label_nb))
-        
     # compute accuracy
     start_time = time.time()
     accuracy_list = _compute_accuracy(file_path, labels, line_pixels)

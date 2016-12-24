@@ -29,6 +29,7 @@ import matplotlib.cm as cmx
 import cairosvg
 from sklearn.neighbors import NearestNeighbors
 import xml.etree.ElementTree as et
+from skimage import measure
 
 import tensorflow as tf
 from linenet.linenet_manager_sketch import LinenetManager
@@ -43,11 +44,11 @@ tf.app.flags.DEFINE_string('data_dir', 'linenet/data/sketch',
                            """Data directory""")
 tf.app.flags.DEFINE_string('file_list', 'test.txt',
                            """file_list""")
-tf.app.flags.DEFINE_integer('image_width', 128, # 48-24-12-6
+tf.app.flags.DEFINE_integer('image_width', 64, # 48-24-12-6
                             """Image Width.""")
-tf.app.flags.DEFINE_integer('image_height', 96, # 48-24-12-6
+tf.app.flags.DEFINE_integer('image_height', 48, # 48-24-12-6
                             """Image Height.""")
-tf.app.flags.DEFINE_boolean('use_batch', True,
+tf.app.flags.DEFINE_boolean('use_batch', False,
                             """whether use batch or not""")
 tf.app.flags.DEFINE_integer('batch_size', 256,
                             """batch_size""")
@@ -61,7 +62,7 @@ tf.app.flags.DEFINE_float('prediction_sigma', 0.7, # 0.7 for 0.5 threshold
                            """prediction sigma""")
 tf.app.flags.DEFINE_float('window_size', 2.0,
                            """window size""")
-tf.app.flags.DEFINE_boolean('compile', False,
+tf.app.flags.DEFINE_boolean('compile', True,
                             """whether compile gco or not""")
 
 
@@ -133,7 +134,7 @@ def _compute_accuracy(svg_file_path, labels, line_pixels):
 
         id = np.argmax(accuracy_list)
         acc = np.amax(accuracy_list)
-        # print('%d-th label, match to %d-th path, max: %.2f' % (i, id, acc))
+        print('%d-th label, match to %d-th path, max: %.2f' % (i, id, acc))
         # consider only large label set
         if acc > 0.1:
             acc_id_list.append(id)
@@ -392,19 +393,27 @@ def graphcut(linenet_manager, file_path):
         label = np.nonzero(labels == i)
         num_label_pixels = len(label[0])
 
-        # if num_label_pixels > 0:
-        #     print('%d: # labels %d' % (i, num_label_pixels))
-
-        if num_label_pixels == 0 or num_label_pixels > 3:
+        if num_label_pixels == 0:
             continue
 
-        for l in label[0]:
-            p1 = np.array([line_pixels[0][l], line_pixels[1][l]])
-            _, indices = knb.kneighbors([p1], n_neighbors=7)
-            max_label_nb = np.argmax(np.bincount(labels[indices][0]))
-            labels[l] = max_label_nb
-            # print('(%d,%d) %d -> %d' % (p1[0], p1[1], i, max_label_nb))
+        # cc analysis
+        label_map = np.zeros([FLAGS.image_height, FLAGS.image_width], dtype=np.float)
+        label_map[line_pixels[0][label],line_pixels[1][label]] = 1.0
+        lm, num_cc = measure.label(label_map, background=0, return_num=True)
 
+        print('%d: # labels %d, # cc %d' % (i, num_label_pixels, num_cc))
+        
+        # plt.imshow(lm, cmap='spectral')
+        # plt.show()
+
+        if num_label_pixels <= 5 or num_cc > 5:
+            for l in label[0]:
+                p1 = np.array([line_pixels[0][l], line_pixels[1][l]])
+                _, indices = knb.kneighbors([p1], n_neighbors=7)
+                max_label_nb = np.argmax(np.bincount(labels[indices][0]))
+                labels[l] = max_label_nb
+                print(' (%d,%d) %d -> %d' % (p1[0], p1[1], i, max_label_nb))
+        
     # compute accuracy
     start_time = time.time()
     accuracy_list = _compute_accuracy(file_path, labels, line_pixels)
@@ -717,7 +726,7 @@ def test():
                 if not line: break
 
                 file = line.rstrip()
-                # file = 'n02374451_6192-3.svg_pre'
+                file = 'n02374451_6192-3.svg_pre'
                 file_path = os.path.join(FLAGS.data_dir, file)
                 start_time = time.time()
                 num_labels, diff_labels, acc_avg = graphcut(linenet_manager, file_path)
@@ -737,6 +746,7 @@ def test():
                 acc_avg_list.append(acc_avg)
                 print('%s:%d-%s processed (%.3f sec)' % (datetime.now(), num_files, file, duration))
                 sf.write('%s %d %d %.3f %.3f\n' % (file, num_labels, diff_labels, acc_avg, duration))
+                break
     else:
         for root, _, files in os.walk(FLAGS.data_dir):
             for file in files:

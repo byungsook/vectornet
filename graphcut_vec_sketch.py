@@ -386,7 +386,7 @@ def graphcut(linenet_manager, file_path):
     print('%s: %s, labeling finished (%.3f sec)' % (datetime.now(), file_name, duration))
     
     # merge small label segments
-    knb = NearestNeighbors(n_neighbors=7, algorithm='ball_tree')
+    knb = NearestNeighbors(n_neighbors=9, algorithm='ball_tree')
     knb.fit(np.array(line_pixels).transpose())
 
     for iter in xrange(2):
@@ -408,15 +408,20 @@ def graphcut(linenet_manager, file_path):
             # plt.imshow(lm, cmap='spectral')
             # plt.show()
 
-            if num_label_pixels <= 5 or num_cc > 5:
-                for l in label[0]:
-                    p1 = np.array([line_pixels[0][l], line_pixels[1][l]])
-                    _, indices = knb.kneighbors([p1], n_neighbors=7)
+            for j in xrange(num_cc):
+                cc = np.nonzero(label_map == (j+1))
+                num_j_cc = len(cc[0])
+
+                if num_j_cc > 1:
+                    continue
+
+                for k in xrange(num_j_cc):
+                    p1 = np.array([cc[0][k], cc[1][k]])
+                    _, indices = knb.kneighbors([p1], n_neighbors=9)
                     max_label_nb = np.argmax(np.bincount(labels[indices][0]))
-                    labels[l] = max_label_nb
+                    labels[indices[0]] = max_label_nb
                     print(' (%d,%d) %d -> %d' % (p1[0], p1[1], i, max_label_nb))
 
-    
     for i in xrange(FLAGS.max_num_labels):
         label = np.nonzero(labels == i)
         num_label_pixels = len(label[0])

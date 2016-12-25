@@ -134,7 +134,7 @@ def _compute_accuracy(svg_file_path, labels, line_pixels):
 
         id = np.argmax(accuracy_list)
         acc = np.amax(accuracy_list)
-        print('%d-th label, match to %d-th path, max: %.2f' % (i, id, acc))
+        # print('%d-th label, match to %d-th path, max: %.2f' % (i, id, acc))
         # consider only large label set
         if acc > 0.1:
             acc_id_list.append(id)
@@ -390,7 +390,7 @@ def graphcut(linenet_manager, file_path):
     knb.fit(np.array(line_pixels).transpose())
 
     for iter in xrange(2):
-        print('%d-th iter' % iter)
+        # print('%d-th iter' % iter)
         for i in xrange(FLAGS.max_num_labels):
             label = np.nonzero(labels == i)
             num_label_pixels = len(label[0])
@@ -403,16 +403,16 @@ def graphcut(linenet_manager, file_path):
             label_map[line_pixels[0][label],line_pixels[1][label]] = 1.0
             lm, num_cc = measure.label(label_map, background=0, return_num=True)
 
-            print('%d: # labels %d, # cc %d' % (i, num_label_pixels, num_cc))
+            # print('%d: # labels %d, # cc %d' % (i, num_label_pixels, num_cc))
 
             # plt.imshow(lm, cmap='spectral')
             # plt.show()
 
             for j in xrange(num_cc):
-                cc = np.nonzero(label_map == (j+1))
+                cc = np.nonzero(lm == (j+1))
                 num_j_cc = len(cc[0])
 
-                if num_j_cc > 1:
+                if num_j_cc > 4:
                     continue
 
                 for k in xrange(num_j_cc):
@@ -420,21 +420,21 @@ def graphcut(linenet_manager, file_path):
                     _, indices = knb.kneighbors([p1], n_neighbors=9)
                     max_label_nb = np.argmax(np.bincount(labels[indices][0]))
                     labels[indices[0]] = max_label_nb
-                    print(' (%d,%d) %d -> %d' % (p1[0], p1[1], i, max_label_nb))
+                    # print(' (%d,%d) %d -> %d' % (p1[0], p1[1], i, max_label_nb))
 
-    for i in xrange(FLAGS.max_num_labels):
-        label = np.nonzero(labels == i)
-        num_label_pixels = len(label[0])
+    # for i in xrange(FLAGS.max_num_labels):
+    #     label = np.nonzero(labels == i)
+    #     num_label_pixels = len(label[0])
 
-        if num_label_pixels == 0:
-            continue
+    #     if num_label_pixels == 0:
+    #         continue
 
-        # cc analysis
-        label_map = np.zeros([FLAGS.image_height, FLAGS.image_width], dtype=np.float)
-        label_map[line_pixels[0][label],line_pixels[1][label]] = 1.0
-        lm, num_cc = measure.label(label_map, background=0, return_num=True)
-        label_map_path = os.path.join(FLAGS.test_dir, 'lm_%s_%d_%d.png' % (file_name, i, num_cc))
-        scipy.misc.imsave(label_map_path, label_map)
+    #     # cc analysis
+    #     label_map = np.zeros([FLAGS.image_height, FLAGS.image_width], dtype=np.float)
+    #     label_map[line_pixels[0][label],line_pixels[1][label]] = 1.0
+    #     lm, num_cc = measure.label(label_map, background=0, return_num=True)
+    #     label_map_path = os.path.join(FLAGS.test_dir, 'lm_%s_%d_%d.png' % (file_name, i, num_cc))
+    #     scipy.misc.imsave(label_map_path, label_map)
 
     # compute accuracy
     start_time = time.time()
@@ -748,7 +748,7 @@ def test():
                 if not line: break
 
                 file = line.rstrip()
-                file = 'n02374451_6192-3.svg_pre'
+                # file = 'n02374451_6192-3.svg_pre'
                 file_path = os.path.join(FLAGS.data_dir, file)
                 start_time = time.time()
                 num_labels, diff_labels, acc_avg = graphcut(linenet_manager, file_path)
@@ -768,7 +768,7 @@ def test():
                 acc_avg_list.append(acc_avg)
                 print('%s:%d-%s processed (%.3f sec)' % (datetime.now(), num_files, file, duration))
                 sf.write('%s %d %d %.3f %.3f\n' % (file, num_labels, diff_labels, acc_avg, duration))
-                break
+                # break
     else:
         for root, _, files in os.walk(FLAGS.data_dir):
             for file in files:

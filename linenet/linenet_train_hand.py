@@ -32,6 +32,8 @@ tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', '',
                            e.g. log/second_train/linenet.ckpt """)
 tf.app.flags.DEFINE_string('file_list', 'train.txt',
                            """file_list""")
+tf.app.flags.DEFINE_float('min_prop', 0.01,
+                          """min_prop""")
 tf.app.flags.DEFINE_integer('max_steps', 3,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_integer('decay_steps', 30000,
@@ -167,7 +169,7 @@ def train():
             assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
 
             # Print statistics periodically.
-            if step % FLAGS.stat_steps == 0:
+            if step % FLAGS.stat_steps == 0 or step < 100:
                 examples_per_sec = FLAGS.batch_size / float(duration)
                 print('%s: epoch %d, step %d, loss = %.2f (%.1f examples/sec; %.3f sec/batch)' % 
                     (datetime.now(), batch_manager.num_epoch, step, loss_value, examples_per_sec, duration))

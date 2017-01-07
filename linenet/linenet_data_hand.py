@@ -8,6 +8,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import sys
 import os
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import io
@@ -139,64 +140,88 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
     num_lines = svg.count('\n')
     num_strokes = int((num_lines - 5) / 2) # polyline start 6
 
-    # stroke_id_list = np.random.permutation(xrange(1,num_strokes+1))
-    # for stroke_id in stroke_id_list:
-    #     c_end = w_end
-    stroke_id = np.random.randint(num_strokes)
+    # stroke_id = np.random.randint(num_strokes)
+    stroke_id_list = np.random.permutation(xrange(0,num_strokes))
+    for stroke_id in stroke_id_list:
+        c_end = w_end
 
-    for _ in xrange(stroke_id+1):
-        c_start = svg.find('<!--', c_end) + 4
-        c_end = svg.find('-->', c_start)
-    x1, x2, _, _ = svg[c_start:c_end].split()
+        for _ in xrange(stroke_id+1):
+            c_start = svg.find('<!--', c_end) + 4
+            c_end = svg.find('-->', c_start)
+        x1, x2, _, _ = svg[c_start:c_end].split()
 
-    min_bx = max(0, float(x2)-FLAGS.image_size)
-    max_bx = min(w-FLAGS.image_size, float(x1))
-    bx = np.random.rand() * (max_bx - min_bx) + min_bx
+        min_bx = max(0, float(x2)-FLAGS.image_size)
+        max_bx = min(w-FLAGS.image_size, float(x1))
+        bx = np.random.rand() * (max_bx - min_bx) + min_bx
 
-    svg_crop = svg.format(
-        w=FLAGS.image_size, h=FLAGS.image_size,
-        bx=bx, by=0, bw=FLAGS.image_size, bh=FLAGS.image_size)
-    s_png = cairosvg.svg2png(bytestring=svg_crop)
-    s_img = Image.open(io.BytesIO(s_png))
-    s = np.array(s_img)[:,:,3].astype(np.float) # / 255.0
-    max_intensity = np.amax(s)
-    s = s / max_intensity
+        svg_crop = svg.format(
+            w=FLAGS.image_size, h=FLAGS.image_size,
+            bx=bx, by=0, bw=FLAGS.image_size, bh=FLAGS.image_size)
+        s_png = cairosvg.svg2png(bytestring=svg_crop.encode('utf-8'))
+        s_img = Image.open(io.BytesIO(s_png))
+        s = np.array(s_img)[:,:,3].astype(np.float) # / 255.0
+        max_intensity = np.amax(s)
+        s = s / max_intensity
 
-    # leave only one path
-    svg_xml = et.fromstring(svg_crop)
-    svg_xml[0]._children = [svg_xml[0]._children[stroke_id]]
-    svg_new = et.tostring(svg_xml, method='xml')
+        # leave only one path
+        svg_xml = et.fromstring(svg_crop)
+        if sys.version_info > (2,7):
+            stroke = svg_xml[0][stroke_id]
+            for c in reversed(xrange(num_strokes)):
+                if svg_xml[0][c] != stroke:
+                    svg_xml[0].remove(svg_xml[0][c])
+        else:
+            svg_xml[0]._children = [svg_xml[0]._children[stroke_id]]
+        svg_new = et.tostring(svg_xml, method='xml')
 
-    y_png = cairosvg.svg2png(bytestring=svg_new)
-    y_img = Image.open(io.BytesIO(y_png))
-    y = np.array(y_img)[:,:,3].astype(np.float) / max_intensity
-    
-    # # debug
-    # svg_all = svg.format(
-    #     w=w, h=FLAGS.image_size,
-    #     bx=0, by=0, bw=w, bh=FLAGS.image_size)
-    # s_all_png = cairosvg.svg2png(bytestring=svg_all)
-    # s_all_img = Image.open(io.BytesIO(s_all_png))
-    # print('stroke_id', stroke_id)
-    # print('min_bx, max_bx, bx', min_bx, max_bx, bx)
-    # plt.figure()
-    # plt.subplot2grid((3,2), (0,0), colspan=2)
-    # plt.imshow(s_all_img)
-    # plt.subplot2grid((3,2), (1,0))
-    # plt.imshow(s_img)
-    # plt.subplot2grid((3,2), (1,1))
-    # plt.imshow(s, cmap=plt.cm.gray)
-    # plt.subplot2grid((3,2), (2,0))
-    # plt.imshow(y_img)
-    # plt.subplot2grid((3,2), (2,1))
-    # plt.imshow(y, cmap=plt.cm.gray)
-    # mng = plt.get_current_fig_manager()
-    # mng.full_screen_toggle()
-    # plt.show()
+        y_png = cairosvg.svg2png(bytestring=svg_new)
+        y_img = Image.open(io.BytesIO(y_png))
+        y = np.array(y_img)[:,:,3].astype(np.float) / max_intensity
+        
+        # # debug
+        # svg_all = svg.format(
+        #     w=w, h=FLAGS.image_size,
+        #     bx=0, by=0, bw=w, bh=FLAGS.image_size)
+        # s_all_png = cairosvg.svg2png(bytestring=svg_all.encode('utf-8'))
+        # s_all_img = Image.open(io.BytesIO(s_all_png))
+        # print('stroke_id', stroke_id)
+        # print('min_bx, max_bx, bx', min_bx, max_bx, bx)
+        # plt.figure()
+        # plt.subplot2grid((3,2), (0,0), colspan=2)
+        # plt.imshow(s_all_img)
+        # plt.subplot2grid((3,2), (1,0))
+        # plt.imshow(s_img)
+        # plt.subplot2grid((3,2), (1,1))
+        # plt.imshow(s, cmap=plt.cm.gray)
+        # plt.subplot2grid((3,2), (2,0))
+        # plt.imshow(y_img)
+        # plt.subplot2grid((3,2), (2,1))
+        # plt.imshow(y, cmap=plt.cm.gray)
+        # mng = plt.get_current_fig_manager()
+        # mng.full_screen_toggle()
+        # plt.show()
 
-    # select arbitrary marking pixel
-    line_ids = np.nonzero(y)
-    num_line_pixels = len(line_ids[0])
+        # select arbitrary marking pixel
+        line_ids = np.nonzero(y)
+        num_line_pixels = len(line_ids[0])
+
+        proportion = num_line_pixels / (FLAGS.image_width*FLAGS.image_height)
+
+        # # debug
+        # print(path_id, proportion)
+
+        # check if valid stroke
+        if num_line_pixels == 0 or proportion < FLAGS.min_prop:
+            svg_xml = et.fromstring(svg)
+            if num_line_pixels > 0:
+                last_valid = y
+        else:
+            break
+
+    if num_line_pixels == 0:
+        y = last_valid
+        line_ids = np.nonzero(y)
+        num_line_pixels = len(line_ids[0])    
 
     point_id = np.random.randint(num_line_pixels)
     px, py = line_ids[0][point_id], line_ids[1][point_id]
@@ -220,6 +245,7 @@ if __name__ == '__main__':
     # parameters 
     tf.app.flags.DEFINE_string('file_list', 'train.txt', """file_list""")
     FLAGS.num_processors = 1
+    FLAGS.min_prop = 0.01
 
     batch_manager = BatchManager()
     s_batch, x_batch, y_batch = batch_manager.batch()

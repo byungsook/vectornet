@@ -22,6 +22,16 @@ import tarfile
 import numpy as np
 import scipy.stats
 import scipy.misc
+import xml.etree.ElementTree as ET
+
+
+SVG_START_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="{w}" height="{h}" viewBox="{bx} {by} {bw} {bh}" xmlns="http://www.w3.org/2000/svg" version="1.1">
+<g fill="none" stroke="black" stroke-width="1">\n"""
+SVG_LINE_START_TEMPLATE = """<polyline id="{id}" points=\""""
+SVG_LINE_END_TEMPLATE = """\" style="stroke:rgb({r}, {g}, {b})"/>\n"""
+SVG_END_TEMPLATE = """</g></svg>"""
 
 
 def split_dataset():
@@ -202,6 +212,95 @@ def preprocess_fidelity(file_path):
     scipy.misc.imsave(save_path, img)
 
 
+def preprocess_hand(file_path, scale_to):
+    # function to read each individual xml file
+    def get_strokes(file_path, scale_to):
+        tree = ET.parse(file_path)
+        root = tree.getroot()
+
+        result = []
+
+        x_offset = 1e20
+        y_offset = 1e20
+        width = 0
+        height = 0
+        for i in range(1, 4):
+            x_offset = min(x_offset, float(root[0][i].attrib['x']))
+            y_offset = min(y_offset, float(root[0][i].attrib['y']))
+            width = max(width, float(root[0][i].attrib['x']))
+            height = max(height, float(root[0][i].attrib['y']))
+        width -= x_offset
+        height -= y_offset
+        width += 200
+        height += 200
+        x_offset -= 100 # white space
+        y_offset -= 100
+        scale_factor = scale_to / height
+        width = round(width*scale_factor, 3)
+        height = scale_to
+
+        for stroke in root[1].findall('Stroke'):
+            points = []
+            for point in stroke.findall('Point'):
+                x = round((float(point.attrib['x']) - x_offset)*scale_factor, 3)
+                y = round((float(point.attrib['y']) - y_offset)*scale_factor, 3)
+                points.append([x, y])
+            result.append(points)
+
+        return result, width, height
+
+    print('processing ' + file_path)
+    strokes, width, height = get_strokes(file_path, scale_to=scale_to)
+    
+    # draw to svg
+    num_strokes = len(strokes)
+    c_data = np.array(np.random.rand(num_strokes,3)*240, dtype=np.uint8)
+    # w, h info
+    svg_pre = SVG_START_TEMPLATE
+    svg_pre += '<!-- {w} {h} -->\n'.format(w=width, h=height)    
+    for i in xrange(num_strokes):
+        svg_pre += SVG_LINE_START_TEMPLATE.format(id=i)
+
+        min_x = 1e20
+        max_x = 0
+        min_y = 1e20
+        max_y = 0
+
+        for j in xrange(len(strokes[i])):
+            svg_pre += str(strokes[i][j][0]) + ' ' + str(strokes[i][j][1]) + ' '
+            min_x = min(min_x, strokes[i][j][0])
+            max_x = max(max_x, strokes[i][j][0])
+            min_y = min(min_y, strokes[i][j][1])
+            max_y = max(max_y, strokes[i][j][1])
+
+        # svg_pre += """\"/>\n"""
+        svg_pre += SVG_LINE_END_TEMPLATE.format(r=c_data[i][0], g=c_data[i][1], b=c_data[i][2])
+        # bounding box info
+        svg_pre += '<!-- {x1} {x2} {y1} {y2} -->\n'.format(
+            x1=min_x, x2=max_x,
+            y1=min_y, y2=max_y)
+    svg_pre += SVG_END_TEMPLATE
+
+    # # debug
+    # # color
+    # img = cairosvg.svg2png(bytestring=svg_pre.format(
+    #     w=width, h=height,
+    #     bx=0, by=0, bw=width, bh=height))
+    #     # w=scale_to, h=scale_to,
+    #     # bx=100, by=0, bw=scale_to, bh=scale_to))
+    # img = Image.open(io.BytesIO(img))
+    # plt.imshow(img)
+    # plt.show()
+
+    # # gray
+    # img = np.array(img)[:,:,3].astype(np.float)
+    # img = img / np.amax(img)
+    # plt.imshow(img, cmap=plt.cm.gray)
+    # plt.show()
+
+    return svg_pre
+
+
 def preprocess(run_id):
     if run_id == 0:
         data_dir = 'linenet/data/sketches'
@@ -211,6 +310,8 @@ def preprocess(run_id):
         data_dir = 'linenet/data/chinese/kanjivg-20160426-all/kanji'
     elif run_id == 3:
         data_dir = 'data_tmp/fidelity/output/svg'
+    elif run_id == 4:
+        data_dir = 'linenet/data/lineStrokes'
 
     if run_id == 0:
         valid_file_list_name = 'checked.txt'
@@ -238,6 +339,20 @@ def preprocess(run_id):
                     write_path = os.path.join(FLAGS.dst_dir, file[:-3] + 'svg_pre')
                     with open(write_path, 'w') as wf:
                         wf.write(svg_pre)
+    elif run_id == 4:
+        for root, _, files in os.walk(data_dir):
+            for file in files:
+                if not file.lower().endswith('xml'):
+                    continue
+
+                file_path = os.path.join(root, file)
+
+                svg_pre = preprocess_hand(file_path, scale_to=128)
+                
+                # write preprocessed svg
+                write_path = os.path.join(FLAGS.dst_dir, file[:-3] + 'svg_pre')
+                with open(write_path, 'w') as wf:
+                    wf.write(svg_pre)
 
     else:
         for root, _, files in os.walk(data_dir):
@@ -278,15 +393,15 @@ def preprocess(run_id):
 def init_arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('process_num',
-                    default=0,
+                    default=4,
                     help='process number',
                     nargs='?') 
     parser.add_argument('dst_dir',
-                    default='linenet/data/sketch', # 'data_tmp/gc_test',
+                    default='linenet/data/hand', # 'data_tmp/gc_test',
                     help='destination directory',
                     nargs='?') # optional arg.
     parser.add_argument('dst_tar',
-                    default='linenet/data/sketch.tar.gz', # 'data_tmp/gc_test',
+                    default='linenet/data/hand.tar.gz', # 'data_tmp/gc_test',
                     help='destination tar file',
                     nargs='?') # optional arg.
     return parser.parse_args()

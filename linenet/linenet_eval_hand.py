@@ -99,7 +99,7 @@ def evaluate():
             num_iter = int(math.ceil(num_eval / FLAGS.batch_size))
             print('total iter: %d' % num_iter)
             total_loss = 0
-            for step in range(1):
+            for step in range(num_iter):
                 start_time = time.time()
                 s_batch, x_batch, y_batch = batch_manager.batch()
                 y_hat_value, loss_value = sess.run([y_hat, loss], feed_dict={phase_train: is_train,

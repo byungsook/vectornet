@@ -94,7 +94,7 @@ def _read_svg(svg_file_path):
     return s, num_path
 
 
-def _compute_accuracy(svg_file_path, labels, line_pixels):
+def _compute_accuracy(svg_file_path, labels, line_pixels, num_line_pixels, dup_rev_dict):
     stroke_list = []
     with open(svg_file_path, 'r') as f:
         svg = f.read()
@@ -168,14 +168,19 @@ def _compute_accuracy(svg_file_path, labels, line_pixels):
         if num_i_label_pixels == 0:
             continue
 
+        # handle duplicated pixels
+        for j, i_label in enumerate(i_label_list[0]):
+            if i_label >= num_line_pixels:
+                i_label_list[0][j] = dup_rev_dict[i_label]
+
         i_label_map = np.zeros([FLAGS.image_height, FLAGS.image_width], dtype=np.bool)
         i_label_map[line_pixels[0][i_label_list],line_pixels[1][i_label_list]] = True
 
-        # morphology transform
-        _, num_cc = measure.label(i_label_map, background=0, return_num=True)
-        if num_cc > 1:
-            i_label_map = scipy.ndimage.morphology.binary_closing(i_label_map, 
-                structure=np.ones((7,7)), iterations=1)
+        # # morphology transform
+        # _, num_cc = measure.label(i_label_map, background=0, return_num=True)
+        # if num_cc > 1:
+        #     i_label_map = scipy.ndimage.morphology.binary_closing(i_label_map, 
+        #         structure=np.ones((7,7)), iterations=1)
 
         # # debug
         # i_label_map_img = i_label_map.astype(np.float)
@@ -244,6 +249,68 @@ def graphcut(linenet_manager, file_path):
         map_height = img.shape[0]
         map_width = img.shape[1]
 
+
+    # TODO: find intersection points
+    with open(file_path, 'r') as f:
+        svg = f.read()
+        r = 0
+        s = [1, -1]
+        t = [0, -900]
+        
+        svg = svg.format(
+            w=FLAGS.image_width, h=FLAGS.image_height,
+            r=r, sx=s[0], sy=s[1], tx=t[0], ty=t[1])
+
+    svg_xml = ET.fromstring(svg)
+    num_paths = len(svg_xml[0]._children)
+
+
+    svg_xml = ET.fromstring(svg)
+    svg_xml[0]._children = [svg_xml[0]._children[0]]
+    svg_one_stroke = ET.tostring(svg_xml, method='xml')
+
+    y_png = cairosvg.svg2png(bytestring=svg_one_stroke)
+    y_img = Image.open(io.BytesIO(y_png))
+    y1 = (np.array(y_img)[:,:,3] > 0)
+
+    # # debug
+    # y_img = np.array(y_img)[:,:,3].astype(np.float) / 255.0
+    # plt.imshow(y_img, cmap=plt.cm.gray)
+    # plt.show()
+
+    svg_xml = ET.fromstring(svg)
+    svg_xml[0]._children = [svg_xml[0]._children[1]]
+    svg_one_stroke = ET.tostring(svg_xml, method='xml')
+
+    y_png = cairosvg.svg2png(bytestring=svg_one_stroke)
+    y_img = Image.open(io.BytesIO(y_png))
+    y2 = (np.array(y_img)[:,:,3] > 0)
+
+    # # debug
+    # y_img = np.array(y_img)[:,:,3].astype(np.float) / 255.0
+    # plt.imshow(y_img, cmap=plt.cm.gray)
+    # plt.show()
+
+    intersect = np.logical_and(y1, y2)
+
+    # # debug
+    # plt.imshow(intersect, cmap=plt.cm.gray)
+    # plt.show()
+
+    dup_dict = {}
+    dup_rev_dict = {}
+    dup_id = num_line_pixels # start id of duplicated pixels
+    for i in xrange(num_line_pixels):
+        p1 = np.array([line_pixels[0][i], line_pixels[1][i]])
+        if intersect[line_pixels[0][i], line_pixels[1][i]]:
+            dup_dict[i] = dup_id
+            dup_rev_dict[dup_id] = i
+            dup_id += 1
+
+    # # debug
+    # print(dup_dict)
+    # print(dup_rev_dict)
+
     
     # write config file for graphcut
     pred_file_path = os.path.join(FLAGS.test_dir + '/tmp', file_name) + '.pred'
@@ -255,7 +322,8 @@ def graphcut(linenet_manager, file_path):
     f.write('%d\n' % FLAGS.label_cost)
     f.write('%f\n' % FLAGS.neighbor_sigma)
     f.write('%f\n' % FLAGS.prediction_sigma)
-    f.write('%d\n' % num_line_pixels)
+    # f.write('%d\n' % num_line_pixels)
+    f.write('%d\n' % dup_id)
 
     # support only symmetric edge weight
     if FLAGS.use_batch:
@@ -279,6 +347,18 @@ def graphcut(linenet_manager, file_path):
                 # d12 = LA.norm(p1-p2, 2) # see entire neighbors
                 spatial = np.exp(-0.5 * d12**2 / FLAGS.neighbor_sigma**2)
                 f.write('%d %d %f %f\n' % (i, j, pred, spatial))
+
+                dup_i = dup_dict.get(i)
+                if dup_i is not None:
+                    f.write('%d %d %f %f\n' % (j, dup_i, pred, spatial)) # as dup is always smaller than normal id
+                    f.write('%d %d %f %f\n' % (i, dup_i, -100, 1)) # might need to set negative pred rather than 0
+                dup_j = dup_dict.get(j)
+                if dup_j is not None:
+                    f.write('%d %d %f %f\n' % (i, dup_j, pred, spatial)) # as dup is always smaller than normal id
+                    f.write('%d %d %f %f\n' % (j, dup_j, -100, 1)) # might need to set negative pred rather than 0
+
+                if dup_i is not None and dup_j is not None:
+                    f.write('%d %d %f %f\n' % (dup_i, dup_j, pred, spatial)) # dup_i < dup_j
     else:
         for i in xrange(num_line_pixels-1):
             p1 = np.array([line_pixels[0][i], line_pixels[1][i]])
@@ -297,6 +377,19 @@ def graphcut(linenet_manager, file_path):
                 # d12 = LA.norm(p1-p2, 2) # see entire neighbors
                 spatial = np.exp(-0.5 * d12**2 / FLAGS.neighbor_sigma**2)
                 f.write('%d %d %f %f\n' % (i, j, pred, spatial))
+
+                dup_i = dup_dict.get(i)
+                if dup_i is not None:
+                    f.write('%d %d %f %f\n' % (j, dup_i, pred, spatial)) # as dup is always smaller than normal id
+                    f.write('%d %d %f %f\n' % (i, dup_i, -100, 1)) # might need to set negative pred rather than 0
+                dup_j = dup_dict.get(j)
+                if dup_j is not None:
+                    f.write('%d %d %f %f\n' % (i, dup_j, pred, spatial)) # as dup is always smaller than normal id
+                    f.write('%d %d %f %f\n' % (j, dup_j, -100, 1)) # might need to set negative pred rather than 0
+
+                if dup_i is not None and dup_j is not None:
+                    f.write('%d %d %f %f\n' % (dup_i, dup_j, pred, spatial)) # dup_i < dup_j
+
     f.close()
     print('%s: %s, prediction computed' % (datetime.now(), file_name))
 
@@ -337,6 +430,11 @@ def graphcut(linenet_manager, file_path):
             if num_i_label_pixels == 0:
                 continue
 
+            # handle duplicated pixels
+            for j, i_label in enumerate(i_label_list[0]):
+                if i_label >= num_line_pixels:
+                    i_label_list[0][j] = dup_rev_dict[i_label]
+
             # connected component analysis on 'i' label map
             i_label_map = np.zeros([FLAGS.image_height, FLAGS.image_width], dtype=np.float)
             i_label_map[line_pixels[0][i_label_list],line_pixels[1][i_label_list]] = 1.0
@@ -370,7 +468,7 @@ def graphcut(linenet_manager, file_path):
     u = np.unique(labels)
     num_labels = u.size
     diff_labels = num_labels - num_paths
-    accuracy_list = _compute_accuracy(file_path, labels, line_pixels)
+    accuracy_list = _compute_accuracy(file_path, labels, line_pixels, num_line_pixels, dup_rev_dict)
     acc_avg = np.average(accuracy_list)
     
     print('%s: %s, the number of labels %d, truth %d, diff %d' % (datetime.now(), file_name, num_labels, num_paths, diff_labels))
@@ -394,6 +492,11 @@ def graphcut(linenet_manager, file_path):
         if num_label_pixels == 0:
             continue
 
+        # handle duplicated pixels
+        for j, i_label in enumerate(i_label_list[0]):
+            if i_label >= num_line_pixels:
+                i_label_list[0][j] = dup_rev_dict[i_label]
+
         color = cscalarmap.to_rgba(np.where(u==i)[0])[0]
         label_map[line_pixels[0][i_label_list],line_pixels[1][i_label_list]] = color[:3]
 
@@ -409,20 +512,20 @@ def graphcut(linenet_manager, file_path):
         color_hex = '#%02x%02x%02x' % (color[0], color[1], color[2])
         call(['potrace', '-s', '-i', '-C'+color_hex, i_label_map_path])
         
-        # morphology transform
-        if num_cc > 1:
-            i_label_map = scipy.ndimage.morphology.binary_closing(i_label_map, 
-                structure=np.ones((7,7)), iterations=1)
+        # # morphology transform
+        # if num_cc > 1:
+        #     i_label_map = scipy.ndimage.morphology.binary_closing(i_label_map, 
+        #         structure=np.ones((7,7)), iterations=1)
 
-            i_label_map_before = os.path.join(FLAGS.test_dir + '/tmp', 'i_label_map_%s_%d_%d.bmp' % (file_name, i, num_cc))
-            i_label_map_new = os.path.join(FLAGS.test_dir + '/tmp', 'i_label_map_%s_%d_%d_before.bmp' % (file_name, i, num_cc))
-            call(['cp', i_label_map_before, i_label_map_new])
-            i_label_svg_before = os.path.join(FLAGS.test_dir + '/tmp', 'i_label_map_%s_%d_%d.svg' % (file_name, i, num_cc))
-            i_label_svg_new = os.path.join(FLAGS.test_dir + '/tmp', 'i_label_map_%s_%d_%d_before.svg' % (file_name, i, num_cc))
-            call(['cp', i_label_svg_before, i_label_svg_new])
+        #     i_label_map_before = os.path.join(FLAGS.test_dir + '/tmp', 'i_label_map_%s_%d_%d.bmp' % (file_name, i, num_cc))
+        #     i_label_map_new = os.path.join(FLAGS.test_dir + '/tmp', 'i_label_map_%s_%d_%d_before.bmp' % (file_name, i, num_cc))
+        #     call(['cp', i_label_map_before, i_label_map_new])
+        #     i_label_svg_before = os.path.join(FLAGS.test_dir + '/tmp', 'i_label_map_%s_%d_%d.svg' % (file_name, i, num_cc))
+        #     i_label_svg_new = os.path.join(FLAGS.test_dir + '/tmp', 'i_label_map_%s_%d_%d_before.svg' % (file_name, i, num_cc))
+        #     call(['cp', i_label_svg_before, i_label_svg_new])
 
-            scipy.misc.imsave(i_label_map_path, i_label_map)
-            call(['potrace', '-s', '-i', '-C'+color_hex, i_label_map_path])
+        #     scipy.misc.imsave(i_label_map_path, i_label_map)
+        #     call(['potrace', '-s', '-i', '-C'+color_hex, i_label_map_path])
 
         i_label_map_svg = os.path.join(FLAGS.test_dir + '/tmp', 'i_label_map_%s_%d_%d.svg' % (file_name, i, num_cc))
         if first_svg:

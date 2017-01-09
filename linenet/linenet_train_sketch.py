@@ -125,7 +125,7 @@ def train():
         # Create a saver (restorer).
         saver = tf.train.Saver()
         if FLAGS.pretrained_model_checkpoint_path:
-            assert tf.gfile.Exists(FLAGS.pretrained_model_checkpoint_path)
+            # assert tf.gfile.Exists(FLAGS.pretrained_model_checkpoint_path)
             saver.restore(sess, FLAGS.pretrained_model_checkpoint_path)
             print('%s: Pre-trained model restored from %s' %
                 (datetime.now(), FLAGS.pretrained_model_checkpoint_path))

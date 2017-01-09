@@ -33,6 +33,7 @@ from skimage import measure
 
 import tensorflow as tf
 from linenet.linenet_manager_chinese import LinenetManager
+from linenet.linenet_manager_intersect import IntersectnetManager
 
 
 # parameters
@@ -40,7 +41,7 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('test_dir', 'test/chinese',
                            """Directory where to write event logs """
                            """and checkpoint.""")
-tf.app.flags.DEFINE_string('data_dir', 'data/chinese',
+tf.app.flags.DEFINE_string('data_dir', 'data/chinese', # 'linenet/data/chinese1', #
                            """Data directory""")
 tf.app.flags.DEFINE_string('file_list', '', # test.txt',
                            """file_list""")
@@ -208,7 +209,7 @@ def _compute_accuracy(svg_file_path, labels, line_pixels, num_line_pixels, dup_r
     return acc_list
 
 
-def graphcut(linenet_manager, file_path):
+def graphcut(linenet_manager, intersectnet_manager, file_path):
     file_name = os.path.splitext(basename(file_path))[0]
     print('%s: %s, start graphcut opt.' % (datetime.now(), file_name))
 
@@ -250,48 +251,56 @@ def graphcut(linenet_manager, file_path):
         map_width = img.shape[1]
 
 
-    # TODO: find intersection points
-    with open(file_path, 'r') as f:
-        svg = f.read()
-        r = 0
-        s = [1, -1]
-        t = [0, -900]
+    # # TODO: find intersection points
+    # with open(file_path, 'r') as f:
+    #     svg = f.read()
+    #     r = 0
+    #     s = [1, -1]
+    #     t = [0, -900]
         
-        svg = svg.format(
-            w=FLAGS.image_width, h=FLAGS.image_height,
-            r=r, sx=s[0], sy=s[1], tx=t[0], ty=t[1])
+    #     svg = svg.format(
+    #         w=FLAGS.image_width, h=FLAGS.image_height,
+    #         r=r, sx=s[0], sy=s[1], tx=t[0], ty=t[1])
 
-    svg_xml = ET.fromstring(svg)
-    num_paths = len(svg_xml[0]._children)
+    # svg_xml = ET.fromstring(svg)
+    # num_paths = len(svg_xml[0]._children)
 
 
-    svg_xml = ET.fromstring(svg)
-    svg_xml[0]._children = [svg_xml[0]._children[0]]
-    svg_one_stroke = ET.tostring(svg_xml, method='xml')
+    # svg_xml = ET.fromstring(svg)
+    # svg_xml[0]._children = [svg_xml[0]._children[0]]
+    # svg_one_stroke = ET.tostring(svg_xml, method='xml')
 
-    y_png = cairosvg.svg2png(bytestring=svg_one_stroke)
-    y_img = Image.open(io.BytesIO(y_png))
-    y1 = (np.array(y_img)[:,:,3] > 0)
+    # y_png = cairosvg.svg2png(bytestring=svg_one_stroke)
+    # y_img = Image.open(io.BytesIO(y_png))
+    # y1 = (np.array(y_img)[:,:,3] > 0)
 
-    # # debug
-    # y_img = np.array(y_img)[:,:,3].astype(np.float) / 255.0
-    # plt.imshow(y_img, cmap=plt.cm.gray)
-    # plt.show()
+    # # # debug
+    # # y_img = np.array(y_img)[:,:,3].astype(np.float) / 255.0
+    # # plt.imshow(y_img, cmap=plt.cm.gray)
+    # # plt.show()
 
-    svg_xml = ET.fromstring(svg)
-    svg_xml[0]._children = [svg_xml[0]._children[1]]
-    svg_one_stroke = ET.tostring(svg_xml, method='xml')
+    # svg_xml = ET.fromstring(svg)
+    # svg_xml[0]._children = [svg_xml[0]._children[1]]
+    # svg_one_stroke = ET.tostring(svg_xml, method='xml')
 
-    y_png = cairosvg.svg2png(bytestring=svg_one_stroke)
-    y_img = Image.open(io.BytesIO(y_png))
-    y2 = (np.array(y_img)[:,:,3] > 0)
+    # y_png = cairosvg.svg2png(bytestring=svg_one_stroke)
+    # y_img = Image.open(io.BytesIO(y_png))
+    # y2 = (np.array(y_img)[:,:,3] > 0)
 
-    # # debug
-    # y_img = np.array(y_img)[:,:,3].astype(np.float) / 255.0
-    # plt.imshow(y_img, cmap=plt.cm.gray)
-    # plt.show()
+    # # # debug
+    # # y_img = np.array(y_img)[:,:,3].astype(np.float) / 255.0
+    # # plt.imshow(y_img, cmap=plt.cm.gray)
+    # # plt.show()
 
-    intersect = np.logical_and(y1, y2)
+    # intersect = np.logical_and(y1, y2)
+    
+    # predict intersection using intersection net
+    start_time = time.time()
+    intersect = (intersectnet_manager.intersect(img) > 0)
+    intersect = np.reshape(intersect[0,:,:,:], [FLAGS.image_height, FLAGS.image_width])
+
+    intersect_map_path = os.path.join(FLAGS.test_dir, 'intersect_map_%s.png' % file_name)
+    scipy.misc.imsave(intersect_map_path, intersect)
 
     # # debug
     # plt.imshow(intersect, cmap=plt.cm.gray)
@@ -311,8 +320,12 @@ def graphcut(linenet_manager, file_path):
     # print(dup_dict)
     # print(dup_rev_dict)
 
+    duration = time.time() - start_time
+    print('%s: %s, intersectnet process (%.3f sec)' % (datetime.now(), file_name, duration))
+
     
     # write config file for graphcut
+    start_time = time.time()
     pred_file_path = os.path.join(FLAGS.test_dir + '/tmp', file_name) + '.pred'
     f = open(pred_file_path, 'w')
     # info
@@ -351,11 +364,11 @@ def graphcut(linenet_manager, file_path):
                 dup_i = dup_dict.get(i)
                 if dup_i is not None:
                     f.write('%d %d %f %f\n' % (j, dup_i, pred, spatial)) # as dup is always smaller than normal id
-                    f.write('%d %d %f %f\n' % (i, dup_i, -100, 1)) # might need to set negative pred rather than 0
+                    f.write('%d %d %f %f\n' % (i, dup_i, -1000, 1)) # might need to set negative pred rather than 0
                 dup_j = dup_dict.get(j)
                 if dup_j is not None:
                     f.write('%d %d %f %f\n' % (i, dup_j, pred, spatial)) # as dup is always smaller than normal id
-                    f.write('%d %d %f %f\n' % (j, dup_j, -100, 1)) # might need to set negative pred rather than 0
+                    f.write('%d %d %f %f\n' % (j, dup_j, -1000, 1)) # might need to set negative pred rather than 0
 
                 if dup_i is not None and dup_j is not None:
                     f.write('%d %d %f %f\n' % (dup_i, dup_j, pred, spatial)) # dup_i < dup_j
@@ -381,17 +394,18 @@ def graphcut(linenet_manager, file_path):
                 dup_i = dup_dict.get(i)
                 if dup_i is not None:
                     f.write('%d %d %f %f\n' % (j, dup_i, pred, spatial)) # as dup is always smaller than normal id
-                    f.write('%d %d %f %f\n' % (i, dup_i, -100, 1)) # might need to set negative pred rather than 0
+                    f.write('%d %d %f %f\n' % (i, dup_i, -1, 1)) # might need to set negative pred rather than 0
                 dup_j = dup_dict.get(j)
                 if dup_j is not None:
                     f.write('%d %d %f %f\n' % (i, dup_j, pred, spatial)) # as dup is always smaller than normal id
-                    f.write('%d %d %f %f\n' % (j, dup_j, -100, 1)) # might need to set negative pred rather than 0
+                    f.write('%d %d %f %f\n' % (j, dup_j, -1, 1)) # might need to set negative pred rather than 0
 
                 if dup_i is not None and dup_j is not None:
                     f.write('%d %d %f %f\n' % (dup_i, dup_j, pred, spatial)) # dup_i < dup_j
 
     f.close()
-    print('%s: %s, prediction computed' % (datetime.now(), file_name))
+    duration = time.time() - start_time
+    print('%s: %s, prediction computed (%.3f)' % (datetime.now(), file_name, duration))
 
     # run gco_linenet
     start_time = time.time()
@@ -711,11 +725,20 @@ def test():
         linenet_manager = LinenetManager([FLAGS.image_height, FLAGS.image_width])
     duration = time.time() - start_time
     print('%s: manager loaded (%.3f sec)' % (datetime.now(), duration))
+
+    start_time = time.time()
+    print('%s: intersect manager loading...' % datetime.now())
+    intersectnet_manager = IntersectnetManager([FLAGS.image_height, FLAGS.image_width])
+    duration = time.time() - start_time
+    print('%s: manager loaded (%.3f sec)' % (datetime.now(), duration))
     
     stat_path = os.path.join(FLAGS.test_dir, 'stat.txt')
     sf = open(stat_path, 'w')
 
     num_files = 0
+    file_path_list = []
+    num_test_files = 10
+        
     if FLAGS.file_list:
         file_list_path = os.path.join(FLAGS.data_dir, FLAGS.file_list)
         with open(file_list_path, 'r') as f:
@@ -725,27 +748,28 @@ def test():
 
                 file = line.rstrip()
                 file_path = os.path.join(FLAGS.data_dir, file)
-                num_files = num_files + 1
-
-                start_time = time.time()
-                num_labels, diff_labels, acc_avg = graphcut(linenet_manager, file_path)
-                duration = time.time() - start_time
-                print('%s:%d-%s processed (%.3f sec)' % (datetime.now(), num_files, file, duration))
-                sf.write('%s %d %d %.3f %.3f\n' % (file, num_labels, diff_labels, acc_avg, duration))
+                file_path_list.append(file_path)
     else:
         for root, _, files in os.walk(FLAGS.data_dir):
             for file in files:
                 if not file.lower().endswith('svg_pre'): # 'png'):
                     continue
-                
-                file_path = os.path.join(root, file)
-                num_files = num_files + 1
 
-                start_time = time.time()
-                num_labels, diff_labels, acc_avg = graphcut(linenet_manager, file_path)
-                duration = time.time() - start_time
-                print('%s:%d-%s processed (%.3f sec)' % (datetime.now(), num_files, file, duration))
-                sf.write('%s %d %d %.3f %.3f\n' % (file, num_labels, diff_labels, acc_avg, duration))
+                file_path = os.path.join(FLAGS.data_dir, file)
+                file_path_list.append(file_path)
+
+    num_total_test_files = len(file_path_list)
+    num_test_files = min(num_total_test_files, num_test_files)
+    file_path_list_id = np.random.choice(num_total_test_files, num_test_files)
+
+    for file_path_id in file_path_list_id:
+        file_path = file_path_list[file_path_id]
+        start_time = time.time()
+        num_files += 1
+        num_labels, diff_labels, acc_avg = graphcut(linenet_manager, intersectnet_manager, file_path)
+        duration = time.time() - start_time
+        print('%s:%d/%d-%s processed (%.3f sec)' % (datetime.now(), num_files, num_test_files, file, duration))
+        sf.write('%s %d %d %.3f %.3f\n' % (file, num_labels, diff_labels, acc_avg, duration))
     
     sf.close()
     postprocess(FLAGS.test_dir)

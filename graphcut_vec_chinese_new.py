@@ -43,8 +43,10 @@ tf.app.flags.DEFINE_string('test_dir', 'test/chinese',
                            """and checkpoint.""")
 tf.app.flags.DEFINE_string('data_dir', 'data/chinese', # 'linenet/data/chinese1', #
                            """Data directory""")
-tf.app.flags.DEFINE_string('file_list', '', # test.txt',
+tf.app.flags.DEFINE_string('file_list', 'test.txt',
                            """file_list""")
+tf.app.flags.DEFINE_integer('num_test_files', 10,
+                           """num_test_files""")
 tf.app.flags.DEFINE_integer('image_width', 48,
                             """Image Width.""")
 tf.app.flags.DEFINE_integer('image_height', 48,
@@ -737,7 +739,6 @@ def test():
 
     num_files = 0
     file_path_list = []
-    num_test_files = 10
         
     if FLAGS.file_list:
         file_list_path = os.path.join(FLAGS.data_dir, FLAGS.file_list)
@@ -759,8 +760,8 @@ def test():
                 file_path_list.append(file_path)
 
     num_total_test_files = len(file_path_list)
-    num_test_files = min(num_total_test_files, num_test_files)
-    file_path_list_id = np.random.choice(num_total_test_files, num_test_files)
+    FLAGS.num_test_files = min(num_total_test_files, FLAGS.num_test_files)
+    file_path_list_id = np.random.choice(num_total_test_files, FLAGS.num_test_files)
 
     for file_path_id in file_path_list_id:
         file_path = file_path_list[file_path_id]
@@ -768,7 +769,7 @@ def test():
         num_files += 1
         num_labels, diff_labels, acc_avg = graphcut(linenet_manager, intersectnet_manager, file_path)
         duration = time.time() - start_time
-        print('%s:%d/%d-%s processed (%.3f sec)' % (datetime.now(), num_files, num_test_files, file, duration))
+        print('%s:%d/%d-%s processed (%.3f sec)' % (datetime.now(), num_files, FLAGS.num_test_files, file, duration))
         sf.write('%s %d %d %.3f %.3f\n' % (file, num_labels, diff_labels, acc_avg, duration))
     
     sf.close()

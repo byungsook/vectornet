@@ -41,7 +41,7 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('test_dir', 'test/chinese',
                            """Directory where to write event logs """
                            """and checkpoint.""")
-tf.app.flags.DEFINE_string('data_dir', 'data/chinese', # 'linenet/data/chinese1', #
+tf.app.flags.DEFINE_string('data_dir', 'linenet/data/chinese1', # 'linenet/data/chinese1', #
                            """Data directory""")
 tf.app.flags.DEFINE_string('file_list', 'test.txt',
                            """file_list""")
@@ -478,10 +478,14 @@ def graphcut(linenet_manager, intersectnet_manager, file_path):
                     p1 = np.array([j_cc_list[0][k], j_cc_list[1][k]])
                     _, indices = knb.kneighbors([p1], n_neighbors=5)
                     max_label_nb = np.argmax(np.bincount(labels[indices][0]))
-                    labels[indices[0]] = max_label_nb
+                    labels[indices[0][0]] = max_label_nb
+
                     # # debug
                     # print(' (%d,%d) %d -> %d' % (p1[0], p1[1], i, max_label_nb))
 
+                    dup = dup_dict.get(indices[0][0])
+                    if dup is not None:
+                        labels[dup] = max_label_nb
 
     # print result
     u = np.unique(labels)

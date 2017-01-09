@@ -45,7 +45,7 @@ tf.app.flags.DEFINE_string('data_dir', 'linenet/data/chinese1', # 'linenet/data/
                            """Data directory""")
 tf.app.flags.DEFINE_string('file_list', 'test.txt',
                            """file_list""")
-tf.app.flags.DEFINE_integer('num_test_files', 2,
+tf.app.flags.DEFINE_integer('num_test_files', 1,
                            """num_test_files""")
 tf.app.flags.DEFINE_integer('image_width', 48,
                             """Image Width.""")
@@ -778,7 +778,7 @@ def test():
         num_labels, diff_labels, acc_avg = graphcut(linenet_manager, intersectnet_manager, file_path)
         duration = time.time() - start_time
         print('%s:%d/%d-%s processed (%.3f sec)' % (datetime.now(), num_files, FLAGS.num_test_files, file, duration))
-        sf.write('%s %d %d %.3f %.3f\n' % (file, num_labels, diff_labels, acc_avg, duration))
+        sf.write('%s %d %d %.3f %.3f\n' % (file_path.split('/')[-1], num_labels, diff_labels, acc_avg, duration))
     
     sf.close()
     postprocess(FLAGS.test_dir)

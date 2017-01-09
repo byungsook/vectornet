@@ -45,7 +45,7 @@ tf.app.flags.DEFINE_string('data_dir', 'data/chinese', # 'linenet/data/chinese1'
                            """Data directory""")
 tf.app.flags.DEFINE_string('file_list', 'test.txt',
                            """file_list""")
-tf.app.flags.DEFINE_integer('num_test_files', 10,
+tf.app.flags.DEFINE_integer('num_test_files', 2,
                            """num_test_files""")
 tf.app.flags.DEFINE_integer('image_width', 48,
                             """Image Width.""")
@@ -68,6 +68,8 @@ tf.app.flags.DEFINE_float('window_size', 2.0,
 tf.app.flags.DEFINE_boolean('chinese1', True,
                             """whether chinese1 or not""")
 tf.app.flags.DEFINE_boolean('compile', False,
+                            """whether compile gco or not""")
+tf.app.flags.DEFINE_boolean('use_intersect', False,
                             """whether compile gco or not""")
 
 
@@ -311,12 +313,13 @@ def graphcut(linenet_manager, intersectnet_manager, file_path):
     dup_dict = {}
     dup_rev_dict = {}
     dup_id = num_line_pixels # start id of duplicated pixels
-    for i in xrange(num_line_pixels):
-        p1 = np.array([line_pixels[0][i], line_pixels[1][i]])
-        if intersect[line_pixels[0][i], line_pixels[1][i]]:
-            dup_dict[i] = dup_id
-            dup_rev_dict[dup_id] = i
-            dup_id += 1
+    if FLAGS.use_intersect:
+        for i in xrange(num_line_pixels):
+            p1 = np.array([line_pixels[0][i], line_pixels[1][i]])
+            if intersect[line_pixels[0][i], line_pixels[1][i]]:
+                dup_dict[i] = dup_id
+                dup_rev_dict[dup_id] = i
+                dup_id += 1
 
     # # debug
     # print(dup_dict)
@@ -396,11 +399,11 @@ def graphcut(linenet_manager, intersectnet_manager, file_path):
                 dup_i = dup_dict.get(i)
                 if dup_i is not None:
                     f.write('%d %d %f %f\n' % (j, dup_i, pred, spatial)) # as dup is always smaller than normal id
-                    f.write('%d %d %f %f\n' % (i, dup_i, -1, 1)) # might need to set negative pred rather than 0
+                    f.write('%d %d %f %f\n' % (i, dup_i, -1000, 1)) # might need to set negative pred rather than 0
                 dup_j = dup_dict.get(j)
                 if dup_j is not None:
                     f.write('%d %d %f %f\n' % (i, dup_j, pred, spatial)) # as dup is always smaller than normal id
-                    f.write('%d %d %f %f\n' % (j, dup_j, -1, 1)) # might need to set negative pred rather than 0
+                    f.write('%d %d %f %f\n' % (j, dup_j, -1000, 1)) # might need to set negative pred rather than 0
 
                 if dup_i is not None and dup_j is not None:
                     f.write('%d %d %f %f\n' % (dup_i, dup_j, pred, spatial)) # dup_i < dup_j
@@ -761,6 +764,7 @@ def test():
 
     num_total_test_files = len(file_path_list)
     FLAGS.num_test_files = min(num_total_test_files, FLAGS.num_test_files)
+    np.random.seed(0)
     file_path_list_id = np.random.choice(num_total_test_files, FLAGS.num_test_files)
 
     for file_path_id in file_path_list_id:

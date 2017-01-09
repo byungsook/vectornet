@@ -31,6 +31,8 @@ tf.app.flags.DEFINE_float('moving_avg_decay', 0.9999,
                           """The decay to use for the moving average.""")
 tf.app.flags.DEFINE_integer('max_images', FLAGS.batch_size,
                             """max # images to save.""")
+tf.app.flags.DEFINE_boolean('transform', False,
+                            """Whether to transform character.""")
 tf.app.flags.DEFINE_string('file_list', 'test.txt',
                            """file_list""")
 tf.app.flags.DEFINE_integer('num_epoch', 10,

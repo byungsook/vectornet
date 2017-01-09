@@ -161,7 +161,11 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
         s_img = Image.open(io.BytesIO(s_png))
         s = np.array(s_img)[:,:,3].astype(np.float) # / 255.0
         max_intensity = np.amax(s)
-        s = s / max_intensity
+
+        if max_intensity == 0:
+            continue
+        else:
+            s = s / max_intensity
 
         # leave only one path
         svg_xml = et.fromstring(svg_crop)
@@ -212,7 +216,6 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
 
         # check if valid stroke
         if num_line_pixels == 0 or proportion < FLAGS.min_prop:
-            svg_xml = et.fromstring(svg)
             if num_line_pixels > 0:
                 last_valid = y
         else:
@@ -221,7 +224,7 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
     if num_line_pixels == 0:
         y = last_valid
         line_ids = np.nonzero(y)
-        num_line_pixels = len(line_ids[0])    
+        num_line_pixels = len(line_ids[0])
 
     point_id = np.random.randint(num_line_pixels)
     px, py = line_ids[0][point_id], line_ids[1][point_id]

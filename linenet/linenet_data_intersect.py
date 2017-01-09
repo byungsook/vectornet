@@ -96,6 +96,7 @@ class BatchManager(object):
             self._svg_batch = self._mpmanager.list(['' for _ in xrange(FLAGS.batch_size)])
             self._func = partial(train_set, svg_batch=self._svg_batch, x_batch=self.x_batch, y_batch=self.y_batch)
 
+
     def __del__(self):
         if FLAGS.num_processors > 1:
             self._pool.terminate() # or close
@@ -167,11 +168,11 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
         x_img = Image.open(io.BytesIO(x_png))
         x = np.array(x_img)[:,:,3].astype(np.float) # / 255.0
         max_intensity = np.amax(x)
-        x = x / max_intensity
         
-        if len(np.nonzero(x)[0]) == 0:
+        if max_intensity == 0:
             continue
-    
+        else:
+            x = x / max_intensity
 
         y = np.zeros([FLAGS.image_height, FLAGS.image_width], dtype=np.bool)
         stroke_list = []

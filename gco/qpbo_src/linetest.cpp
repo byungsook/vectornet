@@ -83,7 +83,7 @@ void test2() {
 				gc->setNeighbors(i, j, 1); // just assume every pixel is connected to each other
 			}
 		}
-		gc->setNeighbors(2, 7, 0);
+		gc->setNeighbors(2, 7, 1);
 		gc->setLabelCost(label_cost);
 		gc->setLabelOrder(true); // random order
 

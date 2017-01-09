@@ -182,10 +182,13 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
                 r=r, sx=s[0], sy=s[1], tx=t[0], ty=t[1])
         s_png = cairosvg.svg2png(bytestring=svg)
         s_img = Image.open(io.BytesIO(s_png))
-        s = np.array(s_img)[:,:,3].astype(np.float) / 255.0
+        s = np.array(s_img)[:,:,3].astype(np.float) # / 255.0
+        max_intensity = np.amax(s)
         
-        if len(np.nonzero(s)[0]) == 0:
+        if max_intensity == 0:
             continue
+        else:
+            s = s / max_intensity
     
         # # debug
         # plt.imshow(s, cmap=plt.cm.gray)
@@ -216,7 +219,7 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
 
         y_png = cairosvg.svg2png(bytestring=svg)
         y_img = Image.open(io.BytesIO(y_png))
-        y = np.array(y_img)[:,:,3].astype(np.float) / 255.0
+        y = np.array(y_img)[:,:,3].astype(np.float) / max_intensity
         
         # # debug
         # plt.imshow(y, cmap=plt.cm.gray)

@@ -41,21 +41,21 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('test_dir', 'test/hand',
                            """Directory where to write event logs """
                            """and checkpoint.""")
-tf.app.flags.DEFINE_string('data_dir', 'data/hand', # 'linenet/data/chinese1', #
+tf.app.flags.DEFINE_string('data_dir', 'linenet/data/hand', #
                            """Data directory""")
-tf.app.flags.DEFINE_string('file_list', '',
+tf.app.flags.DEFINE_string('file_list', 'test.txt',
                            """file_list""")
-tf.app.flags.DEFINE_integer('num_test_files', 3,
+tf.app.flags.DEFINE_integer('num_test_files', 1,
                            """num_test_files""")
-tf.app.flags.DEFINE_integer('image_height', 96,
+tf.app.flags.DEFINE_integer('image_height', 128,
                             """Image Width.""")
-tf.app.flags.DEFINE_integer('image_width', 48,
+tf.app.flags.DEFINE_integer('image_width', 0,
                             """Image Width.""")
-tf.app.flags.DEFINE_boolean('use_batch', False,
+tf.app.flags.DEFINE_boolean('use_batch', True,
                             """whether use batch or not""")
 tf.app.flags.DEFINE_integer('batch_size', 256,
                             """batch_size""")
-tf.app.flags.DEFINE_integer('max_num_labels',64,
+tf.app.flags.DEFINE_integer('max_num_labels', 100,
                            """the maximum number of labels""")
 tf.app.flags.DEFINE_integer('label_cost', 0,
                            """label cost""")
@@ -67,7 +67,7 @@ tf.app.flags.DEFINE_float('window_size', 2.0,
                            """window size""")
 tf.app.flags.DEFINE_boolean('compile', False,
                             """whether compile gco or not""")
-tf.app.flags.DEFINE_boolean('use_intersect', False,
+tf.app.flags.DEFINE_boolean('use_intersect', True,
                             """whether compile gco or not""")
 
 
@@ -83,17 +83,46 @@ def _imread(img_file_name):
     return scipy.stats.threshold(1.0 - img, threshmin=0.2, newval=0.0)
 
 
+def _read_svg(svg_file_path):
+    with open(svg_file_path, 'r') as f:
+        svg = f.read()
+
+    c_start = svg.find('<!--') + 4
+    c_end = svg.find('-->', c_start)
+    w = float(svg[c_start:c_end].split()[0])
+    h = float(svg[c_start:c_end].split()[1])
+    w_end = c_end
+    
+    num_lines = svg.count('\n')
+    num_strokes = int((num_lines - 5) / 2) # polyline start 6
+
+    ratio = FLAGS.image_height / h
+    FLAGS.image_width = int(w * ratio)
+
+    svg = svg.format(
+        w=FLAGS.image_width, h=FLAGS.image_height,
+        bx=0, by=0, bw=w, bh=h, sw=1)
+    s_png = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
+    s_img = Image.open(io.BytesIO(s_png))
+    s = np.array(s_img)[:,:,3].astype(np.float) # / 255.0
+    max_intensity = np.amax(s)
+    s /= max_intensity
+
+    return s, num_strokes
+
+
 def graphcut(file_path):
     file_name = os.path.splitext(basename(file_path))[0]
     print('%s: %s, start graphcut opt.' % (datetime.now(), file_name))
 
-    img = _imread(file_path)
-    FLAGS.image_height = img.shape[0]
-    FLAGS.image_width = img.shape[1]
+    # img = _imread(file_path)
+    # FLAGS.image_height = img.shape[0]
+    # FLAGS.image_width = img.shape[1]
+    img, num_strokes = _read_svg(file_path)
 
-    # # debug
-    # plt.imshow(img, cmap=plt.cm.gray)
-    # plt.show()
+    # debug
+    plt.imshow(img, cmap=plt.cm.gray)
+    plt.show()
 
 
     # create managers
@@ -101,10 +130,10 @@ def graphcut(file_path):
     print('%s: manager loading...' % datetime.now())
 
     if FLAGS.use_batch:
-        # dist = int(FLAGS.window_size * FLAGS.neighbor_sigma + 0.5)
-        # crop_size = 2 * dist + 1
-        # linenet_manager = LinenetManager([FLAGS.image_height, FLAGS.image_width], crop_size)
-        linenet_manager = LinenetManager([FLAGS.image_height, FLAGS.image_width])
+        dist = int(FLAGS.window_size * FLAGS.neighbor_sigma + 0.5)
+        crop_size = 2 * dist + 1
+        linenet_manager = LinenetManager([FLAGS.image_height, FLAGS.image_width], crop_size)
+        # linenet_manager = LinenetManager([FLAGS.image_height, FLAGS.image_width])
     else:
         linenet_manager = LinenetManager([FLAGS.image_height, FLAGS.image_width])
     duration = time.time() - start_time
@@ -122,8 +151,8 @@ def graphcut(file_path):
     tf.gfile.MakeDirs(FLAGS.test_dir + '/tmp')
     if FLAGS.use_batch:
         prob_file_path = os.path.join(FLAGS.test_dir + '/tmp', file_name) + '_{id}.npy'
-        # linenet_manager.extract_save_crop(img, FLAGS.batch_size, prob_file_path)
-        linenet_manager.extract_save(img, FLAGS.batch_size, prob_file_path)
+        linenet_manager.extract_save_crop(img, FLAGS.batch_size, prob_file_path)
+        # linenet_manager.extract_save(img, FLAGS.batch_size, prob_file_path)
     else:
         y_batch, _ = linenet_manager.extract_all(img)
 
@@ -198,20 +227,21 @@ def graphcut(file_path):
             p1 = np.array([line_pixels[0][i], line_pixels[1][i]])
             pred_p1 = np.load(prob_file_path.format(id=i))
             rng = nb.radius_neighbors([p1])
-            # for rj, j in enumerate(rng[1][0]): # ids
-            #     if j <= i:
-            #         continue
-            for j in xrange(i+1, num_line_pixels): # see entire neighbors
+            neighbor_list = rng[1][0]
+            for rj, j in enumerate(neighbor_list): # ids
+                if j <= i:
+                    continue
+            # for j in xrange(i+1, num_line_pixels): # see entire neighbors
                 p2 = np.array([line_pixels[0][j], line_pixels[1][j]])
                 pred_p2 = np.load(prob_file_path.format(id=j))
-                # rp2 = [center+p2[0]-p1[0],center+p2[1]-p1[1]]
-                # rp1 = [center+p1[0]-p2[0],center+p1[1]-p2[1]]
-                # pred = (pred_p1[rp2[0],rp2[1]] + pred_p2[rp1[0],rp1[1]]) * 0.5
-                pred = (pred_p1[p2[0],p2[1]] + pred_p2[p1[0],p1[1]]) * 0.5 # see entire neighbors
+                rp2 = [center+p2[0]-p1[0],center+p2[1]-p1[1]]
+                rp1 = [center+p1[0]-p2[0],center+p1[1]-p2[1]]
+                pred = (pred_p1[rp2[0],rp2[1]] + pred_p2[rp1[0],rp1[1]]) * 0.5
+                # pred = (pred_p1[p2[0],p2[1]] + pred_p2[p1[0],p1[1]]) * 0.5 # see entire neighbors
                 pred = np.exp(-0.5 * (1.0-pred)**2 / FLAGS.prediction_sigma**2)
 
-                # d12 = rng[0][0][rj]
-                d12 = LA.norm(p1-p2, 2) # see entire neighbors
+                d12 = rng[0][0][rj]
+                # d12 = LA.norm(p1-p2, 2) # see entire neighbors
                 spatial = np.exp(-0.5 * d12**2 / FLAGS.neighbor_sigma**2)
                 f.write('%d %d %f %f\n' % (i, j, pred, spatial))
 
@@ -226,22 +256,28 @@ def graphcut(file_path):
 
                 if dup_i is not None and dup_j is not None:
                     f.write('%d %d %f %f\n' % (dup_i, dup_j, pred, spatial)) # dup_i < dup_j
+
+            outside_list = np.setxor1d(xrange(num_line_pixels), neighbor_list)
+            for j in outside_list:
+                if j <= i: continue
+                else: f.write('%d %d %f %f\n' % (i, j, 0, 0))
     else:
         for i in xrange(num_line_pixels-1):
             p1 = np.array([line_pixels[0][i], line_pixels[1][i]])
             pred_p1 = np.reshape(y_batch[i,:,:,:], [map_height, map_width])
-            # rng = nb.radius_neighbors([p1])
-            # for rj, j in enumerate(rng[1][0]): # ids
-            #     if j <= i:
-            #         continue
-            for j in xrange(i+1, num_line_pixels): # see entire neighbors
+            rng = nb.radius_neighbors([p1])
+            neighbor_list = rng[1][0]
+            for rj, j in enumerate(neighbor_list): # ids
+                if j <= i:
+                    continue
+            # for j in xrange(i+1, num_line_pixels): # see entire neighbors
                 p2 = np.array([line_pixels[0][j], line_pixels[1][j]])
                 pred_p2 = np.reshape(y_batch[j,:,:,:], [map_height, map_width])
                 pred = (pred_p1[p2[0],p2[1]] + pred_p2[p1[0],p1[1]]) * 0.5
                 pred = np.exp(-0.5 * (1.0-pred)**2 / FLAGS.prediction_sigma**2)
 
-                # d12 = rng[0][0][rj]
-                d12 = LA.norm(p1-p2, 2) # see entire neighbors
+                d12 = rng[0][0][rj]
+                # d12 = LA.norm(p1-p2, 2) # see entire neighbors
                 spatial = np.exp(-0.5 * d12**2 / FLAGS.neighbor_sigma**2)
                 f.write('%d %d %f %f\n' % (i, j, pred, spatial))
 
@@ -256,6 +292,10 @@ def graphcut(file_path):
 
                 if dup_i is not None and dup_j is not None:
                     f.write('%d %d %f %f\n' % (dup_i, dup_j, pred, spatial)) # dup_i < dup_j
+
+            outside_list = np.setxor1d(xrange(num_line_pixels), neighbor_list)
+            for j in outside_list:
+                if j > i: f.write('%d %d %f %f\n' % (i, j, 0, 0))
 
     f.close()
     duration = time.time() - start_time

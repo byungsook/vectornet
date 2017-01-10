@@ -120,9 +120,9 @@ def graphcut(file_path):
     # FLAGS.image_width = img.shape[1]
     img, num_strokes = _read_svg(file_path)
 
-    # debug
-    plt.imshow(img, cmap=plt.cm.gray)
-    plt.show()
+    # # debug
+    # plt.imshow(img, cmap=plt.cm.gray)
+    # plt.show()
 
 
     # create managers

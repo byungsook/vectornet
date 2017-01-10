@@ -28,7 +28,7 @@ import xml.etree.ElementTree as ET
 SVG_START_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
 <svg width="{w}" height="{h}" viewBox="{bx} {by} {bw} {bh}" xmlns="http://www.w3.org/2000/svg" version="1.1">
-<g fill="none" stroke="black" stroke-width="1">\n"""
+<g fill="none" stroke="black" stroke-width="{sw}">\n"""
 SVG_LINE_START_TEMPLATE = """<polyline id="{id}" points=\""""
 SVG_LINE_END_TEMPLATE = """\" style="stroke:rgb({r}, {g}, {b})"/>\n"""
 SVG_END_TEMPLATE = """</g></svg>"""

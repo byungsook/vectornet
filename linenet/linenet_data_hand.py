@@ -40,6 +40,10 @@ tf.app.flags.DEFINE_integer('image_width', 128,
                             """Image Width.""")
 tf.app.flags.DEFINE_integer('image_height', 128,
                             """Image Height.""")
+tf.app.flags.DEFINE_float('noise_intensity', 0.2,
+                          """uniform noise intensity""")
+tf.app.flags.DEFINE_integer('max_stroke_width', 5,
+                          """max stroke width""")
 tf.app.flags.DEFINE_integer('num_processors', 8,
                             """# of processors for batch generation.""")
 
@@ -139,6 +143,7 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
     
     num_lines = svg.count('\n')
     num_strokes = int((num_lines - 5) / 2) # polyline start 6
+    stroke_width = np.random.randint(FLAGS.max_stroke_width) + 1
 
     # stroke_id = np.random.randint(num_strokes)
     stroke_id_list = np.random.permutation(xrange(0,num_strokes))
@@ -156,16 +161,11 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
 
         svg_crop = svg.format(
             w=FLAGS.image_size, h=FLAGS.image_size,
-            bx=bx, by=0, bw=FLAGS.image_size, bh=FLAGS.image_size)
+            bx=bx, by=0, bw=FLAGS.image_size, bh=FLAGS.image_size,
+            sw=stroke_width)
         s_png = cairosvg.svg2png(bytestring=svg_crop.encode('utf-8'))
         s_img = Image.open(io.BytesIO(s_png))
-        s = np.array(s_img)[:,:,3].astype(np.float) # / 255.0
-        max_intensity = np.amax(s)
-
-        if max_intensity == 0:
-            continue
-        else:
-            s = s / max_intensity
+        s = np.array(s_img)[:,:,3].astype(np.float) / 300.0 # make it a bit dimmed
 
         # leave only one path
         svg_xml = et.fromstring(svg_crop)
@@ -180,7 +180,7 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
 
         y_png = cairosvg.svg2png(bytestring=svg_new)
         y_img = Image.open(io.BytesIO(y_png))
-        y = np.array(y_img)[:,:,3].astype(np.float) / max_intensity
+        y = np.array(y_img)[:,:,3].astype(np.float)
         
         # # debug
         # svg_all = svg.format(
@@ -228,6 +228,36 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
 
     point_id = np.random.randint(num_line_pixels)
     px, py = line_ids[0][point_id], line_ids[1][point_id]
+
+    # add noise
+    noise = FLAGS.noise_intensity * np.random.randn(*s.shape)
+    s = np.clip(s + noise, a_min=0.0, a_max=1.0)
+    max_intensity = np.amax(s)
+    s = s / max_intensity
+    max_intensity = np.amax(y)
+    y = y / max_intensity
+
+    # # debug
+    # svg_all = svg.format(
+    #     w=w, h=FLAGS.image_size,
+    #     bx=0, by=0, bw=w, bh=FLAGS.image_size,
+    #     sw=stroke_width)
+    # s_all_png = cairosvg.svg2png(bytestring=svg_all.encode('utf-8'))
+    # s_all_img = Image.open(io.BytesIO(s_all_png))
+    # plt.figure()
+    # plt.subplot2grid((3,2), (0,0), colspan=2)
+    # plt.imshow(s_all_img)
+    # plt.subplot2grid((3,2), (1,0))
+    # plt.imshow(s_img)
+    # plt.subplot2grid((3,2), (1,1))
+    # plt.imshow(s, cmap=plt.cm.gray)
+    # plt.subplot2grid((3,2), (2,0))
+    # plt.imshow(y_img)
+    # plt.subplot2grid((3,2), (2,1))
+    # plt.imshow(y, cmap=plt.cm.gray)
+    # mng = plt.get_current_fig_manager()
+    # mng.full_screen_toggle()
+    # plt.show()
 
     s_batch[i,:,:,:] = np.reshape(s, [FLAGS.image_size, FLAGS.image_size, 1])
     y_batch[i,:,:,:] = np.reshape(y, [FLAGS.image_size, FLAGS.image_size, 1])

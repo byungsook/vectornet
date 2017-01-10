@@ -49,9 +49,9 @@ tf.app.flags.DEFINE_integer('num_test_files', 3,
                            """num_test_files""")
 tf.app.flags.DEFINE_integer('image_height', 96,
                             """Image Width.""")
-tf.app.flags.DEFINE_integer('image_width', 128,
+tf.app.flags.DEFINE_integer('image_width', 48,
                             """Image Width.""")
-tf.app.flags.DEFINE_boolean('use_batch', True,
+tf.app.flags.DEFINE_boolean('use_batch', False,
                             """whether use batch or not""")
 tf.app.flags.DEFINE_integer('batch_size', 256,
                             """batch_size""")
@@ -339,11 +339,8 @@ def graphcut(file_path):
     # print result
     u = np.unique(labels)
     num_labels = u.size
-    diff_labels = num_labels - num_paths
-    accuracy_list = _compute_accuracy(file_path, labels, line_pixels, num_line_pixels, dup_rev_dict)
-    acc_avg = np.average(accuracy_list)
     
-    print('%s: %s, the number of labels %d, truth %d, diff %d' % (datetime.now(), file_name, num_labels, num_paths, diff_labels))
+    print('%s: %s, the number of labels %d' % (datetime.now(), file_name, num_labels))
     print('%s: %s, energy before optimization %.4f' % (datetime.now(), file_name, e_before))
     print('%s: %s, energy after optimization %.4f' % (datetime.now(), file_name, e_after))
     print('%s: %s, accuracy computed, avg.: %.3f' % (datetime.now(), file_name, acc_avg))
@@ -356,7 +353,7 @@ def graphcut(file_path):
     
     label_map = np.ones([FLAGS.image_height, FLAGS.image_width, 3], dtype=np.float)
     first_svg = True
-    target_svg_path = os.path.join(FLAGS.test_dir, 'label_map_svg_%s.svg' % file_name)        
+    target_svg_path = os.path.join(FLAGS.test_dir, 'label_map_svg_%s_%d.svg' % (file_name, num_labels))
     for i in xrange(FLAGS.max_num_labels):
         i_label_list = np.nonzero(labels == i)
         num_label_pixels = len(i_label_list[0])
@@ -419,7 +416,7 @@ def graphcut(file_path):
             with open(target_svg_path, 'w') as f:
                 f.write(target_svg)
 
-    label_map_path = os.path.join(FLAGS.test_dir, 'label_map_%s_%.2f_%.2f_%d_%d_%.2f.png' % (file_name, FLAGS.neighbor_sigma, FLAGS.prediction_sigma, num_labels, diff_labels, acc_avg))
+    label_map_path = os.path.join(FLAGS.test_dir, 'label_map_%s_%.2f_%.2f_%d.png' % (file_name, FLAGS.neighbor_sigma, FLAGS.prediction_sigma, num_labels))
     scipy.misc.imsave(label_map_path, label_map)
 
     # # debug
@@ -427,146 +424,7 @@ def graphcut(file_path):
     # plt.show()
       
     # tf.gfile.DeleteRecursively(FLAGS.test_dir + '/tmp')
-    return num_labels, diff_labels, acc_avg
-
-def postprocess(stat_dir):
-    num_files = 0
-    path_list = []
-    diff_list = []
-    acc_list = []
-    duration_list = []
-    
-    stat_path = os.path.join(stat_dir, 'stat.txt')
-    with open(stat_path, 'r') as f:
-        while True:
-            line = f.readline()
-            if not line: break
-            elif line.find('total') > -1: break
-            
-            name, num_labels, diff_labels, accuracy, duration = line.split()
-            
-    # for root, _, files in os.walk(FLAGS.test_dir):
-    #     for file in files:
-    #         ss = file.split('_')
-    #         if len(ss) < 7: continue
-    #         name = ss[2]
-    #         num_labels = ss[5]
-    #         diff_labels = ss[6]
-    #         accuracy = ss[7]
-    #         accuracy = accuracy.rstrip('.png')
-    #         duration = 0
-            
-            num_labels = int(num_labels)
-            diff_labels = int(diff_labels)
-            accuracy = float(accuracy)
-            duration = float(duration)
-            num_paths = num_labels - diff_labels
-
-            num_files = num_files + 1
-            path_list.append(num_paths)
-            diff_list.append(diff_labels)
-            acc_list.append(accuracy)
-            duration_list.append(duration)
-
-    # the histogram of the data
-    path_list = np.array(path_list)
-    diff_list = np.array(diff_list)
-    acc_list = np.array(acc_list)
-    duration_list = np.array(duration_list)
-
-    max_paths = np.amax(path_list)
-    min_paths = np.amin(path_list)
-    avg_paths = np.average(path_list)
-    max_diff_labels = np.amax(diff_list)
-    min_diff_labels = np.amin(diff_list)
-    avg_diff_labels = np.average(np.abs(diff_list))
-    max_acc = np.amax(acc_list)
-    min_acc = np.amin(acc_list)
-    avg_acc = np.average(acc_list)
-    max_duration = np.amax(duration_list)
-    min_duration = np.amin(duration_list)
-    avg_duration = np.average(duration_list)
-    
-    bins = max_diff_labels - min_diff_labels + 1    
-    fig = plt.figure()
-    weights = np.ones_like(diff_list)/float(len(diff_list))
-    plt.hist(diff_list, bins=bins, color='blue', normed=False, alpha=0.75, weights=weights)
-    plt.xlim(min_diff_labels, max_diff_labels)
-    plt.ylim(0, 1)
-    plt.title('Histogram of Label Difference (normalized)')
-    plt.grid(True)
-    
-    fig.canvas.draw()
-    pred_hist = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
-    pred_hist = pred_hist.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-    plt.close(fig)
-
-    hist_path = os.path.join(stat_dir, 'label_diff_hist_norm.png')
-    scipy.misc.imsave(hist_path, pred_hist)
-
-    
-    fig = plt.figure()
-    plt.hist(diff_list, bins=bins, color='blue', normed=False, alpha=0.75)
-    plt.xlim(min_diff_labels, max_diff_labels)
-    plt.title('Histogram of Label Difference')
-    plt.grid(True)
-    
-    fig.canvas.draw()
-    pred_hist = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
-    pred_hist = pred_hist.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-    plt.close(fig)
-
-    hist_path = os.path.join(stat_dir, 'label_diff_hist.png')
-    scipy.misc.imsave(hist_path, pred_hist)
-
-
-    fig = plt.figure()
-    bins = 20
-    weights = np.ones_like(acc_list)/float(len(acc_list))
-    plt.hist(acc_list, bins=bins, color='blue', normed=False, alpha=0.75, weights=weights)
-    # plt.hist(acc_list, bins=bins, color='blue', normed=False, alpha=0.75)
-    plt.xlim(0, 1)
-    plt.ylim(0, 1)
-    plt.title('Histogram of Accuracy (normalized)')
-    plt.grid(True)
-    
-    fig.canvas.draw()
-    pred_hist = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
-    pred_hist = pred_hist.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-    plt.close(fig)
-
-    hist_path = os.path.join(stat_dir, 'accuracy_hist_norm.png')
-    scipy.misc.imsave(hist_path, pred_hist)
-
-    
-    fig = plt.figure()
-    plt.hist(acc_list, bins=bins, color='blue', normed=False, alpha=0.75)
-    plt.xlim(0, 1)
-    plt.title('Histogram of Accuracy')
-    plt.grid(True)
-    
-    fig.canvas.draw()
-    pred_hist = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
-    pred_hist = pred_hist.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-    plt.close(fig)
-
-    hist_path = os.path.join(stat_dir, 'accuracy_hist.png')
-    scipy.misc.imsave(hist_path, pred_hist)
-
-
-    print('total # files: %d' % num_files)
-    print('min/max/avg. paths: %d, %d, %.3f' % (min_paths, max_paths, avg_paths))
-    print('min/max/avg. abs diff labels: %d, %d, %.3f' % (min_diff_labels, max_diff_labels, avg_diff_labels))
-    print('min/max/avg. accuracy: %.3f, %.3f, %.3f' % (min_acc, max_acc, avg_acc))
-    print('min/max/avg. duration (sec): %.3f, %.3f, %.3f' % (min_duration, max_duration, avg_duration))
-    
-    result_path = os.path.join(stat_dir, 'result.txt')
-    f = open(result_path, 'w')
-    f.write('min/max/avg. paths: %d, %d, %.3f\n' % (min_paths, max_paths, avg_paths))
-    f.write('min/max/avg. abs diff labels: %d, %d, %.3f\n' % (min_diff_labels, max_diff_labels, avg_diff_labels))
-    f.write('min/max/avg. accuracy: %.3f, %.3f, %.3f\n' % (min_acc, max_acc, avg_acc))
-    f.write('min/max/avg. duration (sec): %.3f, %.3f, %.3f\n' % (min_duration, max_duration, avg_duration))    
-    f.close()
+    return num_labels
 
 
 def test():
@@ -604,13 +462,12 @@ def test():
         file_path = file_path_list[file_path_id]
         start_time = time.time()
         num_files += 1
-        num_labels, diff_labels, acc_avg = graphcut(file_path)
+        num_labels = graphcut(file_path)
         duration = time.time() - start_time
         print('%s:%d/%d-%s processed (%.3f sec)' % (datetime.now(), num_files, FLAGS.num_test_files, file, duration))
-        sf.write('%s %d %d %.3f %.3f\n' % (file_path.split('/')[-1], num_labels, diff_labels, acc_avg, duration))
+        sf.write('%s %d %.3f\n' % (file_path.split('/')[-1], num_labels, duration))
     
     sf.close()
-    postprocess(FLAGS.test_dir)
     print('Done')
 
 

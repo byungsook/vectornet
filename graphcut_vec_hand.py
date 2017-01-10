@@ -259,7 +259,7 @@ def graphcut(file_path):
 
     f.close()
     duration = time.time() - start_time
-    print('%s: %s, prediction computed (%.3f)' % (datetime.now(), file_name, duration))
+    print('%s: %s, prediction computed (%.3f sec)' % (datetime.now(), file_name, duration))
 
     # run gco_linenet
     start_time = time.time()
@@ -308,10 +308,10 @@ def graphcut(file_path):
             i_label_map[line_pixels[0][i_label_list],line_pixels[1][i_label_list]] = 1.0
             cc_map, num_cc = measure.label(i_label_map, background=0, return_num=True)
 
-            # debug
-            print('%d: # labels %d, # cc %d' % (i, num_i_label_pixels, num_cc))
-            plt.imshow(cc_map, cmap='spectral')
-            plt.show()
+            # # debug
+            # print('%d: # labels %d, # cc %d' % (i, num_i_label_pixels, num_cc))
+            # plt.imshow(cc_map, cmap='spectral')
+            # plt.show()
 
             # detect small pixel component
             for j in xrange(num_cc):

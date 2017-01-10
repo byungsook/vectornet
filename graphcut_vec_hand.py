@@ -285,7 +285,8 @@ def graphcut(file_path):
 
 
     # merge small label segments
-    knb = NearestNeighbors(n_neighbors=5, algorithm='ball_tree')
+    n_neighbors = min(5, num_line_pixels)
+    knb = NearestNeighbors(n_neighbors=n_neighbors, algorithm='ball_tree')
     knb.fit(np.array(line_pixels).transpose())
 
     for iter in xrange(2):
@@ -325,7 +326,7 @@ def graphcut(file_path):
                 # assign dominant label of neighbors using knn
                 for k in xrange(num_j_cc):
                     p1 = np.array([j_cc_list[0][k], j_cc_list[1][k]])
-                    _, indices = knb.kneighbors([p1], n_neighbors=5)
+                    _, indices = knb.kneighbors([p1], n_neighbors=n_neighbors)
                     max_label_nb = np.argmax(np.bincount(labels[indices][0]))
                     labels[indices[0][0]] = max_label_nb
 
@@ -452,10 +453,12 @@ def test():
                 file_path = os.path.join(FLAGS.data_dir, file)
                 file_path_list.append(file_path)
 
+    file_path_list.sort()
     num_total_test_files = len(file_path_list)
     FLAGS.num_test_files = min(num_total_test_files, FLAGS.num_test_files)
     np.random.seed(0)
     file_path_list_id = np.random.choice(num_total_test_files, FLAGS.num_test_files)
+    file_path_list_id.sort()
 
     for file_path_id in file_path_list_id:
         file_path = file_path_list[file_path_id]

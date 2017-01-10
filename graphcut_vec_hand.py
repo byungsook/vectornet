@@ -89,6 +89,7 @@ def graphcut(file_path):
 
     img = _imread(file_path)
     FLAGS.image_height = img.shape[0]
+    FLAGS.image_width = img.shape[1]
 
     # # debug
     # plt.imshow(img, cmap=plt.cm.gray)

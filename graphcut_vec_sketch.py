@@ -33,6 +33,7 @@ from skimage import measure
 
 import tensorflow as tf
 from linenet.linenet_manager_sketch import LinenetManager
+from linenet.linenet_manager_intersect import IntersectnetManager
 
 
 # parameters
@@ -42,17 +43,19 @@ tf.app.flags.DEFINE_string('test_dir', 'test/sketch',
                            """and checkpoint.""")
 tf.app.flags.DEFINE_string('data_dir', 'linenet/data/sketch',
                            """Data directory""")
-tf.app.flags.DEFINE_string('file_list', 'test.txt',
+tf.app.flags.DEFINE_string('file_list', '',
                            """file_list""")
-tf.app.flags.DEFINE_integer('image_width', 64, # 48-24-12-6
+tf.app.flags.DEFINE_integer('num_test_files', 1,
+                           """num_test_files""")
+tf.app.flags.DEFINE_integer('image_width', 64, # 64-96-128
                             """Image Width.""")
-tf.app.flags.DEFINE_integer('image_height', 48, # 48-24-12-6
+tf.app.flags.DEFINE_integer('image_height', 48, # 48-72-96
                             """Image Height.""")
-tf.app.flags.DEFINE_boolean('use_batch', False,
+tf.app.flags.DEFINE_boolean('use_batch', True,
                             """whether use batch or not""")
 tf.app.flags.DEFINE_integer('batch_size', 256,
                             """batch_size""")
-tf.app.flags.DEFINE_integer('max_num_labels', 64,
+tf.app.flags.DEFINE_integer('max_num_labels', 100,
                            """the maximum number of labels""")
 tf.app.flags.DEFINE_integer('label_cost', 0,
                            """label cost""")
@@ -62,7 +65,9 @@ tf.app.flags.DEFINE_float('prediction_sigma', 0.7, # 0.7 for 0.5 threshold
                            """prediction sigma""")
 tf.app.flags.DEFINE_float('window_size', 2.0,
                            """window size""")
-tf.app.flags.DEFINE_boolean('compile', True,
+tf.app.flags.DEFINE_boolean('compile', False,
+                            """whether compile gco or not""")
+tf.app.flags.DEFINE_boolean('use_intersect', True,
                             """whether compile gco or not""")
 
 
@@ -80,7 +85,7 @@ def _read_svg(svg_file_path):
     return s, num_paths
 
 
-def _compute_accuracy(svg_file_path, labels, line_pixels):
+def _compute_accuracy(svg_file_path, labels, line_pixels, num_line_pixels, dup_rev_dict):
     stroke_list = []
     with open(svg_file_path, 'r') as f:
         svg = f.read()
@@ -108,25 +113,29 @@ def _compute_accuracy(svg_file_path, labels, line_pixels):
     acc_id_list = []
     acc_list = []
     for i in xrange(FLAGS.max_num_labels):
-        label = np.nonzero(labels == i)
-        # print('%d: # labels %d' % (i, len(label[0])))
-        if len(label[0]) == 0:
+        i_label_list = np.nonzero(labels == i)
+        num_i_label_pixels = len(i_label_list[0])
+
+        if num_i_label_pixels == 0:
             continue
 
-        label_map = np.zeros([FLAGS.image_height, FLAGS.image_width], dtype=np.bool)
-        # for j in label:
-        #     label_map[line_pixels[0][j],line_pixels[1][j]] = True
-        label_map[line_pixels[0][label],line_pixels[1][label]] = True
+        # handle duplicated pixels
+        for j, i_label in enumerate(i_label_list[0]):
+            if i_label >= num_line_pixels:
+                i_label_list[0][j] = dup_rev_dict[i_label]
+
+        i_label_map = np.zeros([FLAGS.image_height, FLAGS.image_width], dtype=np.bool)
+        i_label_map[line_pixels[0][i_label_list],line_pixels[1][i_label_list]] = True
 
         # # debug
-        # label_map_img = label_map.astype(np.float)
-        # plt.imshow(label_map_img, cmap=plt.cm.gray)
+        # i_label_map_img = i_label_map.astype(np.float)
+        # plt.imshow(i_label_map_img, cmap=plt.cm.gray)
         # plt.show()
 
         accuracy_list = []
         for j, stroke in enumerate(stroke_list):
-            intersect = np.sum(np.logical_and(label_map, stroke))
-            union = np.sum(np.logical_or(label_map, stroke))
+            intersect = np.sum(np.logical_and(i_label_map, stroke))
+            union = np.sum(np.logical_or(i_label_map, stroke))
             accuracy = intersect / float(union)
             # print('compare with %d-th path, intersect: %d, union :%d, accuracy %.2f' % 
             #     (j, intersect, union, accuracy))
@@ -136,36 +145,30 @@ def _compute_accuracy(svg_file_path, labels, line_pixels):
         acc = np.amax(accuracy_list)
         # print('%d-th label, match to %d-th path, max: %.2f' % (i, id, acc))
         # consider only large label set
-        if acc > 0.1:
-            acc_id_list.append(id)
-            acc_list.append(acc)
+        # if acc > 0.1:
+        acc_id_list.append(id)
+        acc_list.append(acc)
 
     # print('avg: %.2f' % np.average(acc_list))
     return acc_list
 
 
-def graphcut(linenet_manager, file_path):
+def graphcut(linenet_manager, intersectnet_manager, file_path):
     file_name = os.path.splitext(basename(file_path))[0]
     print('%s: %s, start graphcut opt.' % (datetime.now(), file_name))
 
+    # convert svg to raster image
     img, num_paths = _read_svg(file_path)
-    # img = _imread(file_path)
 
     # # debug
     # plt.imshow(img, cmap=plt.cm.gray)
     # plt.show()
 
+
+    # predict using linenet
     start_time = time.time()
+    
     tf.gfile.MakeDirs(FLAGS.test_dir + '/tmp')
-    line_pixels = np.nonzero(img)
-    num_line_pixels = len(line_pixels[0])
-
-    dist = center = int(FLAGS.window_size * FLAGS.neighbor_sigma + 0.5)
-    crop_size = int(2 * dist + 1)
-
-    nb = NearestNeighbors(radius=dist)
-    nb.fit(np.array(line_pixels).transpose())
-
     if FLAGS.use_batch:
         prob_file_path = os.path.join(FLAGS.test_dir + '/tmp', file_name) + '_{id}.npy'
         linenet_manager.extract_save_crop(img, FLAGS.batch_size, prob_file_path)
@@ -176,138 +179,55 @@ def graphcut(linenet_manager, file_path):
     duration = time.time() - start_time
     print('%s: %s, linenet process (%.3f sec)' % (datetime.now(), file_name, duration))
 
-    # sess = tf.InteractiveSession()
-    # summary_writer = tf.train.SummaryWriter(os.path.join(FLAGS.test_dir, file_name), sess.graph)
 
-    # # original
-    # img_ph = tf.placeholder(dtype=tf.float32, shape=[None, img.shape[0], img.shape[1], 1])
-    # img_summary = tf.image_summary('image', img_ph, max_images=1)
-    # summary_str = img_summary.eval(feed_dict={img_ph: np.reshape(1.0-img, [1, img.shape[0], img.shape[1], 1])})
-    # summary_tmp = tf.Summary()
-    # summary_tmp.ParseFromString(summary_str)
-    # summary_tmp.value[0].tag = 'image'
-    # summary_writer.add_summary(summary_tmp)
-
+    # for neighbor search
+    dist = center = int(FLAGS.window_size * FLAGS.neighbor_sigma + 0.5)
+    crop_size = int(2 * dist + 1)
+    line_pixels = np.nonzero(img)
+    num_line_pixels = len(line_pixels[0])
+    nb = NearestNeighbors(radius=dist)
+    nb.fit(np.array(line_pixels).transpose())
+  
     if FLAGS.use_batch:
         map_height = map_width = crop_size
     else:
         map_height = img.shape[0]
         map_width = img.shape[1]
 
-    # # ##################################################################################
-    # # # debug: generate similarity map
-    # # pred_map_ph = tf.placeholder(dtype=tf.float32, shape=[None, map_height, map_width, 3])
-    # # pred_map_summary = tf.image_summary('pred_map', pred_map_ph, max_images=1)
-    # # prediction_list = []
-
-    # if FLAGS.use_batch:
-    #     for i in xrange(num_line_pixels):
-    #         p1 = np.array([line_pixels[0][i], line_pixels[1][i]])
-    #         pred_p1 = np.load(prob_file_path.format(id=i))
-    #         prediction_map = np.zeros([map_height, map_width, 3], dtype=np.float)
-
-    #         rng = nb.radius_neighbors([p1])
-    #         for rj, j in enumerate(rng[1][0]): # ids
-    #             if i == j:
-    #                 continue
-    #             p2 = np.array([line_pixels[0][j], line_pixels[1][j]])
-    #             pred_p2 = np.load(prob_file_path.format(id=j))
-    #             rp2 = [center+p2[0]-p1[0],center+p2[1]-p1[1]]
-    #             rp1 = [center+p1[0]-p2[0],center+p1[1]-p2[1]]
-    #             pred = (pred_p1[rp2[0],rp2[1]] + pred_p2[rp1[0],rp1[1]]) * 0.5
-    #             pred = np.exp(-0.5 * (1.0-pred)**2 / FLAGS.prediction_sigma**2)
-
-    #             # if i < j:
-    #             #     prediction_list.append(pred)
-
-    #             d12 = rng[0][0][rj]
-    #             spatial = np.exp(-0.5 * d12**2 / FLAGS.neighbor_sigma**2)
-    #             pred = spatial * pred
-    #             prediction_map[center+p2[0]-p1[0],center+p2[1]-p1[1]] = np.array([pred, pred, pred])
-
-    #         prediction_map = prediction_map / np.amax(prediction_map)
-    #         prediction_map[center,center] = np.array([1, 0, 0])
-    #         # plt.imshow(prediction_map)
-    #         # plt.show()
-    #         save_path = os.path.join(FLAGS.test_dir, 'pdmap_%d_%s.png' % (i, file_name))
-    #         scipy.misc.imsave(save_path, prediction_map)
-
-    # #         prediction_map = np.reshape(prediction_map, [1, map_height, map_width, 3])
-    # #         summary_str = pred_map_summary.eval(feed_dict={pred_map_ph: prediction_map})
-    # #         summary_tmp.ParseFromString(summary_str)
-    # #         summary_tmp.value[0].tag = 'pred_map/%04d' % i
-    # #         summary_writer.add_summary(summary_tmp)
-
-    # # else:
-    # #     for i in xrange(num_line_pixels):
-    # #         p1 = np.array([line_pixels[0][i], line_pixels[1][i]])
-    # #         pred_p1 = np.reshape(y_batch[i,:,:,:], [map_height, map_width])
-    # #         prediction_map = np.zeros([map_height, map_width, 3], dtype=np.float)
-
-    # #         rng = nb.radius_neighbors([p1])
-    # #         for rj, j in enumerate(rng[1][0]): # ids
-    # #             if i == j:
-    # #                 continue
-    # #             p2 = np.array([line_pixels[0][j], line_pixels[1][j]])
-    # #             pred_p2 = np.reshape(y_batch[j,:,:,:], [map_height, map_width])
-    # #             pred = (pred_p1[p2[0],p2[1]] + pred_p2[p1[0],p1[1]]) * 0.5
-    # #             pred = np.exp(-0.5 * (1.0-pred)**2 / FLAGS.prediction_sigma**2)
-
-    # #             if i < j:
-    # #                 prediction_list.append(pred)
-
-    # #             if FLAGS.neighbor_sigma > 0:
-    # #                 d12 = rng[0][0][rj]
-    # #                 spatial = np.exp(-0.5 * d12**2 / FLAGS.neighbor_sigma**2)
-    # #                 pred = spatial * pred
-    # #             prediction_map[p2[0],p2[1]] = np.array([pred, pred, pred])
-
-    # #         prediction_map = prediction_map / np.amax(prediction_map)
-    # #         prediction_map[p1[0],p1[1]] = np.array([1, 0, 0])
-    # #         # plt.imshow(prediction_map)
-    # #         # plt.show()
-    # #         # save_path = os.path.join(FLAGS.test_dir, 'prediction_map_%d_%s' % (i, file_name))
-    # #         # scipy.misc.imsave(save_path, prediction_map)
-
-    # #         prediction_map = np.reshape(prediction_map, [1, map_height, map_width, 3])
-    # #         summary_str = pred_map_summary.eval(feed_dict={pred_map_ph: prediction_map})
-    # #         summary_tmp.ParseFromString(summary_str)
-    # #         summary_tmp.value[0].tag = 'pred_map/%04d' % i
-    # #         summary_writer.add_summary(summary_tmp)
-
-    # # # the histogram of the data
-    # # prediction_list = np.array(prediction_list)
     
-    # # fig = plt.figure()
-    # # weights = np.ones_like(prediction_list)/float(len(prediction_list))
-    # # plt.hist(prediction_list, bins=50, color='blue', normed=False, alpha=0.75, weights=weights)
-    # # plt.xlim(0, 1)
-    # # plt.ylim(0, 0.5)
-    # # plt.title('Histogram of Kpq')
-    # # plt.grid(True)
+    # predict intersection using intersection net
+    start_time = time.time()
+    intersect = (intersectnet_manager.intersect(img) > 0)
+    intersect = np.reshape(intersect[0,:,:,:], [FLAGS.image_height, FLAGS.image_width])
+
+    intersect_map_path = os.path.join(FLAGS.test_dir, 'intersect_map_%s.png' % file_name)
+    scipy.misc.imsave(intersect_map_path, intersect)
+
+    # # debug
+    # plt.imshow(intersect, cmap=plt.cm.gray)
+    # plt.show()
+
+    dup_dict = {}
+    dup_rev_dict = {}
+    dup_id = num_line_pixels # start id of duplicated pixels
+    if FLAGS.use_intersect:
+        for i in xrange(num_line_pixels):
+            p1 = np.array([line_pixels[0][i], line_pixels[1][i]])
+            if intersect[line_pixels[0][i], line_pixels[1][i]]:
+                dup_dict[i] = dup_id
+                dup_rev_dict[dup_id] = i
+                dup_id += 1
+
+    # # debug
+    # print(dup_dict)
+    # print(dup_rev_dict)
+
+    duration = time.time() - start_time
+    print('%s: %s, intersectnet process (%.3f sec)' % (datetime.now(), file_name, duration))
+
     
-    # # # Now we can save it to a numpy array.
-    # # fig.canvas.draw()
-    # # pred_hist = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
-    # # pred_hist = pred_hist.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-    # # plt.close(fig)
-
-    # # hist_path = os.path.join(FLAGS.test_dir, 'hist_%s_%f_%f.png' % (file_name, FLAGS.neighbor_sigma, FLAGS.prediction_sigma))
-    # # scipy.misc.imsave(hist_path, pred_hist)
-
-    # # pred_hist = np.reshape(pred_hist, [1, pred_hist.shape[0], pred_hist.shape[1], pred_hist.shape[2]])
-    # # pred_hist_ph = tf.placeholder(dtype=tf.uint8, shape=pred_hist.shape)
-    # # pred_hist_summary = tf.image_summary('Kpq_hist', pred_hist_ph, max_images=1)
-    
-    # # summary_str = pred_hist_summary.eval(feed_dict={pred_hist_ph: pred_hist})
-    # # summary_tmp.ParseFromString(summary_str)
-    # # summary_tmp.value[0].tag = 'pred_Kpq_hist'
-    # # summary_writer.add_summary(summary_tmp)
-
-    # # print('Done')
-    # # return
-    # # ###################################################################################
-
+    # write config file for graphcut
+    start_time = time.time()
     pred_file_path = os.path.join(FLAGS.test_dir + '/tmp', file_name) + '.pred'
     f = open(pred_file_path, 'w')
     # info
@@ -317,7 +237,8 @@ def graphcut(linenet_manager, file_path):
     f.write('%d\n' % FLAGS.label_cost)
     f.write('%f\n' % FLAGS.neighbor_sigma)
     f.write('%f\n' % FLAGS.prediction_sigma)
-    f.write('%d\n' % num_line_pixels)
+    # f.write('%d\n' % num_line_pixels)
+    f.write('%d\n' % dup_id)
 
     # support only symmetric edge weight
     if FLAGS.use_batch:
@@ -325,41 +246,80 @@ def graphcut(linenet_manager, file_path):
             p1 = np.array([line_pixels[0][i], line_pixels[1][i]])
             pred_p1 = np.load(prob_file_path.format(id=i))
             rng = nb.radius_neighbors([p1])
-            for rj, j in enumerate(rng[1][0]): # ids
+            neighbor_list = rng[1][0]
+            for rj, j in enumerate(neighbor_list): # ids
                 if j <= i:
                     continue
-            # for j in xrange(i+1, num_line_pixels):
+            # for j in xrange(i+1, num_line_pixels): # see entire neighbors
                 p2 = np.array([line_pixels[0][j], line_pixels[1][j]])
                 pred_p2 = np.load(prob_file_path.format(id=j))
                 rp2 = [center+p2[0]-p1[0],center+p2[1]-p1[1]]
                 rp1 = [center+p1[0]-p2[0],center+p1[1]-p2[1]]
                 pred = (pred_p1[rp2[0],rp2[1]] + pred_p2[rp1[0],rp1[1]]) * 0.5
+                # pred = (pred_p1[p2[0],p2[1]] + pred_p2[p1[0],p1[1]]) * 0.5 # see entire neighbors
                 pred = np.exp(-0.5 * (1.0-pred)**2 / FLAGS.prediction_sigma**2)
 
                 d12 = rng[0][0][rj]
-                # d12 = LA.norm(p1-p2, 2)
+                # d12 = LA.norm(p1-p2, 2) # see entire neighbors
                 spatial = np.exp(-0.5 * d12**2 / FLAGS.neighbor_sigma**2)
                 f.write('%d %d %f %f\n' % (i, j, pred, spatial))
+
+                dup_i = dup_dict.get(i)
+                if dup_i is not None:
+                    f.write('%d %d %f %f\n' % (j, dup_i, pred, spatial)) # as dup is always smaller than normal id
+                    f.write('%d %d %f %f\n' % (i, dup_i, -1000, 1)) # might need to set negative pred rather than 0
+                dup_j = dup_dict.get(j)
+                if dup_j is not None:
+                    f.write('%d %d %f %f\n' % (i, dup_j, pred, spatial)) # as dup is always smaller than normal id
+                    f.write('%d %d %f %f\n' % (j, dup_j, -1000, 1)) # might need to set negative pred rather than 0
+
+                if dup_i is not None and dup_j is not None:
+                    f.write('%d %d %f %f\n' % (dup_i, dup_j, pred, spatial)) # dup_i < dup_j
+            
+            outside_list = np.setxor1d(xrange(num_line_pixels), neighbor_list)
+            for j in outside_list:
+                if j <= i: continue
+                else: f.write('%d %d %f %f\n' % (i, j, 0, 0))
     else:
         for i in xrange(num_line_pixels-1):
             p1 = np.array([line_pixels[0][i], line_pixels[1][i]])
             pred_p1 = np.reshape(y_batch[i,:,:,:], [map_height, map_width])
             # rng = nb.radius_neighbors([p1])
-            # for rj, j in enumerate(rng[1][0]): # ids
+            # neighbor_list = rng[1][0]
+            # for rj, j in enumerate(neighbor_list): # ids
             #     if j <= i:
             #         continue
-            for j in xrange(i+1, num_line_pixels):
+            for j in xrange(i+1, num_line_pixels): # see entire neighbors
                 p2 = np.array([line_pixels[0][j], line_pixels[1][j]])
                 pred_p2 = np.reshape(y_batch[j,:,:,:], [map_height, map_width])
                 pred = (pred_p1[p2[0],p2[1]] + pred_p2[p1[0],p1[1]]) * 0.5
                 pred = np.exp(-0.5 * (1.0-pred)**2 / FLAGS.prediction_sigma**2)
 
                 # d12 = rng[0][0][rj]
-                d12 = LA.norm(p1-p2, 2)
+                d12 = LA.norm(p1-p2, 2) # see entire neighbors
                 spatial = np.exp(-0.5 * d12**2 / FLAGS.neighbor_sigma**2)
                 f.write('%d %d %f %f\n' % (i, j, pred, spatial))
+
+                dup_i = dup_dict.get(i)
+                if dup_i is not None:
+                    f.write('%d %d %f %f\n' % (j, dup_i, pred, spatial)) # as dup is always smaller than normal id
+                    f.write('%d %d %f %f\n' % (i, dup_i, -1000, 1)) # might need to set negative pred rather than 0
+                dup_j = dup_dict.get(j)
+                if dup_j is not None:
+                    f.write('%d %d %f %f\n' % (i, dup_j, pred, spatial)) # as dup is always smaller than normal id
+                    f.write('%d %d %f %f\n' % (j, dup_j, -1000, 1)) # might need to set negative pred rather than 0
+
+                if dup_i is not None and dup_j is not None:
+                    f.write('%d %d %f %f\n' % (dup_i, dup_j, pred, spatial)) # dup_i < dup_j
+
+            # outside_list = np.setxor1d(xrange(num_line_pixels), neighbor_list)
+            # for j in outside_list:
+            #     if j <= i: continue
+            #     else: f.write('%d %d %f %f\n' % (i, j, 0, 0))
+
     f.close()
-    print('%s: %s, prediction computed' % (datetime.now(), file_name))
+    duration = time.time() - start_time
+    print('%s: %s, prediction computed (%.3f)' % (datetime.now(), file_name, duration))
 
     # run gco_linenet
     start_time = time.time()
@@ -372,161 +332,172 @@ def graphcut(linenet_manager, file_path):
         pred_fp = '../../' + pred_fp
     call(['./gco_linenet', pred_fp])
     os.chdir(working_path)
-    
-    # read result
+
+    # read graphcut result
     label_file_path = os.path.join(FLAGS.test_dir + '/tmp', file_name) + '.label'
     f = open(label_file_path, 'r')
     e_before = float(f.readline())
     e_after = float(f.readline())
     labels = np.fromstring(f.read(), dtype=np.int32, sep=' ')
     f.close()
-    # os.remove(pred_file_path)
-    # os.remove(label_file_path)
     duration = time.time() - start_time
     print('%s: %s, labeling finished (%.3f sec)' % (datetime.now(), file_name, duration))
-    
+
+
     # merge small label segments
-    knb = NearestNeighbors(n_neighbors=9, algorithm='ball_tree')
+    knb = NearestNeighbors(n_neighbors=5, algorithm='ball_tree')
     knb.fit(np.array(line_pixels).transpose())
 
     for iter in xrange(2):
+        # # debug
         # print('%d-th iter' % iter)
         for i in xrange(FLAGS.max_num_labels):
-            label = np.nonzero(labels == i)
-            num_label_pixels = len(label[0])
+            i_label_list = np.nonzero(labels == i)
+            num_i_label_pixels = len(i_label_list[0])
 
-            if num_label_pixels == 0:
+            if num_i_label_pixels == 0:
                 continue
 
-            # cc analysis
-            label_map = np.zeros([FLAGS.image_height, FLAGS.image_width], dtype=np.float)
-            label_map[line_pixels[0][label],line_pixels[1][label]] = 1.0
-            lm, num_cc = measure.label(label_map, background=0, return_num=True)
+            # handle duplicated pixels
+            for j, i_label in enumerate(i_label_list[0]):
+                if i_label >= num_line_pixels:
+                    i_label_list[0][j] = dup_rev_dict[i_label]
 
-            # print('%d: # labels %d, # cc %d' % (i, num_label_pixels, num_cc))
+            # connected component analysis on 'i' label map
+            i_label_map = np.zeros([FLAGS.image_height, FLAGS.image_width], dtype=np.float)
+            i_label_map[line_pixels[0][i_label_list],line_pixels[1][i_label_list]] = 1.0
+            cc_map, num_cc = measure.label(i_label_map, background=0, return_num=True)
 
-            # plt.imshow(lm, cmap='spectral')
+            # # debug
+            # print('%d: # labels %d, # cc %d' % (i, num_i_label_pixels, num_cc))
+            # plt.imshow(cc_map, cmap='spectral')
             # plt.show()
 
+            # detect small pixel component
             for j in xrange(num_cc):
-                cc = np.nonzero(lm == (j+1))
-                num_j_cc = len(cc[0])
+                j_cc_list = np.nonzero(cc_map == (j+1))
+                num_j_cc = len(j_cc_list[0])
 
+                # consider only less than 5 pixels component
                 if num_j_cc > 4:
                     continue
 
+                # assign dominant label of neighbors using knn
                 for k in xrange(num_j_cc):
-                    p1 = np.array([cc[0][k], cc[1][k]])
-                    _, indices = knb.kneighbors([p1], n_neighbors=9)
+                    p1 = np.array([j_cc_list[0][k], j_cc_list[1][k]])
+                    _, indices = knb.kneighbors([p1], n_neighbors=5)
                     max_label_nb = np.argmax(np.bincount(labels[indices][0]))
-                    labels[indices[0]] = max_label_nb
+                    labels[indices[0][0]] = max_label_nb
+
+                    # # debug
                     # print(' (%d,%d) %d -> %d' % (p1[0], p1[1], i, max_label_nb))
 
-    # for i in xrange(FLAGS.max_num_labels):
-    #     label = np.nonzero(labels == i)
-    #     num_label_pixels = len(label[0])
+                    dup = dup_dict.get(indices[0][0])
+                    if dup is not None:
+                        labels[dup] = max_label_nb
 
-    #     if num_label_pixels == 0:
-    #         continue
-
-    #     # cc analysis
-    #     label_map = np.zeros([FLAGS.image_height, FLAGS.image_width], dtype=np.float)
-    #     label_map[line_pixels[0][label],line_pixels[1][label]] = 1.0
-    #     lm, num_cc = measure.label(label_map, background=0, return_num=True)
-    #     label_map_path = os.path.join(FLAGS.test_dir, 'lm_%s_%d_%d.png' % (file_name, i, num_cc))
-    #     scipy.misc.imsave(label_map_path, label_map)
-
-    # compute accuracy
-    start_time = time.time()
-    accuracy_list = _compute_accuracy(file_path, labels, line_pixels)
-    acc_avg = np.average(accuracy_list)
-    duration = time.time() - start_time
-    print('%s: %s, accuracy computed, avg.: %.3f (%.3f sec)' % (datetime.now(), file_name, acc_avg, duration))
-
-    # graphcut opt.
+    # print result
     u = np.unique(labels)
     num_labels = u.size
     diff_labels = num_labels - num_paths
-    # print('%s: %s, label: %s' % (datetime.now(), file_name, labels))
+    accuracy_list = _compute_accuracy(file_path, labels, line_pixels, num_line_pixels, dup_rev_dict)
+    acc_avg = np.average(accuracy_list)
+    
     print('%s: %s, the number of labels %d, truth %d, diff %d' % (datetime.now(), file_name, num_labels, num_paths, diff_labels))
     print('%s: %s, energy before optimization %.4f' % (datetime.now(), file_name, e_before))
     print('%s: %s, energy after optimization %.4f' % (datetime.now(), file_name, e_after))
+    print('%s: %s, accuracy computed, avg.: %.3f' % (datetime.now(), file_name, acc_avg))
 
-    # # write summary
-    # num_labels_summary = tf.scalar_summary('num_lables', tf.constant(num_labels, dtype=tf.int16))
-    # summary_writer.add_summary(num_labels_summary.eval())
 
-    # ground_truth_summary = tf.scalar_summary('ground truth', tf.constant(num_paths, dtype=tf.int16))
-    # summary_writer.add_summary(ground_truth_summary.eval())
-
-    # diff_labels_summary = tf.scalar_summary('diff', tf.constant(diff_labels, dtype=tf.int16))
-    # summary_writer.add_summary(diff_labels_summary.eval())
-
-    # # smooth_energy = tf.placeholder(dtype=tf.int32)
-    # # label_energy = tf.placeholder(dtype=tf.int32)
-    # # total_energy = tf.placeholder(dtype=tf.int32)
-    # energy = tf.placeholder(dtype=tf.float64)
-    # # smooth_energy_summary = tf.scalar_summary('smooth_energy', smooth_energy)
-    # # label_energy_summary = tf.scalar_summary('label_energy', label_energy)
-    # # total_energy_summary = tf.scalar_summary('total_energy', total_energy)
-    # energy_summary = tf.scalar_summary('energy', energy)
-    # # energy_summary = tf.merge_summary([smooth_energy_summary, label_energy_summary, total_energy_summary])
-    # # # energy before optimization
-    # # summary_writer.add_summary(energy_summary.eval(feed_dict={
-    # #     smooth_energy:e_before[0], label_energy:e_before[1], total_energy:e_before[2]}), 0)
-    # # # energy after optimization
-    # # summary_writer.add_summary(energy_summary.eval(feed_dict={
-    # #     smooth_energy:e_after[0], label_energy:e_after[1], total_energy:e_after[2]}), 1)
-    # # energy before optimization
-    # summary_writer.add_summary(energy_summary.eval(feed_dict={energy:e_before}), 0)
-    # # energy after optimization
-    # summary_writer.add_summary(energy_summary.eval(feed_dict={energy:e_after}), 1)
-    
-    # duration_ph = tf.placeholder(dtype=tf.float32)
-    # duration_summary = tf.scalar_summary('duration', duration_ph)
-    # summary_writer.add_summary(duration_summary.eval(feed_dict={duration_ph:duration}))
-    
     # save label map image
     cmap = plt.get_cmap('jet')    
     cnorm  = colors.Normalize(vmin=0, vmax=num_labels-1)
     cscalarmap = cmx.ScalarMappable(norm=cnorm, cmap=cmap)
-
-    label_map = np.ones([img.shape[0], img.shape[1], 3], dtype=np.float)
-    for i in xrange(num_line_pixels):
-        # color = cscalarmap.to_rgba(labels[i])
-        color = cscalarmap.to_rgba(np.where(u==labels[i])[0])[0]
-
-        # print(line_pixels[0][i],line_pixels[1][i],labels[i]) # ,color)
-        label_map[line_pixels[0][i],line_pixels[1][i]] = color[:3]
     
-    # debug
+    label_map = np.ones([FLAGS.image_height, FLAGS.image_width, 3], dtype=np.float)
+    first_svg = True
+    target_svg_path = os.path.join(FLAGS.test_dir, 'label_map_svg_%s.svg' % file_name)        
+    for i in xrange(FLAGS.max_num_labels):
+        i_label_list = np.nonzero(labels == i)
+        num_label_pixels = len(i_label_list[0])
+
+        if num_label_pixels == 0:
+            continue
+
+        # handle duplicated pixels
+        for j, i_label in enumerate(i_label_list[0]):
+            if i_label >= num_line_pixels:
+                i_label_list[0][j] = dup_rev_dict[i_label]
+
+        color = cscalarmap.to_rgba(np.where(u==i)[0])[0]
+        label_map[line_pixels[0][i_label_list],line_pixels[1][i_label_list]] = color[:3]
+
+        # save i label map
+        i_label_map = np.zeros([FLAGS.image_height, FLAGS.image_width], dtype=np.int)
+        i_label_map[line_pixels[0][i_label_list],line_pixels[1][i_label_list]] = 1
+        _, num_cc = measure.label(i_label_map, background=0, return_num=True)
+        i_label_map_path = os.path.join(FLAGS.test_dir + '/tmp', 'i_label_map_%s_%d_%d.bmp' % (file_name, i, num_cc))
+        scipy.misc.imsave(i_label_map_path, i_label_map)
+
+        # vectorize using potrace
+        color *= 255
+        color_hex = '#%02x%02x%02x' % (color[0], color[1], color[2])
+        call(['potrace', '-s', '-i', '-C'+color_hex, i_label_map_path])
+        
+        # # morphology transform
+        # if num_cc > 1:
+        #     i_label_map = scipy.ndimage.morphology.binary_closing(i_label_map, 
+        #         structure=np.ones((7,7)), iterations=1)
+
+        #     i_label_map_before = os.path.join(FLAGS.test_dir + '/tmp', 'i_label_map_%s_%d_%d.bmp' % (file_name, i, num_cc))
+        #     i_label_map_new = os.path.join(FLAGS.test_dir + '/tmp', 'i_label_map_%s_%d_%d_before.bmp' % (file_name, i, num_cc))
+        #     call(['cp', i_label_map_before, i_label_map_new])
+        #     i_label_svg_before = os.path.join(FLAGS.test_dir + '/tmp', 'i_label_map_%s_%d_%d.svg' % (file_name, i, num_cc))
+        #     i_label_svg_new = os.path.join(FLAGS.test_dir + '/tmp', 'i_label_map_%s_%d_%d_before.svg' % (file_name, i, num_cc))
+        #     call(['cp', i_label_svg_before, i_label_svg_new])
+
+        #     scipy.misc.imsave(i_label_map_path, i_label_map)
+        #     call(['potrace', '-s', '-i', '-C'+color_hex, i_label_map_path])
+
+        i_label_map_svg = os.path.join(FLAGS.test_dir + '/tmp', 'i_label_map_%s_%d_%d.svg' % (file_name, i, num_cc))
+        if first_svg:
+            call(['cp', i_label_map_svg, target_svg_path])
+            first_svg = False
+        else:
+            with open(target_svg_path, 'r') as f:
+                target_svg = f.read()
+
+            with open(i_label_map_svg, 'r') as f:
+                source_svg = f.read()
+
+            path_start = source_svg.find('<g')
+            path_end = source_svg.find('</svg>')
+
+            insert_pos = target_svg.find('</svg>')            
+            target_svg = target_svg[:insert_pos] + source_svg[path_start:path_end] + target_svg[insert_pos:]
+
+            with open(target_svg_path, 'w') as f:
+                f.write(target_svg)
+
     label_map_path = os.path.join(FLAGS.test_dir, 'label_map_%s_%.2f_%.2f_%d_%d_%.2f.png' % (file_name, FLAGS.neighbor_sigma, FLAGS.prediction_sigma, num_labels, diff_labels, acc_avg))
     scipy.misc.imsave(label_map_path, label_map)
+
+    # # debug
     # plt.imshow(label_map)
     # plt.show()
-    
-    # label_map_ph = tf.placeholder(dtype=tf.float32, shape=[None, img.shape[0], img.shape[1], 3])
-    # label_map_summary = tf.image_summary('label_map', label_map_ph, max_images=1)
-    # label_map = np.reshape(label_map, [1, img.shape[0], img.shape[1], 3])
-    # summary_str = sess.run(label_map_summary, feed_dict={label_map_ph: label_map})
-    # summary_tmp = tf.Summary()
-    # summary_tmp.ParseFromString(summary_str)
-    # summary_tmp.value[0].tag = 'label_map'
-    # summary_writer.add_summary(summary_tmp)
-
-    tf.gfile.DeleteRecursively(FLAGS.test_dir + '/tmp')
-
+      
+    # tf.gfile.DeleteRecursively(FLAGS.test_dir + '/tmp')
     return num_labels, diff_labels, acc_avg
 
 
-def postprocess():
+def postprocess(stat_dir):
     num_files = 0
     path_list = []
     diff_list = []
     acc_list = []
     duration_list = []
     
-    stat_path = os.path.join(FLAGS.data_dir, 'stat.txt')
+    stat_path = os.path.join(stat_dir, 'stat.txt')
     with open(stat_path, 'r') as f:
         while True:
             line = f.readline()
@@ -659,59 +630,6 @@ def postprocess():
     f.close()
 
 
-def parameter_tune():
-    # create managers
-    start_time = time.time()
-    print('%s: manager loading...' % datetime.now())
-    linenet_manager = LinenetManager([FLAGS.image_height, FLAGS.image_width])
-    duration = time.time() - start_time
-    print('%s: manager loaded (%.3f sec)' % (datetime.now(), duration))
-    
-    f = open('label_parameter_0.2_0.9_8_0.1_1.0_10.txt', 'w')
-            
-    for root, _, files in os.walk(FLAGS.data_dir):
-        for file in files:
-            if not file.lower().endswith('svg'):
-                continue
-
-            min_np = [0,0]
-            min_labels = 100
-            # n_sig_list = [1]
-            # p_sig_list = [0.1]
-            n_sig_list = np.linspace(0.2, 0.9, 8).tolist()
-            # n_sig_list = [8]
-            p_sig_list = np.linspace(0.1, 1.0, 10).tolist()
-            # p_sig_list = [0.7] #, 0.764, 0.765]
-            for n_sig in n_sig_list:
-                FLAGS.neighbor_sigma = n_sig
-                print('n_sig: %.4f' % FLAGS.neighbor_sigma)
-                for p_sig in p_sig_list:
-                    FLAGS.prediction_sigma = p_sig
-                    print('p_sig: %.4f' % FLAGS.prediction_sigma)
-                    file_path = os.path.join(root, file)
-                    start_time = time.time()
-                    num_labels = graphcut(linenet_manager, file_path)               
-                    duration = time.time() - start_time
-                    print('%s: %s processed (%.3f sec)' % (datetime.now(), file, duration))
-
-                    f.write('%d [%d, %0.4f]\n' % (num_labels, n_sig, p_sig))
-
-                    if min_labels > num_labels:
-                        min_labels = num_labels
-                        min_np = [n_sig, p_sig]
-                        print('!!!!min', min_labels, min_np)
-
-                    # if num_labels < 20 and num_labels > 10:
-                    #     print('Find!')
-                    #     return
-
-            print('!!!!min', min_labels, min_np)
-            f.write('min %d [%d, %0.4f]' % (min_labels, min_np[0], min_np[1]))
-            
-    f.close()
-    print('Done')
-
-
 def test():
     # create managers
     start_time = time.time()
@@ -726,20 +644,19 @@ def test():
         linenet_manager = LinenetManager([FLAGS.image_height, FLAGS.image_width])
     duration = time.time() - start_time
     print('%s: manager loaded (%.3f sec)' % (datetime.now(), duration))
+
+    start_time = time.time()
+    print('%s: intersect manager loading...' % datetime.now())
+    intersectnet_manager = IntersectnetManager([FLAGS.image_height, FLAGS.image_width])
+    duration = time.time() - start_time
+    print('%s: manager loaded (%.3f sec)' % (datetime.now(), duration))
     
     stat_path = os.path.join(FLAGS.test_dir, 'stat.txt')
     sf = open(stat_path, 'w')
 
     num_files = 0
-    sum_diff_labels = 0
-    min_diff_labels = 100
-    max_diff_labels = -100
-    diff_list = []
-    sum_duration = 0
-    min_duration = 10000
-    max_duration = -1
-    acc_avg_list = []
-
+    file_path_list = []
+        
     if FLAGS.file_list:
         file_list_path = os.path.join(FLAGS.data_dir, FLAGS.file_list)
         with open(file_list_path, 'r') as f:
@@ -748,103 +665,35 @@ def test():
                 if not line: break
 
                 file = line.rstrip()
-                # file = 'n02374451_6192-3.svg_pre'
                 file_path = os.path.join(FLAGS.data_dir, file)
-                start_time = time.time()
-                num_labels, diff_labels, acc_avg = graphcut(linenet_manager, file_path)
-                sum_diff_labels = sum_diff_labels + abs(diff_labels)
-                if diff_labels < min_diff_labels:
-                    min_diff_labels = diff_labels
-                if diff_labels > max_diff_labels:
-                    max_diff_labels = diff_labels
-                num_files = num_files + 1
-                diff_list.append(diff_labels)            
-                duration = time.time() - start_time
-                sum_duration = sum_duration + duration
-                if duration < min_duration:
-                    min_duration = duration
-                if duration > max_duration:
-                    max_duration = duration
-                acc_avg_list.append(acc_avg)
-                print('%s:%d-%s processed (%.3f sec)' % (datetime.now(), num_files, file, duration))
-                sf.write('%s %d %d %.3f %.3f\n' % (file, num_labels, diff_labels, acc_avg, duration))
-                # break
+                file_path_list.append(file_path)
     else:
         for root, _, files in os.walk(FLAGS.data_dir):
             for file in files:
                 if not file.lower().endswith('svg_pre'): # 'png'):
                     continue
-                
-                file_path = os.path.join(root, file)
-                start_time = time.time()
-                num_labels, diff_labels, acc_avg = graphcut(linenet_manager, file_path)
-                sum_diff_labels = sum_diff_labels + abs(diff_labels)
-                if diff_labels < min_diff_labels:
-                    min_diff_labels = diff_labels
-                if diff_labels > max_diff_labels:
-                    max_diff_labels = diff_labels
-                num_files = num_files + 1
-                diff_list.append(diff_labels)            
-                duration = time.time() - start_time
-                sum_duration = sum_duration + duration
-                if duration < min_duration:
-                    min_duration = duration
-                if duration > max_duration:
-                    max_duration = duration
-                acc_avg_list.append(acc_avg)
-                print('%s:%d-%s processed (%.3f sec)' % (datetime.now(), num_files, file, duration))
-                sf.write('%s %d %d %.3f %.3f\n' % (file, num_labels, diff_labels, acc_avg, duration))
 
-    # the histogram of the data
-    diff_list = np.array(diff_list)
+                file_path = os.path.join(FLAGS.data_dir, file)
+                file_path_list.append(file_path)
+
+    file_path_list.sort()
+    num_total_test_files = len(file_path_list)
+    FLAGS.num_test_files = min(num_total_test_files, FLAGS.num_test_files)
+    np.random.seed(0)
+    file_path_list_id = np.random.choice(num_total_test_files, FLAGS.num_test_files)
+    file_path_list_id.sort()
+
+    for file_path_id in file_path_list_id:
+        file_path = file_path_list[file_path_id]
+        start_time = time.time()
+        num_files += 1
+        num_labels, diff_labels, acc_avg = graphcut(linenet_manager, intersectnet_manager, file_path)
+        duration = time.time() - start_time
+        print('%s:%d/%d-%s processed (%.3f sec)' % (datetime.now(), num_files, FLAGS.num_test_files, file, duration))
+        sf.write('%s %d %d %.3f %.3f\n' % (file_path.split('/')[-1], num_labels, diff_labels, acc_avg, duration))
     
-    # fig = plt.figure()
-    # weights = np.ones_like(diff_list)/float(len(diff_list))
-    # plt.hist(diff_list, bins=21, color='blue', normed=False, alpha=0.75, weights=weights)
-    # plt.xlim(-5, 15)
-    # plt.ylim(0, 1)
-    # plt.title('Histogram of Label Difference')
-    # plt.grid(True)
-    
-    # # Now we can save it to a numpy array.
-    # fig.canvas.draw()
-    # pred_hist = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
-    # pred_hist = pred_hist.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-    # plt.close(fig)
-
-    # hist_path = os.path.join(FLAGS.test_dir, 'label_diff_hist.png')
-    # scipy.misc.imsave(hist_path, pred_hist)
-
-
-    # the histogram of the data
-    acc_avg_list = np.array(acc_avg_list)
-    
-    # fig = plt.figure()
-    # weights = np.ones_like(acc_avg_list)/float(len(acc_avg_list))
-    # plt.hist(acc_avg_list, bins=21, color='blue', normed=False, alpha=0.75, weights=weights)
-    # plt.xlim(0, 1)
-    # plt.ylim(0, 1)
-    # plt.title('Histogram of Accuracy')
-    # plt.grid(True)
-    
-    # # Now we can save it to a numpy array.
-    # fig.canvas.draw()
-    # pred_hist = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
-    # pred_hist = pred_hist.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-    # plt.close(fig)
-
-    # hist_path = os.path.join(FLAGS.test_dir, 'acc_hist.png')
-    # scipy.misc.imsave(hist_path, pred_hist)
-
-    print('total # files: %d' % num_files)
-    print('min/max/avg. abs diff labels: %d, %d, %.3f' % (min_diff_labels, max_diff_labels, sum_diff_labels/num_files))
-    print('avg. accuracy: %.3f' % np.average(acc_avg_list))
-    print('min/max/avg. duration (sec): %.3f, %.3f, %.3f' % (min_duration, max_duration, sum_duration/num_files))
-    sf.write('total # files: %d\n' % num_files)
-    sf.write('min/max/avg. abs diff labels: %d, %d, %.3f\n' % (min_diff_labels, max_diff_labels, sum_diff_labels/num_files))
-    sf.write('avg. accuracy: %.3f\n' % np.average(acc_avg_list))    
-    sf.write('min/max/avg. duration (sec): %.3f, %.3f, %.3f\n' % (min_duration, max_duration, sum_duration/num_files))
     sf.close()
+    postprocess(FLAGS.test_dir)
     print('Done')
 
 
@@ -868,6 +717,9 @@ def main(_):
         os.chdir(working_path)
         print('%s: gco compiled' % datetime.now())
 
+    # # pp only
+    # postprocess(FLAGS.test_dir)
+
     # create test directory
     if tf.gfile.Exists(FLAGS.test_dir):
         tf.gfile.DeleteRecursively(FLAGS.test_dir)
@@ -875,8 +727,6 @@ def main(_):
     
     # start
     test()
-    # parameter_tune()
-    # postprocess()
 
 
 if __name__ == '__main__':

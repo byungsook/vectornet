@@ -570,6 +570,7 @@ def graphcut(file_path):
     # plt.show()
       
     # tf.gfile.DeleteRecursively(FLAGS.test_dir + '/tmp')
+    call(['rm', FLAGS.test_dir + '/tmp/*.npy'])
     return num_labels, diff_labels, acc_avg
 
 

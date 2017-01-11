@@ -246,8 +246,8 @@ def graphcut(file_path):
         prob_file_path = os.path.join(FLAGS.test_dir + '/tmp', file_name) + '_{id}.npy'
         # linenet_manager.extract_save_crop(img, FLAGS.batch_size, prob_file_path)
         linenet_manager.extract_save(img, FLAGS.batch_size, prob_file_path)
-    # else:
-    #     y_batch, _ = linenet_manager.extract_all(img)
+    else:
+        y_batch, _ = linenet_manager.extract_all(img)
 
     duration = time.time() - start_time
     print('%s: %s, linenet process (%.3f sec)' % (datetime.now(), file_name, duration))
@@ -360,8 +360,8 @@ def graphcut(file_path):
     else:
         for i in xrange(num_line_pixels-1):
             p1 = np.array([line_pixels[0][i], line_pixels[1][i]])
-            # pred_p1 = np.reshape(y_batch[i,:,:,:], [map_height, map_width])
-            pred_p1 = linenet_manager.extract(img, p1[0], p1[1])
+            pred_p1 = np.reshape(y_batch[i,:,:,:], [map_height, map_width])
+            # pred_p1 = linenet_manager.extract(img, p1[0], p1[1])
             # rng = nb.radius_neighbors([p1])
             # neighbor_list = rng[1][0]
             # for rj, j in enumerate(neighbor_list): # ids
@@ -369,8 +369,8 @@ def graphcut(file_path):
             #         continue
             for j in xrange(i+1, num_line_pixels): # see entire neighbors
                 p2 = np.array([line_pixels[0][j], line_pixels[1][j]])
-                # pred_p2 = np.reshape(y_batch[j,:,:,:], [map_height, map_width])
-                pred_p2 = linenet_manager.extract(img, p2[0], p2[1])
+                pred_p2 = np.reshape(y_batch[j,:,:,:], [map_height, map_width])
+                # pred_p2 = linenet_manager.extract(img, p2[0], p2[1])
                 pred = (pred_p1[p2[0],p2[1]] + pred_p2[p1[0],p1[1]]) * 0.5
                 pred = np.exp(-0.5 * (1.0-pred)**2 / FLAGS.prediction_sigma**2)
 

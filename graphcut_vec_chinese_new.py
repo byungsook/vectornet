@@ -410,7 +410,7 @@ def graphcut(linenet_manager, intersectnet_manager, file_path):
 
     f.close()
     duration = time.time() - start_time
-    print('%s: %s, prediction computed (%.3f)' % (datetime.now(), file_name, duration))
+    print('%s: %s, prediction computed (%.3f sec)' % (datetime.now(), file_name, duration))
 
     # run gco_linenet
     start_time = time.time()
@@ -507,7 +507,7 @@ def graphcut(linenet_manager, intersectnet_manager, file_path):
     
     label_map = np.ones([FLAGS.image_height, FLAGS.image_width, 3], dtype=np.float)
     first_svg = True
-    target_svg_path = os.path.join(FLAGS.test_dir, 'label_map_svg_%s.svg' % file_name)        
+    target_svg_path = os.path.join(FLAGS.test_dir, 'label_map_svg_%s_%d_%d_%.2f.svg' % (file_name, num_labels, diff_labels, acc_avg))
     for i in xrange(FLAGS.max_num_labels):
         i_label_list = np.nonzero(labels == i)
         num_label_pixels = len(i_label_list[0])

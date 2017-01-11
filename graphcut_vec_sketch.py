@@ -171,8 +171,8 @@ def graphcut(linenet_manager, intersectnet_manager, file_path):
     tf.gfile.MakeDirs(FLAGS.test_dir + '/tmp')
     if FLAGS.use_batch:
         prob_file_path = os.path.join(FLAGS.test_dir + '/tmp', file_name) + '_{id}.npy'
-        linenet_manager.extract_save_crop(img, FLAGS.batch_size, prob_file_path)
-        # linenet_manager.extract_save(img, FLAGS.batch_size, prob_file_path)
+        # linenet_manager.extract_save_crop(img, FLAGS.batch_size, prob_file_path)
+        linenet_manager.extract_save(img, FLAGS.batch_size, prob_file_path)
     else:
         y_batch, _ = linenet_manager.extract_all(img)
 
@@ -245,22 +245,22 @@ def graphcut(linenet_manager, intersectnet_manager, file_path):
         for i in xrange(num_line_pixels-1):
             p1 = np.array([line_pixels[0][i], line_pixels[1][i]])
             pred_p1 = np.load(prob_file_path.format(id=i))
-            rng = nb.radius_neighbors([p1])
-            neighbor_list = rng[1][0]
-            for rj, j in enumerate(neighbor_list): # ids
-                if j <= i:
-                    continue
-            # for j in xrange(i+1, num_line_pixels): # see entire neighbors
+            # rng = nb.radius_neighbors([p1])
+            # neighbor_list = rng[1][0]
+            # for rj, j in enumerate(neighbor_list): # ids
+            #     if j <= i:
+            #         continue
+            for j in xrange(i+1, num_line_pixels): # see entire neighbors
                 p2 = np.array([line_pixels[0][j], line_pixels[1][j]])
                 pred_p2 = np.load(prob_file_path.format(id=j))
-                rp2 = [center+p2[0]-p1[0],center+p2[1]-p1[1]]
-                rp1 = [center+p1[0]-p2[0],center+p1[1]-p2[1]]
-                pred = (pred_p1[rp2[0],rp2[1]] + pred_p2[rp1[0],rp1[1]]) * 0.5
-                # pred = (pred_p1[p2[0],p2[1]] + pred_p2[p1[0],p1[1]]) * 0.5 # see entire neighbors
+                # rp2 = [center+p2[0]-p1[0],center+p2[1]-p1[1]]
+                # rp1 = [center+p1[0]-p2[0],center+p1[1]-p2[1]]
+                # pred = (pred_p1[rp2[0],rp2[1]] + pred_p2[rp1[0],rp1[1]]) * 0.5
+                pred = (pred_p1[p2[0],p2[1]] + pred_p2[p1[0],p1[1]]) * 0.5 # see entire neighbors
                 pred = np.exp(-0.5 * (1.0-pred)**2 / FLAGS.prediction_sigma**2)
 
-                d12 = rng[0][0][rj]
-                # d12 = LA.norm(p1-p2, 2) # see entire neighbors
+                # d12 = rng[0][0][rj]
+                d12 = LA.norm(p1-p2, 2) # see entire neighbors
                 spatial = np.exp(-0.5 * d12**2 / FLAGS.neighbor_sigma**2)
                 f.write('%d %d %f %f\n' % (i, j, pred, spatial))
 
@@ -276,10 +276,10 @@ def graphcut(linenet_manager, intersectnet_manager, file_path):
                 if dup_i is not None and dup_j is not None:
                     f.write('%d %d %f %f\n' % (dup_i, dup_j, pred, spatial)) # dup_i < dup_j
             
-            outside_list = np.setxor1d(xrange(num_line_pixels), neighbor_list)
-            for j in outside_list:
-                if j <= i: continue
-                else: f.write('%d %d %f %f\n' % (i, j, 0, 0))
+            # outside_list = np.setxor1d(xrange(num_line_pixels), neighbor_list)
+            # for j in outside_list:
+            #     if j <= i: continue
+            #     else: f.write('%d %d %f %f\n' % (i, j, 0, 0))
     else:
         for i in xrange(num_line_pixels-1):
             p1 = np.array([line_pixels[0][i], line_pixels[1][i]])
@@ -319,7 +319,7 @@ def graphcut(linenet_manager, intersectnet_manager, file_path):
 
     f.close()
     duration = time.time() - start_time
-    print('%s: %s, prediction computed (%.3f)' % (datetime.now(), file_name, duration))
+    print('%s: %s, prediction computed (%.3f sec)' % (datetime.now(), file_name, duration))
 
     # run gco_linenet
     start_time = time.time()
@@ -416,7 +416,7 @@ def graphcut(linenet_manager, intersectnet_manager, file_path):
     
     label_map = np.ones([FLAGS.image_height, FLAGS.image_width, 3], dtype=np.float)
     first_svg = True
-    target_svg_path = os.path.join(FLAGS.test_dir, 'label_map_svg_%s.svg' % file_name)        
+    target_svg_path = os.path.join(FLAGS.test_dir, 'label_map_svg_%s_%d_%d_%.2f.svg' % (file_name, num_labels, diff_labels, acc_avg))
     for i in xrange(FLAGS.max_num_labels):
         i_label_list = np.nonzero(labels == i)
         num_label_pixels = len(i_label_list[0])
@@ -562,7 +562,7 @@ def postprocess(stat_dir):
     pred_hist = pred_hist.reshape(fig.canvas.get_width_height()[::-1] + (3,))
     plt.close(fig)
 
-    hist_path = os.path.join(FLAGS.data_dir, 'label_diff_hist_norm.png')
+    hist_path = os.path.join(stat_dir, 'label_diff_hist_norm.png')
     scipy.misc.imsave(hist_path, pred_hist)
 
     
@@ -577,7 +577,7 @@ def postprocess(stat_dir):
     pred_hist = pred_hist.reshape(fig.canvas.get_width_height()[::-1] + (3,))
     plt.close(fig)
 
-    hist_path = os.path.join(FLAGS.data_dir, 'label_diff_hist.png')
+    hist_path = os.path.join(stat_dir, 'label_diff_hist.png')
     scipy.misc.imsave(hist_path, pred_hist)
 
 
@@ -596,7 +596,7 @@ def postprocess(stat_dir):
     pred_hist = pred_hist.reshape(fig.canvas.get_width_height()[::-1] + (3,))
     plt.close(fig)
 
-    hist_path = os.path.join(FLAGS.data_dir, 'accuracy_hist_norm.png')
+    hist_path = os.path.join(stat_dir, 'accuracy_hist_norm.png')
     scipy.misc.imsave(hist_path, pred_hist)
 
     
@@ -611,7 +611,7 @@ def postprocess(stat_dir):
     pred_hist = pred_hist.reshape(fig.canvas.get_width_height()[::-1] + (3,))
     plt.close(fig)
 
-    hist_path = os.path.join(FLAGS.data_dir, 'accuracy_hist.png')
+    hist_path = os.path.join(stat_dir, 'accuracy_hist.png')
     scipy.misc.imsave(hist_path, pred_hist)
 
 
@@ -621,7 +621,7 @@ def postprocess(stat_dir):
     print('min/max/avg. accuracy: %.3f, %.3f, %.3f' % (min_acc, max_acc, avg_acc))
     print('min/max/avg. duration (sec): %.3f, %.3f, %.3f' % (min_duration, max_duration, avg_duration))
     
-    result_path = os.path.join(FLAGS.data_dir, '_result.txt')
+    result_path = os.path.join(stat_dir, '_result.txt')
     f = open(result_path, 'w')
     f.write('min/max/avg. paths: %d, %d, %.3f\n' % (min_paths, max_paths, avg_paths))
     f.write('min/max/avg. abs diff labels: %d, %d, %.3f\n' % (min_diff_labels, max_diff_labels, avg_diff_labels))
@@ -638,8 +638,8 @@ def test():
     if FLAGS.use_batch:
         dist = int(FLAGS.window_size * FLAGS.neighbor_sigma + 0.5)
         crop_size = 2 * dist + 1
-        linenet_manager = LinenetManager([FLAGS.image_height, FLAGS.image_width], crop_size)
-        # linenet_manager = LinenetManager([FLAGS.image_height, FLAGS.image_width])
+        # linenet_manager = LinenetManager([FLAGS.image_height, FLAGS.image_width], crop_size)
+        linenet_manager = LinenetManager([FLAGS.image_height, FLAGS.image_width])
     else:
         linenet_manager = LinenetManager([FLAGS.image_height, FLAGS.image_width])
     duration = time.time() - start_time

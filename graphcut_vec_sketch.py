@@ -548,7 +548,7 @@ def postprocess(stat_dir):
     min_duration = np.amin(duration_list)
     avg_duration = np.average(duration_list)
     
-    bins = min(max_diff_labels - min_diff_labels, 50)
+    bins = min(max_diff_labels - min_diff_labels + 1, 50)
     fig = plt.figure()
     weights = np.ones_like(diff_list)/float(len(diff_list))
     plt.hist(diff_list, bins=bins, color='blue', normed=False, alpha=0.75, weights=weights)

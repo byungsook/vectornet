@@ -45,7 +45,7 @@ tf.app.flags.DEFINE_string('data_dir', 'data/hand', #
                            """Data directory""")
 tf.app.flags.DEFINE_string('file_list', '', # 'test.txt',
                            """file_list""")
-tf.app.flags.DEFINE_integer('num_test_files', 6,
+tf.app.flags.DEFINE_integer('num_test_files', 1,
                            """num_test_files""")
 tf.app.flags.DEFINE_integer('image_height', 64,
                             """Image Width.""")
@@ -75,7 +75,7 @@ def _imread(img_file_name):
     """ Read, grayscale and normalize the image"""
     img = Image.open(img_file_name).convert('L')
     s = img.size
-    ratio = FLAGS.image_width / s[0]
+    ratio = FLAGS.image_height / s[1]
     img.thumbnail((s[0]*ratio, s[1]*ratio))
     img = np.array(img).astype(np.float)
     max_intensity = np.amax(img)

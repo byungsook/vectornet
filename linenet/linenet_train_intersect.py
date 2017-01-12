@@ -16,7 +16,7 @@ from six.moves import xrange  # pylint: disable=redefined-builtin
 import numpy as np
 import tensorflow as tf
 
-import linenet_data_intersect
+import linenet_data_intersect2
 import linenet_model
 
 # parameters

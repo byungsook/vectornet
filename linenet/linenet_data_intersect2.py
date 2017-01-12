@@ -39,9 +39,9 @@ tf.app.flags.DEFINE_integer('image_height', 128,
                             """Image Height.""")
 tf.app.flags.DEFINE_integer('num_processors', 8,
                             """# of processors for batch generation.""")
-tf.app.flags.DEFINE_integer('min_length', 4,
+tf.app.flags.DEFINE_integer('min_length', 10,
                             """minimum length of a line.""")
-tf.app.flags.DEFINE_integer('num_paths', 5,
+tf.app.flags.DEFINE_integer('num_paths', 10,
                             """# paths for batch generation""")
 tf.app.flags.DEFINE_integer('path_type', 2,
                             """path type 0:line, 1:curve, 2:both""")
@@ -60,7 +60,7 @@ SVG_END_TEMPLATE = """</g></svg>"""
 
 def _create_a_line(id, image_height, image_width, min_length):
     stroke_color = np.random.randint(240, size=3)
-    stroke_width = np.random.randint(FLAGS.max_stroke_width) + 1
+    stroke_width = np.random.rand() * FLAGS.max_stroke_width + 1
     while True:
         x = np.random.randint(low=0, high=image_width, size=2)
         y = np.random.randint(low=0, high=image_height, size=2)
@@ -81,7 +81,7 @@ def _create_a_cubic_bezier_curve(id, image_height, image_width, min_length):
     x = np.random.randint(low=0, high=image_width, size=4)
     y = np.random.randint(low=0, high=image_height, size=4)
     stroke_color = np.random.randint(240, size=3)
-    stroke_width = np.random.randint(FLAGS.max_stroke_width) + 1
+    stroke_width = np.random.rand() * FLAGS.max_stroke_width + 1
 
     return SVG_CUBIC_BEZIER_TEMPLATE.format(
         id=id,
@@ -199,16 +199,16 @@ def train_set(batch_id, x_batch, y_batch):
             # mng.full_screen_toggle()
             # plt.show()
 
-    # # debug
-    # print('max intersection', np.amax(y))
-    # plt.figure()
-    # plt.subplot(121)
-    # plt.imshow(x_img)
-    # plt.subplot(122)
-    # plt.imshow(y, cmap=plt.cm.gray)
-    # mng = plt.get_current_fig_manager()
-    # mng.full_screen_toggle()
-    # plt.show()
+    # debug
+    print('max intersection', np.amax(y))
+    plt.figure()
+    plt.subplot(121)
+    plt.imshow(x_img)
+    plt.subplot(122)
+    plt.imshow(y, cmap=plt.cm.gray)
+    mng = plt.get_current_fig_manager()
+    mng.full_screen_toggle()
+    plt.show()
 
     x_batch[batch_id,:,:,0] = x
     y_batch[batch_id,:,:,0] = y

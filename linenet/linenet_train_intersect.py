@@ -66,7 +66,7 @@ def train():
         y = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 1])
 
         # Build a Graph that computes the logits predictions from the inference model.
-        y_hat = linenet_model.inference(x, phase_train)
+        y_hat = linenet_model.inference(x, phase_train, use_min=False)
 
         # Calculate loss.
         loss = linenet_model.loss(y_hat, y)
@@ -146,7 +146,7 @@ def train():
         # tf.train.start_queue_runners(sess=sess)
         # Initialize the batch manager
         batch_manager = linenet_data_intersect2.BatchManager()
-        print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
+        # print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
 
         ####################################################################
         # Start to train.

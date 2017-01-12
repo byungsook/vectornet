@@ -199,16 +199,16 @@ def train_set(batch_id, x_batch, y_batch):
             # mng.full_screen_toggle()
             # plt.show()
 
-    # debug
-    print('max intersection', np.amax(y))
-    plt.figure()
-    plt.subplot(121)
-    plt.imshow(x_img)
-    plt.subplot(122)
-    plt.imshow(y, cmap=plt.cm.gray)
-    mng = plt.get_current_fig_manager()
-    mng.full_screen_toggle()
-    plt.show()
+    # # debug
+    # print('max intersection', np.amax(y))
+    # plt.figure()
+    # plt.subplot(121)
+    # plt.imshow(x_img)
+    # plt.subplot(122)
+    # plt.imshow(y, cmap=plt.cm.gray)
+    # mng = plt.get_current_fig_manager()
+    # mng.full_screen_toggle()
+    # plt.show()
 
     x_batch[batch_id,:,:,0] = x
     y_batch[batch_id,:,:,0] = y

@@ -157,7 +157,7 @@ def model2(x, phase_train):
     return h_conv63
 
 
-def model1(x, phase_train):
+def model1(x, phase_train, use_min):
     # all flat-convolutional layer: k=3x3, s=1x1, d=64
     h_conv01 = _conv2d('01_flat', x,        3, 1, 64, phase_train)
     h_conv02 = _conv2d('02_flat', h_conv01, 3, 1, 64, phase_train)
@@ -179,15 +179,18 @@ def model1(x, phase_train):
     h_conv18 = _conv2d('18_flat', h_conv17, 3, 1, 64, phase_train)
     h_conv19 = _conv2d('19_flat', h_conv18, 3, 1, 64, phase_train)
     h_conv20 = _conv2d('20_flat', h_conv19, 3, 1,  1, phase_train)
-    return tf.minimum(h_conv20, 1.0)
+    if use_min:
+        return tf.minimum(h_conv20, 1.0)
+    else:
+        return h_conv20
 
 
-def inference(x, phase_train, model=1):
+def inference(x, phase_train, model=1, use_min=True):
     model_selector = {
         1: model1,
         2: model2,
     }
-    return model_selector[model](x, phase_train)
+    return model_selector[model](x, phase_train, use_min)
 
 
 def loss(y_hat, y):

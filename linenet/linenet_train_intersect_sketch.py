@@ -21,7 +21,7 @@ import linenet_model
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('log_dir', 'log/intersect_chinese',
+tf.app.flags.DEFINE_string('log_dir', 'log/intersect_sketch',
                            """Directory where to write event logs """
                            """and checkpoint.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False,

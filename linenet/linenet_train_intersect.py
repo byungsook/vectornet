@@ -30,10 +30,10 @@ tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', '',
                            """If specified, restore this pretrained model """
                            """before beginning any training.
                            e.g. log/second_train/linenet.ckpt """)
-tf.app.flags.DEFINE_boolean('transform', True,
-                            """Whether to transform character.""")
-tf.app.flags.DEFINE_string('file_list', 'train.txt',
-                           """file_list""")
+# tf.app.flags.DEFINE_boolean('transform', True,
+#                             """Whether to transform character.""")
+# tf.app.flags.DEFINE_string('file_list', 'train.txt',
+#                            """file_list""")
 tf.app.flags.DEFINE_integer('max_steps', 3,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_integer('decay_steps', 30000,
@@ -145,7 +145,7 @@ def train():
         # # Start the queue runners.
         # tf.train.start_queue_runners(sess=sess)
         # Initialize the batch manager
-        batch_manager = linenet_data_intersect.BatchManager()
+        batch_manager = linenet_data_intersect2.BatchManager()
         print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
 
         ####################################################################

@@ -41,17 +41,17 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('test_dir', 'test/hand',
                            """Directory where to write event logs """
                            """and checkpoint.""")
-tf.app.flags.DEFINE_string('data_dir', 'linenet/data/hand', #
+tf.app.flags.DEFINE_string('data_dir', 'data/hand', #
                            """Data directory""")
-tf.app.flags.DEFINE_string('file_list', 'test.txt',
+tf.app.flags.DEFINE_string('file_list', '', # 'test.txt',
                            """file_list""")
-tf.app.flags.DEFINE_integer('num_test_files', 1,
+tf.app.flags.DEFINE_integer('num_test_files', 6,
                            """num_test_files""")
 tf.app.flags.DEFINE_integer('image_height', 64,
                             """Image Width.""")
 tf.app.flags.DEFINE_integer('image_width', 0,
                             """Image Width.""")
-tf.app.flags.DEFINE_boolean('use_batch', True,
+tf.app.flags.DEFINE_boolean('use_batch', False,
                             """whether use batch or not""")
 tf.app.flags.DEFINE_integer('batch_size', 256,
                             """batch_size""")
@@ -225,8 +225,8 @@ def graphcut(file_path):
     if FLAGS.use_batch:
         dist = int(FLAGS.window_size * FLAGS.neighbor_sigma + 0.5)
         crop_size = 2 * dist + 1
-        linenet_manager = LinenetManager([FLAGS.image_height, FLAGS.image_width], crop_size)
-        # linenet_manager = LinenetManager([FLAGS.image_height, FLAGS.image_width])
+        # linenet_manager = LinenetManager([FLAGS.image_height, FLAGS.image_width], crop_size)
+        linenet_manager = LinenetManager([FLAGS.image_height, FLAGS.image_width])
     else:
         linenet_manager = LinenetManager([FLAGS.image_height, FLAGS.image_width])
     duration = time.time() - start_time
@@ -244,8 +244,8 @@ def graphcut(file_path):
     tf.gfile.MakeDirs(FLAGS.test_dir + '/tmp')
     if FLAGS.use_batch:
         prob_file_path = os.path.join(FLAGS.test_dir + '/tmp', file_name) + '_{id}.npy'
-        linenet_manager.extract_save_crop(img, FLAGS.batch_size, prob_file_path)
-        # linenet_manager.extract_save(img, FLAGS.batch_size, prob_file_path)
+        # linenet_manager.extract_save_crop(img, FLAGS.batch_size, prob_file_path)
+        linenet_manager.extract_save(img, FLAGS.batch_size, prob_file_path)
     else:
         y_batch, _ = linenet_manager.extract_all(img)
 
@@ -320,22 +320,22 @@ def graphcut(file_path):
         for i in xrange(num_line_pixels-1):
             p1 = np.array([line_pixels[0][i], line_pixels[1][i]])
             pred_p1 = np.load(prob_file_path.format(id=i))
-            rng = nb.radius_neighbors([p1])
-            neighbor_list = rng[1][0]
-            for rj, j in enumerate(neighbor_list): # ids
-                if j <= i:
-                    continue
-            # for j in xrange(i+1, num_line_pixels): # see entire neighbors
+            # rng = nb.radius_neighbors([p1])
+            # neighbor_list = rng[1][0]
+            # for rj, j in enumerate(neighbor_list): # ids
+            #     if j <= i:
+            #         continue
+            for j in xrange(i+1, num_line_pixels): # see entire neighbors
                 p2 = np.array([line_pixels[0][j], line_pixels[1][j]])
                 pred_p2 = np.load(prob_file_path.format(id=j))
-                rp2 = [center+p2[0]-p1[0],center+p2[1]-p1[1]]
-                rp1 = [center+p1[0]-p2[0],center+p1[1]-p2[1]]
-                pred = (pred_p1[rp2[0],rp2[1]] + pred_p2[rp1[0],rp1[1]]) * 0.5
-                # pred = (pred_p1[p2[0],p2[1]] + pred_p2[p1[0],p1[1]]) * 0.5 # see entire neighbors
+                # rp2 = [center+p2[0]-p1[0],center+p2[1]-p1[1]]
+                # rp1 = [center+p1[0]-p2[0],center+p1[1]-p2[1]]
+                # pred = (pred_p1[rp2[0],rp2[1]] + pred_p2[rp1[0],rp1[1]]) * 0.5
+                pred = (pred_p1[p2[0],p2[1]] + pred_p2[p1[0],p1[1]]) * 0.5 # see entire neighbors
                 pred = np.exp(-0.5 * (1.0-pred)**2 / FLAGS.prediction_sigma**2)
 
-                d12 = rng[0][0][rj]
-                # d12 = LA.norm(p1-p2, 2) # see entire neighbors
+                # d12 = rng[0][0][rj]
+                d12 = LA.norm(p1-p2, 2) # see entire neighbors
                 spatial = np.exp(-0.5 * d12**2 / FLAGS.neighbor_sigma**2)
                 f.write('%d %d %f %f\n' % (i, j, pred, spatial))
 
@@ -351,13 +351,13 @@ def graphcut(file_path):
                 if dup_i is not None and dup_j is not None:
                     f.write('%d %d %f %f\n' % (dup_i, dup_j, pred, spatial)) # dup_i < dup_j
 
-            outside_list = np.setxor1d(xrange(num_line_pixels), neighbor_list)
-            for j in outside_list:
-                if j > i:
-                    p2 = np.array([line_pixels[0][j], line_pixels[1][j]])
-                    d12 = LA.norm(p1-p2, 2)
-                    spatial = np.exp(-0.5 * d12**2 / FLAGS.neighbor_sigma**2)
-                    f.write('%d %d %f %f\n' % (i, j, 0.001, spatial))
+            # outside_list = np.setxor1d(xrange(num_line_pixels), neighbor_list)
+            # for j in outside_list:
+            #     if j > i:
+            #         p2 = np.array([line_pixels[0][j], line_pixels[1][j]])
+            #         d12 = LA.norm(p1-p2, 2)
+            #         spatial = np.exp(-0.5 * d12**2 / FLAGS.neighbor_sigma**2)
+            #         f.write('%d %d %f %f\n' % (i, j, 0.001, spatial))
     else:
         for i in xrange(num_line_pixels-1):
             p1 = np.array([line_pixels[0][i], line_pixels[1][i]])
@@ -521,7 +521,7 @@ def graphcut(file_path):
         i_label_map = np.zeros([FLAGS.image_height, FLAGS.image_width], dtype=np.int)
         i_label_map[line_pixels[0][i_label_list],line_pixels[1][i_label_list]] = 1
         _, num_cc = measure.label(i_label_map, background=0, return_num=True)
-        i_label_map_path = os.path.join(FLAGS.test_dir + '/stroke', 'i_label_map_%s_%d_%d.bmp' % (file_name, i, num_cc))
+        i_label_map_path = os.path.join(FLAGS.test_dir+'/stroke', 'i_label_map_%s_%d_%d.bmp' % (file_name, i, num_cc))
         scipy.misc.imsave(i_label_map_path, i_label_map)
 
         # vectorize using potrace
@@ -544,7 +544,7 @@ def graphcut(file_path):
         #     scipy.misc.imsave(i_label_map_path, i_label_map)
         #     call(['potrace', '-s', '-i', '-C'+color_hex, i_label_map_path])
 
-        i_label_map_svg = os.path.join(FLAGS.test_dir + '/stroke', 'i_label_map_%s_%d_%d.svg' % (file_name, i, num_cc))
+        i_label_map_svg = os.path.join(FLAGS.test_dir+'/stroke', 'i_label_map_%s_%d_%d.svg' % (file_name, i, num_cc))
         if first_svg:
             call(['cp', i_label_map_svg, target_svg_path])
             first_svg = False
@@ -735,7 +735,7 @@ def test():
     else:
         for root, _, files in os.walk(FLAGS.data_dir):
             for file in files:
-                if not file.lower().endswith('png'):
+                if not file.lower().endswith('svg_pre'):
                     continue
 
                 file_path = os.path.join(FLAGS.data_dir, file)
@@ -745,7 +745,7 @@ def test():
     num_total_test_files = len(file_path_list)
     FLAGS.num_test_files = min(num_total_test_files, FLAGS.num_test_files)
     np.random.seed(0)
-    file_path_list_id = np.random.choice(num_total_test_files, FLAGS.num_test_files)
+    file_path_list_id = np.random.choice(num_total_test_files, FLAGS.num_test_files, replace=False)
     file_path_list_id.sort()
 
     for file_path_id in file_path_list_id:

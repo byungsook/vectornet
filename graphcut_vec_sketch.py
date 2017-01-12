@@ -683,7 +683,7 @@ def test():
     num_total_test_files = len(file_path_list)
     FLAGS.num_test_files = min(num_total_test_files, FLAGS.num_test_files)
     np.random.seed(0)
-    file_path_list_id = np.random.choice(num_total_test_files, FLAGS.num_test_files)
+    file_path_list_id = np.random.choice(num_total_test_files, FLAGS.num_test_files, replace=False)
     file_path_list_id.sort()
 
     for file_path_id in file_path_list_id:

@@ -196,21 +196,23 @@ def graphcut(linenet_manager, intersectnet_manager, file_path):
 
     
     # predict intersection using intersection net
-    start_time = time.time()
-    intersect = (intersectnet_manager.intersect(img) > 0)
-    intersect = np.reshape(intersect[0,:,:,:], [FLAGS.image_height, FLAGS.image_width])
-
-    intersect_map_path = os.path.join(FLAGS.test_dir, 'intersect_map_%s.png' % file_name)
-    scipy.misc.imsave(intersect_map_path, intersect)
-
-    # # debug
-    # plt.imshow(intersect, cmap=plt.cm.gray)
-    # plt.show()
-
     dup_dict = {}
     dup_rev_dict = {}
     dup_id = num_line_pixels # start id of duplicated pixels
+
     if FLAGS.use_intersect:
+        start_time = time.time()
+        tf.gfile.MakeDirs(FLAGS.test_dir + '/intersect')
+        intersect = (intersectnet_manager.intersect(img) > 0)
+        intersect = np.reshape(intersect[0,:,:,:], [FLAGS.image_height, FLAGS.image_width])
+
+        intersect_map_path = os.path.join(FLAGS.test_dir+'/intersect', 'intersect_map_%s.png' % file_name)
+        scipy.misc.imsave(intersect_map_path, intersect)
+
+        # # debug
+        # plt.imshow(intersect, cmap=plt.cm.gray)
+        # plt.show()
+
         for i in xrange(num_line_pixels):
             p1 = np.array([line_pixels[0][i], line_pixels[1][i]])
             if intersect[line_pixels[0][i], line_pixels[1][i]]:
@@ -417,6 +419,7 @@ def graphcut(linenet_manager, intersectnet_manager, file_path):
     label_map = np.ones([FLAGS.image_height, FLAGS.image_width, 3], dtype=np.float)
     first_svg = True
     target_svg_path = os.path.join(FLAGS.test_dir, 'label_map_svg_%s_%d_%d_%.2f.svg' % (file_name, num_labels, diff_labels, acc_avg))
+    tf.gfile.MakeDirs(FLAGS.test_dir + '/stroke')    
     for i in xrange(FLAGS.max_num_labels):
         i_label_list = np.nonzero(labels == i)
         num_label_pixels = len(i_label_list[0])
@@ -436,7 +439,7 @@ def graphcut(linenet_manager, intersectnet_manager, file_path):
         i_label_map = np.zeros([FLAGS.image_height, FLAGS.image_width], dtype=np.int)
         i_label_map[line_pixels[0][i_label_list],line_pixels[1][i_label_list]] = 1
         _, num_cc = measure.label(i_label_map, background=0, return_num=True)
-        i_label_map_path = os.path.join(FLAGS.test_dir + '/tmp', 'i_label_map_%s_%d_%d.bmp' % (file_name, i, num_cc))
+        i_label_map_path = os.path.join(FLAGS.test_dir+'/stroke', 'i_label_map_%s_%d_%d.bmp' % (file_name, i, num_cc))
         scipy.misc.imsave(i_label_map_path, i_label_map)
 
         # vectorize using potrace
@@ -459,7 +462,7 @@ def graphcut(linenet_manager, intersectnet_manager, file_path):
         #     scipy.misc.imsave(i_label_map_path, i_label_map)
         #     call(['potrace', '-s', '-i', '-C'+color_hex, i_label_map_path])
 
-        i_label_map_svg = os.path.join(FLAGS.test_dir + '/tmp', 'i_label_map_%s_%d_%d.svg' % (file_name, i, num_cc))
+        i_label_map_svg = os.path.join(FLAGS.test_dir+'/stroke', 'i_label_map_%s_%d_%d.svg' % (file_name, i, num_cc))
         if first_svg:
             call(['cp', i_label_map_svg, target_svg_path])
             first_svg = False
@@ -486,7 +489,7 @@ def graphcut(linenet_manager, intersectnet_manager, file_path):
     # plt.imshow(label_map)
     # plt.show()
       
-    # tf.gfile.DeleteRecursively(FLAGS.test_dir + '/tmp')
+    tf.gfile.DeleteRecursively(FLAGS.test_dir + '/tmp')
     return num_labels, diff_labels, acc_avg
 
 

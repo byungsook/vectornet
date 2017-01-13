@@ -302,10 +302,6 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
     bx = int(bx)
     y_crop = y[:,bx:bx+FLAGS.image_width]
 
-    if y_crop.shape[1] < FLAGS.image_width:
-        print('bx', bx)
-        y_crop = y[:,:FLAGS.image_width]
-
     svg_crop = svg.format(
         w=FLAGS.image_width, h=FLAGS.image_height,
         bx=bx, by=by, bw=FLAGS.image_width, bh=FLAGS.image_height,
@@ -320,6 +316,10 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
     if max_intensity > 0:
         x /= max_intensity
     
+    if x.shape != y_crop.shape:
+        print('bx', bx)
+        y_crop = np.zeros([FLAGS.image_height, FLAGS.image_width], dtype=np.bool)
+
     y = np.multiply(x, y_crop) * 1000
 
     # # debug
@@ -332,7 +332,7 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
     # plt.imshow(y, cmap=plt.cm.gray)
     # mng = plt.get_current_fig_manager()
     # mng.full_screen_toggle()
-    # plt.show()        
+    # plt.show()
 
     x_batch[batch_id,:,:,0] = x
     y_batch[batch_id,:,:,0] = y

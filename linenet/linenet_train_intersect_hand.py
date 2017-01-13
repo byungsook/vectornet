@@ -163,8 +163,8 @@ def train():
             # Print statistics periodically.
             if step % FLAGS.stat_steps == 0 or step < 100:
                 examples_per_sec = FLAGS.batch_size / float(duration)
-                print('%s: step %d, loss = %.2f (%.1f examples/sec; %.3f sec/batch)' % 
-                    (datetime.now(), step, loss_value, examples_per_sec, duration))
+                print('%s: epoch %d, step %d, loss = %.2f (%.1f examples/sec; %.3f sec/batch)' % 
+                    (datetime.now(), batch_manager.num_epoch, step, loss_value, examples_per_sec, duration))
 
             # Write the summary periodically.
             if step % FLAGS.summary_steps == 0 or step < 100:

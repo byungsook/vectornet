@@ -295,12 +295,14 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
                 bx = np.random.rand() * (max_bx - min_bx) + min_bx
                 find_intersection = True
 
+
+    y_org = y
     while True:
         if not find_intersection:
             bx = np.random.rand() * (w-FLAGS.image_width)
     
         bx = int(bx)
-        y = y[:,bx:bx+FLAGS.image_width]
+        y = y_org[:,bx:bx+FLAGS.image_width]
 
         svg_crop = svg.format(
             w=FLAGS.image_width, h=FLAGS.image_height,
@@ -312,6 +314,10 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
         s_img = Image.open(io.BytesIO(s_png))
 
         x = np.array(s_img)[:,:,3].astype(np.float) # / 255.0
+
+        if x.shape != y.shape:
+            print(x.shape)
+
         max_intensity = np.amax(x)
         if max_intensity > 0:
             x /= max_intensity
@@ -354,7 +360,8 @@ if __name__ == '__main__':
     FLAGS.transform = True
 
     batch_manager = BatchManager()
-    x_batch, y_batch = batch_manager.batch()
+    while True:
+        x_batch, y_batch = batch_manager.batch()
     
     for i in xrange(FLAGS.batch_size):
         plt.imshow(np.reshape(x_batch[i,:], [FLAGS.image_height, FLAGS.image_width]), cmap=plt.cm.gray)

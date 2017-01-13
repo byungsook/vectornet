@@ -144,7 +144,7 @@ def train():
         # tf.train.start_queue_runners(sess=sess)
         # Initialize the batch manager
         batch_manager = linenet_data_intersect_hand.BatchManager()
-        # print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
+        print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
 
         ####################################################################
         # Start to train.

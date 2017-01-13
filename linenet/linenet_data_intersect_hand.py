@@ -287,7 +287,7 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
                 bx = np.random.rand() * (max_bx - min_bx) + min_bx
                 find_intersection = True
 
-    bx = int(round(bx))
+    bx = int(bx)
     y = y[:,bx:bx+FLAGS.image_width]
 
     svg_crop = svg.format(

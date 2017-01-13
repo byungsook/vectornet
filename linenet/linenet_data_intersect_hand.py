@@ -56,7 +56,8 @@ class BatchManager(object):
                     if not line: break
 
                     file_path = os.path.join(FLAGS.data_dir, line.rstrip())
-                    self._svg_list.append(file_path)
+                    if find_intersection(file_path):
+                        self._svg_list.append(file_path)
         else:
             for root, _, files in os.walk(FLAGS.data_dir):
                 for file in files:
@@ -103,7 +104,7 @@ class BatchManager(object):
             svg_batch = []
             for i in xrange(FLAGS.batch_size):
                 svg_batch.append(self._svg_list[self._next_svg_id])
-                train_set(i, svg_batch, self.x_batch, self.y_batch)
+                train_set(i, svg_batch, self.x_batch, self.y_batch)                
                 self._next_svg_id = (self._next_svg_id + 1) % len(self._svg_list)
                 if self._next_svg_id == 0:
                     self.num_epoch = self.num_epoch + 1
@@ -121,75 +122,75 @@ class BatchManager(object):
         return self.x_batch, self.y_batch
 
 
-# def find_intersection(svg_file_path):
-#     with open(svg_file_path, 'r') as sf:
-#         svg = sf.read()
+def find_intersection(svg_file_path):
+    with open(svg_file_path, 'r') as sf:
+        svg = sf.read()
 
-#     c_start = svg.find('<!--') + 4
-#     c_end = svg.find('-->', c_start)
-#     w, h = svg[c_start:c_end].split()
-#     w = int(round(float(w)))
-#     h = int(round(float(h)))
-#     w_end = c_end
+    c_start = svg.find('<!--') + 4
+    c_end = svg.find('-->', c_start)
+    w, h = svg[c_start:c_end].split()
+    w = int(round(float(w)))
+    h = int(round(float(h)))
+    w_end = c_end
     
-#     num_lines = svg.count('\n')
-#     num_strokes = int((num_lines - 5) / 2) # polyline start 6
-#     # stroke_width = np.random.randint(FLAGS.max_stroke_width) + 1
-#     stroke_width = 1
+    num_lines = svg.count('\n')
+    num_strokes = int((num_lines - 5) / 2) # polyline start 6
+    # stroke_width = np.random.randint(FLAGS.max_stroke_width) + 1
+    stroke_width = 1
 
-#     svg = svg.format(
-#         w=w, h=h,
-#         bx=0, by=0, bw=w, bh=h,
-#         sw=stroke_width)
+    svg = svg.format(
+        w=w, h=h,
+        bx=0, by=0, bw=w, bh=h,
+        sw=stroke_width)
 
-#     y = np.zeros([h, w], dtype=np.bool)
-#     stroke_list = []
-#     for stroke_id in xrange(num_strokes):
+    y = np.zeros([h, w], dtype=np.bool)
+    stroke_list = []
+    for stroke_id in xrange(num_strokes):
 
-#         # leave only one path
-#         svg_xml = ET.fromstring(svg)
-#         if sys.version_info > (2,7):
-#             stroke = svg_xml[0][stroke_id]
-#             for c in reversed(xrange(num_strokes)):
-#                 if svg_xml[0][c] != stroke:
-#                     svg_xml[0].remove(svg_xml[0][c])
-#         else:
-#             svg_xml[0]._children = [svg_xml[0]._children[stroke_id]]
-#         svg_one_stroke = ET.tostring(svg_xml, method='xml')
+        # leave only one path
+        svg_xml = ET.fromstring(svg)
+        if sys.version_info > (2,7):
+            stroke = svg_xml[0][stroke_id]
+            for c in reversed(xrange(num_strokes)):
+                if svg_xml[0][c] != stroke:
+                    svg_xml[0].remove(svg_xml[0][c])
+        else:
+            svg_xml[0]._children = [svg_xml[0]._children[stroke_id]]
+        svg_one_stroke = ET.tostring(svg_xml, method='xml')
 
-#         stroke_png = cairosvg.svg2png(bytestring=svg_one_stroke)
-#         stroke_img = Image.open(io.BytesIO(stroke_png))
-#         stroke = np.array(stroke_img)[:,:,3].astype(np.float)
+        stroke_png = cairosvg.svg2png(bytestring=svg_one_stroke)
+        stroke_img = Image.open(io.BytesIO(stroke_png))
+        stroke = np.array(stroke_img)[:,:,3].astype(np.float)
 
-#         # # debug
-#         # stroke_img = np.array(stroke_img)[:,:,3].astype(np.float) / 255.0
-#         # plt.imshow(stroke_img, cmap=plt.cm.gray)
-#         # plt.show()
+        # # debug
+        # stroke_img = np.array(stroke_img)[:,:,3].astype(np.float) / 255.0
+        # plt.imshow(stroke_img, cmap=plt.cm.gray)
+        # plt.show()
 
-#         stroke_list.append(stroke)
+        stroke_list.append(stroke)
 
-#     for i in xrange(num_strokes-1):
-#         for j in xrange(i+1, num_strokes):
-#             intersect = np.logical_and(stroke_list[i], stroke_list[j])
-#             y = np.logical_or(intersect, y)
+    for i in xrange(num_strokes-1):
+        for j in xrange(i+1, num_strokes):
+            intersect = np.logical_and(stroke_list[i], stroke_list[j])
+            y = np.logical_or(intersect, y)
             
-#             # debug
-#             if np.sum(intersect) > 0:
-#                 plt.figure()
-#                 plt.subplot(221)
-#                 plt.imshow(stroke_list[i], cmap=plt.cm.gray)
-#                 plt.subplot(222)
-#                 plt.imshow(stroke_list[j], cmap=plt.cm.gray)
-#                 plt.subplot(223)
-#                 plt.imshow(intersect, cmap=plt.cm.gray)
-#                 plt.subplot(224)
-#                 plt.imshow(y, cmap=plt.cm.gray)
-#                 mng = plt.get_current_fig_manager()
-#                 mng.full_screen_toggle()
-#                 plt.show()
+            # # debug
+            # if np.sum(intersect) > 0:
+            #     plt.figure()
+            #     plt.subplot(221)
+            #     plt.imshow(stroke_list[i], cmap=plt.cm.gray)
+            #     plt.subplot(222)
+            #     plt.imshow(stroke_list[j], cmap=plt.cm.gray)
+            #     plt.subplot(223)
+            #     plt.imshow(intersect, cmap=plt.cm.gray)
+            #     plt.subplot(224)
+            #     plt.imshow(y, cmap=plt.cm.gray)
+            #     mng = plt.get_current_fig_manager()
+            #     mng.full_screen_toggle()
+            #     plt.show()
 
-#     num_intersections = np.sum(y)
-#     return num_intersections > 0
+    num_intersections = np.sum(y)
+    return num_intersections > 0
 
 
 def train_set(batch_id, svg_batch, x_batch, y_batch):

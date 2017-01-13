@@ -487,7 +487,7 @@ def graphcut(file_path):
     accuracy_list = _compute_accuracy(file_path, labels, line_pixels, num_line_pixels, dup_rev_dict)
     acc_avg = np.average(accuracy_list)
 
-    print('%s: %s, the number of labels %d' % (datetime.now(), file_name, num_labels))
+    print('%s: %s, the number of labels %d, truth %d, diff %d' % (datetime.now(), file_name, num_labels, num_paths, diff_labels))
     print('%s: %s, energy before optimization %.4f' % (datetime.now(), file_name, e_before))
     print('%s: %s, energy after optimization %.4f' % (datetime.now(), file_name, e_after))
     print('%s: %s, accuracy computed, avg.: %.3f' % (datetime.now(), file_name, acc_avg))

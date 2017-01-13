@@ -208,13 +208,16 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
     num_strokes = int((num_lines - 5) / 2) # polyline start 6
     stroke_width = 1
 
-    # g_start = svg.find('fill="none"')
-    # svg = svg[:g_start] + 'transform="rotate({r},512,512) scale({sx},{sy}) translate({tx},{ty})" ' + svg[g_start:]
+    g_start = svg.find('fill="none"')
+    svg = svg[:g_start] + 'transform="rotate({r},512,512) scale({sx},{sy}) translate({tx},{ty})" ' + svg[g_start:]
+    r = np.random.randint(-10, 10)
     by = np.random.rand()*20.0 - 10.0
+    
     svg_all = svg.format(
         w=w, h=h,
         bx=0, by=by, bw=w, bh=h,
-        sw=stroke_width)
+        sw=stroke_width,
+        r=r, sx=1, sy=1, tx=0, ty=0)
 
     stroke_list = []
     # stroke_bbox_list = []
@@ -293,35 +296,20 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
     svg_crop = svg.format(
         w=FLAGS.image_width, h=FLAGS.image_height,
         bx=bx, by=by, bw=FLAGS.image_width, bh=FLAGS.image_height,
-        sw=stroke_width)
+        sw=stroke_width,
+        r=r, sx=1, sy=1, tx=0, ty=0)
 
     s_png = cairosvg.svg2png(bytestring=svg_crop.encode('utf-8'))
     s_img = Image.open(io.BytesIO(s_png))
 
     x = np.array(s_img)[:,:,3].astype(np.float) # / 255.0
     max_intensity = np.amax(x)
-    x = x / max_intensity
+    x /= max_intensity
 
     y = np.multiply(x, y)
+    max_intensity = np.amax(y)
+    if max_intensity > 0: y /= max_intensity
 
-    # rotate a bit
-    r = np.random.randint(-10, 10)
-    x = scipy.ndimage.rotate(x, r, reshape=False)
-    y = scipy.ndimage.rotate(y, r, reshape=False)
-
-    # normalize
-    x_min = np.amin(x)
-    x_max = np.amax(x)
-    x_range = x_max - x_min
-    if x_range > 0:
-        x = (x - x_min) / x_range
-
-    y_min = np.amin(y)
-    y_max = np.amax(y)
-    y_range = y_max - y_min
-    if y_range > 0:
-        y = (y - y_min) / y_range
-    
     # print(np.amin(x), np.amax(x))
     # print(np.amin(y), np.amax(y))
     

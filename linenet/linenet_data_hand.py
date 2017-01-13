@@ -143,7 +143,7 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
     
     num_lines = svg.count('\n')
     num_strokes = int((num_lines - 5) / 2) # polyline start 6
-    stroke_width = np.random.randint(FLAGS.max_stroke_width) + 1
+    stroke_width = 3 # np.random.randint(FLAGS.max_stroke_width) + 1
 
     # stroke_id = np.random.randint(num_strokes)
     stroke_id_list = np.random.permutation(xrange(0,num_strokes))
@@ -165,7 +165,7 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
             sw=stroke_width)
         s_png = cairosvg.svg2png(bytestring=svg_crop.encode('utf-8'))
         s_img = Image.open(io.BytesIO(s_png))
-        s = np.array(s_img)[:,:,3].astype(np.float) / 300.0 # make it a bit dimmed
+        s = np.array(s_img)[:,:,3].astype(np.float)
 
         # leave only one path
         svg_xml = et.fromstring(svg_crop)
@@ -185,7 +185,8 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
         # # debug
         # svg_all = svg.format(
         #     w=w, h=FLAGS.image_size,
-        #     bx=0, by=0, bw=w, bh=FLAGS.image_size)
+        #     bx=0, by=0, bw=w, bh=FLAGS.image_size,
+        #     sw=stroke_width)
         # s_all_png = cairosvg.svg2png(bytestring=svg_all.encode('utf-8'))
         # s_all_img = Image.open(io.BytesIO(s_all_png))
         # print('stroke_id', stroke_id)
@@ -229,9 +230,9 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
     point_id = np.random.randint(num_line_pixels)
     px, py = line_ids[0][point_id], line_ids[1][point_id]
 
-    # add noise
-    noise = FLAGS.noise_intensity * np.random.randn(*s.shape)
-    s = np.clip(s + noise, a_min=0.0, a_max=1.0)
+    # # add noise
+    # noise = FLAGS.noise_intensity * np.random.randn(*s.shape)
+    # s = np.clip(s + noise, a_min=0.0, a_max=1.0)
     max_intensity = np.amax(s)
     s = s / max_intensity
     max_intensity = np.amax(y)

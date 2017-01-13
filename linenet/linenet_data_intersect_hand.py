@@ -50,14 +50,19 @@ class BatchManager(object):
         self._svg_list = []
         if FLAGS.file_list:
             file_list_path = os.path.join(FLAGS.data_dir, FLAGS.file_list)
+            # file_int_list_path = os.path.join(FLAGS.data_dir, 'inter.txt')
+            # fff = open(file_int_list_path, 'w')
             with open(file_list_path, 'r') as f:
                 while True:
                     line = f.readline()
                     if not line: break
 
                     file_path = os.path.join(FLAGS.data_dir, line.rstrip())
-                    if find_intersection(file_path):
-                        self._svg_list.append(file_path)
+                    self._svg_list.append(file_path)
+            #         if find_intersection(file_path):
+            #             self._svg_list.append(file_path)
+            #             fff.write(line)
+            # fff.close()
         else:
             for root, _, files in os.walk(FLAGS.data_dir):
                 for file in files:
@@ -207,7 +212,7 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
     
     num_lines = svg.count('\n')
     num_strokes = int((num_lines - 5) / 2) # polyline start 6
-    stroke_width = 1
+    stroke_width = 3
 
     g_start = svg.find('fill="none"')
     svg = svg[:g_start] + 'transform="rotate({r},512,512) scale({sx},{sy}) translate({tx},{ty})" ' + svg[g_start:]
@@ -260,7 +265,6 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
     
     y = np.zeros([stroke.shape[0], stroke.shape[1]], dtype=np.bool)
     find_intersection = False
-    bx = np.random.rand() * (w-FLAGS.image_width)
     for i in xrange(num_strokes-1):
         for j in xrange(i+1, num_strokes):
             intersect = np.logical_and(stroke_list[i], stroke_list[j])
@@ -291,37 +295,47 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
                 bx = np.random.rand() * (max_bx - min_bx) + min_bx
                 find_intersection = True
 
-    bx = int(bx)
-    y = y[:,bx:bx+FLAGS.image_width]
+    while True:
+        if not find_intersection:
+            bx = np.random.rand() * (w-FLAGS.image_width)
+    
+        bx = int(bx)
+        y = y[:,bx:bx+FLAGS.image_width]
 
-    svg_crop = svg.format(
-        w=FLAGS.image_width, h=FLAGS.image_height,
-        bx=bx, by=by, bw=FLAGS.image_width, bh=FLAGS.image_height,
-        sw=stroke_width,
-        r=r, sx=1, sy=1, tx=0, ty=0)
+        svg_crop = svg.format(
+            w=FLAGS.image_width, h=FLAGS.image_height,
+            bx=bx, by=by, bw=FLAGS.image_width, bh=FLAGS.image_height,
+            sw=stroke_width,
+            r=r, sx=1, sy=1, tx=0, ty=0)
 
-    s_png = cairosvg.svg2png(bytestring=svg_crop.encode('utf-8'))
-    s_img = Image.open(io.BytesIO(s_png))
+        s_png = cairosvg.svg2png(bytestring=svg_crop.encode('utf-8'))
+        s_img = Image.open(io.BytesIO(s_png))
 
-    x = np.array(s_img)[:,:,3].astype(np.float) # / 255.0
-    max_intensity = np.amax(x)
-    x /= max_intensity
+        x = np.array(s_img)[:,:,3].astype(np.float) # / 255.0
+        max_intensity = np.amax(x)
+        if max_intensity > 0:
+            x /= max_intensity
+        else:
+            find_intersection = False
+            continue
 
-    y = np.multiply(x, y)
-    max_intensity = np.amax(y)
-    if max_intensity > 0: y /= max_intensity
+        y = np.multiply(x, y)
+        max_intensity = np.amax(y)
+        if max_intensity > 0: y /= max_intensity
 
-    # # debug
-    # plt.figure()
-    # plt.subplot(131)
-    # plt.imshow(s_img)
-    # plt.subplot(132)
-    # plt.imshow(x, cmap=plt.cm.gray)
-    # plt.subplot(133)
-    # plt.imshow(y, cmap=plt.cm.gray)
-    # mng = plt.get_current_fig_manager()
-    # mng.full_screen_toggle()
-    # plt.show()
+        # # debug
+        # plt.figure()
+        # plt.subplot(131)
+        # plt.imshow(s_img)
+        # plt.subplot(132)
+        # plt.imshow(x, cmap=plt.cm.gray)
+        # plt.subplot(133)
+        # plt.imshow(y, cmap=plt.cm.gray)
+        # mng = plt.get_current_fig_manager()
+        # mng.full_screen_toggle()
+        # plt.show()
+        
+        break
 
     x_batch[batch_id,:,:,0] = x
     y_batch[batch_id,:,:,0] = y

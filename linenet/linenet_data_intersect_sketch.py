@@ -191,7 +191,7 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
             # mng.full_screen_toggle()
             # plt.show()
 
-    y = np.multiply(x, y)
+    y = np.multiply(x, y) * 1000
 
     # # debug
     # plt.figure()

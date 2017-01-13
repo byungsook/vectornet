@@ -296,52 +296,43 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
                 find_intersection = True
 
 
-    y_org = y
-    while True:
-        if not find_intersection:
-            bx = np.random.rand() * (w-FLAGS.image_width)
+    if not find_intersection:
+        bx = np.random.rand() * (w-FLAGS.image_width)
+
+    bx = int(bx)
+    y_crop = y[:,bx:bx+FLAGS.image_width]
+
+    if y_crop.shape[1] < FLAGS.image_width:
+        print('bx', bx)
+        y_crop = y[:,:FLAGS.image_width]
+
+    svg_crop = svg.format(
+        w=FLAGS.image_width, h=FLAGS.image_height,
+        bx=bx, by=by, bw=FLAGS.image_width, bh=FLAGS.image_height,
+        sw=stroke_width,
+        r=r, sx=1, sy=1, tx=0, ty=0)
+
+    s_png = cairosvg.svg2png(bytestring=svg_crop.encode('utf-8'))
+    s_img = Image.open(io.BytesIO(s_png))
+
+    x = np.array(s_img)[:,:,3].astype(np.float) # / 255.0
+    max_intensity = np.amax(x)
+    if max_intensity > 0:
+        x /= max_intensity
     
-        bx = int(bx)
-        y = y_org[:,bx:bx+FLAGS.image_width]
+    y = np.multiply(x, y_crop) * 1000
 
-        svg_crop = svg.format(
-            w=FLAGS.image_width, h=FLAGS.image_height,
-            bx=bx, by=by, bw=FLAGS.image_width, bh=FLAGS.image_height,
-            sw=stroke_width,
-            r=r, sx=1, sy=1, tx=0, ty=0)
-
-        s_png = cairosvg.svg2png(bytestring=svg_crop.encode('utf-8'))
-        s_img = Image.open(io.BytesIO(s_png))
-
-        x = np.array(s_img)[:,:,3].astype(np.float) # / 255.0
-
-        if x.shape != y.shape:
-            print(x.shape)
-
-        max_intensity = np.amax(x)
-        if max_intensity > 0:
-            x /= max_intensity
-        else:
-            find_intersection = False
-            continue
-
-        y = np.multiply(x, y)
-        max_intensity = np.amax(y)
-        if max_intensity > 0: y /= max_intensity
-
-        # # debug
-        # plt.figure()
-        # plt.subplot(131)
-        # plt.imshow(s_img)
-        # plt.subplot(132)
-        # plt.imshow(x, cmap=plt.cm.gray)
-        # plt.subplot(133)
-        # plt.imshow(y, cmap=plt.cm.gray)
-        # mng = plt.get_current_fig_manager()
-        # mng.full_screen_toggle()
-        # plt.show()
-        
-        break
+    # # debug
+    # plt.figure()
+    # plt.subplot(131)
+    # plt.imshow(s_img)
+    # plt.subplot(132)
+    # plt.imshow(x, cmap=plt.cm.gray)
+    # plt.subplot(133)
+    # plt.imshow(y, cmap=plt.cm.gray)
+    # mng = plt.get_current_fig_manager()
+    # mng.full_screen_toggle()
+    # plt.show()        
 
     x_batch[batch_id,:,:,0] = x
     y_batch[batch_id,:,:,0] = y

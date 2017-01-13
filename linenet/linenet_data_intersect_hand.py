@@ -283,8 +283,8 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
             if num_intersect > 0 and not find_intersection:
                 cols = np.any(intersect, axis=0)
                 cmin, cmax = np.where(cols)[0][[0, -1]]
-                cmin -= 5
-                cmax += 5
+                cmin = max(0, cmin-5)
+                cmax = min(w, cmax+5)
                 min_bx = max(0, cmax-FLAGS.image_width)
                 max_bx = min(w-FLAGS.image_width, cmin)
                 bx = np.random.rand() * (max_bx - min_bx) + min_bx
@@ -309,10 +309,6 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
     y = np.multiply(x, y)
     max_intensity = np.amax(y)
     if max_intensity > 0: y /= max_intensity
-
-    # print(np.amin(x), np.amax(x))
-    # print(np.amin(y), np.amax(y))
-    
 
     # # debug
     # plt.figure()

@@ -31,7 +31,7 @@ import tensorflow as tf
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_integer('batch_size', 16,
+tf.app.flags.DEFINE_integer('batch_size', 4,
                             """Number of images to process in a batch.""")
 tf.app.flags.DEFINE_string('data_dir', 'data/hand',
                            """Path to the chinese data directory.""")
@@ -308,6 +308,23 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
     r = np.random.randint(-10, 10)
     x = scipy.ndimage.rotate(x, r, reshape=False)
     y = scipy.ndimage.rotate(y, r, reshape=False)
+
+    # normalize
+    x_min = np.amin(x)
+    x_max = np.amax(x)
+    x_range = x_max - x_min
+    if x_range > 0:
+        x = (x - x_min) / x_range
+
+    y_min = np.amin(y)
+    y_max = np.amax(y)
+    y_range = y_max - y_min
+    if y_range > 0:
+        y = (y - y_min) / y_range
+    
+    # print(np.amin(x), np.amax(x))
+    # print(np.amin(y), np.amax(y))
+    
 
     # # debug
     # plt.figure()

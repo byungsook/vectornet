@@ -47,7 +47,7 @@ tf.app.flags.DEFINE_string('file_list', '', # 'test.txt',
                            """file_list""")
 tf.app.flags.DEFINE_integer('num_test_files', 1,
                            """num_test_files""")
-tf.app.flags.DEFINE_integer('image_height', 64,
+tf.app.flags.DEFINE_integer('image_height', 48,
                             """Image Width.""")
 tf.app.flags.DEFINE_integer('image_width', 0,
                             """Image Width.""")
@@ -224,7 +224,7 @@ def graphcut(file_path):
     crop_size = -1
     if FLAGS.use_batch:
         dist = int(FLAGS.window_size * FLAGS.neighbor_sigma + 0.5)
-        crop_size = 2 * dist + 1
+        # crop_size = 2 * dist + 1
         linenet_manager = LinenetManager([FLAGS.image_height, FLAGS.image_width], crop_size)
     else:
         linenet_manager = LinenetManager([FLAGS.image_height, FLAGS.image_width])
@@ -318,22 +318,22 @@ def graphcut(file_path):
         for i in xrange(num_line_pixels-1):
             p1 = np.array([line_pixels[0][i], line_pixels[1][i]])
             pred_p1 = np.load(prob_file_path.format(id=i))
-            rng = nb.radius_neighbors([p1])
-            neighbor_list = rng[1][0]
-            for rj, j in enumerate(neighbor_list): # ids
-                if j <= i:
-                    continue
-            # for j in xrange(i+1, num_line_pixels): # see entire neighbors
+            # rng = nb.radius_neighbors([p1])
+            # neighbor_list = rng[1][0]
+            # for rj, j in enumerate(neighbor_list): # ids
+            #     if j <= i:
+            #         continue
+            for j in xrange(i+1, num_line_pixels): # see entire neighbors
                 p2 = np.array([line_pixels[0][j], line_pixels[1][j]])
                 pred_p2 = np.load(prob_file_path.format(id=j))
-                rp2 = [center+p2[0]-p1[0],center+p2[1]-p1[1]]
-                rp1 = [center+p1[0]-p2[0],center+p1[1]-p2[1]]
-                pred = (pred_p1[rp2[0],rp2[1]] + pred_p2[rp1[0],rp1[1]]) * 0.5
-                # pred = (pred_p1[p2[0],p2[1]] + pred_p2[p1[0],p1[1]]) * 0.5 # see entire neighbors
+                # rp2 = [center+p2[0]-p1[0],center+p2[1]-p1[1]]
+                # rp1 = [center+p1[0]-p2[0],center+p1[1]-p2[1]]
+                # pred = (pred_p1[rp2[0],rp2[1]] + pred_p2[rp1[0],rp1[1]]) * 0.5
+                pred = (pred_p1[p2[0],p2[1]] + pred_p2[p1[0],p1[1]]) * 0.5 # see entire neighbors
                 pred = np.exp(-0.5 * (1.0-pred)**2 / FLAGS.prediction_sigma**2)
 
-                d12 = rng[0][0][rj]
-                # d12 = LA.norm(p1-p2, 2) # see entire neighbors
+                # d12 = rng[0][0][rj]
+                d12 = LA.norm(p1-p2, 2) # see entire neighbors
                 spatial = np.exp(-0.5 * d12**2 / FLAGS.neighbor_sigma**2)
                 f.write('%d %d %f %f\n' % (i, j, pred, spatial))
 

@@ -130,6 +130,13 @@ class LinenetManager(object):
 
 
     def extract_save(self, img, batch_size, save_path):
+        if self._crop_size == -1:
+            return self.extract_save_no_crop(img, batch_size, save_path)
+        else:
+            return self.extract_save_crop(img, batch_size, save_path)
+
+
+    def extract_save_no_crop(self, img, batch_size, save_path):
         """extract and save"""
 
         line_pixels = np.nonzero(img)

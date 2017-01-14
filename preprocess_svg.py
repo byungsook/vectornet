@@ -156,7 +156,8 @@ def preprocess_sketch(file_path):
         while True:
             svg_line = f.readline()
             if svg_line.find('<g') >= 0:
-                svg = svg + svg_line
+                # svg = svg + svg_line
+                svg = svg + '<g display="inline" transform="rotate({r},512,512) scale({sx},{sy}) translate({tx},{ty})">\n'
                 break
 
         # gather normal paths and remove thick white stroke
@@ -175,7 +176,7 @@ def preprocess_sketch(file_path):
 
 
     # # debug
-    # img = cairosvg.svg2png(bytestring=svg.format(w=128, h=96))
+    # img = cairosvg.svg2png(bytestring=svg.format(w=128, h=96, r=45, sx=0.8, sy=1.2, tx=10, ty=20))
     # img = Image.open(io.BytesIO(img))                
     # img = np.array(img)[:,:,3].astype(np.float) / 255.0
     # # img = scipy.stats.threshold(img, threshmax=0.0001, newval=1.0)
@@ -393,15 +394,15 @@ def preprocess(run_id):
 def init_arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('process_num',
-                    default=4,
+                    default=0,
                     help='process number',
                     nargs='?') 
     parser.add_argument('dst_dir',
-                    default='linenet/data/hand', # 'data_tmp/gc_test',
+                    default='linenet/data/sketch_trans', # 'data_tmp/gc_test',
                     help='destination directory',
                     nargs='?') # optional arg.
     parser.add_argument('dst_tar',
-                    default='linenet/data/hand.tar.gz', # 'data_tmp/gc_test',
+                    default='linenet/data/sketch_trans.tar.gz', # 'data_tmp/gc_test',
                     help='destination tar file',
                     nargs='?') # optional arg.
     return parser.parse_args()

@@ -28,16 +28,22 @@ import tensorflow as tf
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_integer('batch_size', 64,
+tf.app.flags.DEFINE_integer('batch_size', 8,
                             """Number of images to process in a batch.""")
 tf.app.flags.DEFINE_integer('num_processors', 8,
                             """# of processors for batch generation.""")
-tf.app.flags.DEFINE_integer('image_size', 48, # 48-24-12-6
+tf.app.flags.DEFINE_integer('image_size', 128, # 48-24-12-6
+                            """Image Size.""")
+tf.app.flags.DEFINE_integer('image_height', 128, # 48-24-12-6
+                            """Image Size.""")
+tf.app.flags.DEFINE_integer('image_width', 128, # 48-24-12-6
                             """Image Size.""")
 tf.app.flags.DEFINE_integer('min_length', 4,
                             """minimum length of a line.""")
 tf.app.flags.DEFINE_float('intensity_ratio', 10.0,
                           """intensity ratio of point to lines""")
+tf.app.flags.DEFINE_integer('max_stroke_width', 5,
+                            """ """)
 tf.app.flags.DEFINE_integer('num_path', 5,
                             """# paths for batch generation""")
 tf.app.flags.DEFINE_integer('path_type', 2,
@@ -54,14 +60,14 @@ tf.app.flags.DEFINE_integer('noise_duplicate_max', 6,
                             """max # duplicates for noise generation""")
 tf.app.flags.DEFINE_float('noise_intensity', 30,
                           """unifor noise intensity""")
-tf.app.flags.DEFINE_boolean('use_two_channels', False,
+tf.app.flags.DEFINE_boolean('use_two_channels', True,
                             """use two channels for input""")
 
 
 SVG_START_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
 <svg width="{width}" height="{height}" xmlns="http://www.w3.org/2000/svg" version="1.1">
-<g fill="none" stroke="black" stroke-width="1">"""
+<g fill="none" stroke="black" stroke-width="{sw}">"""
 SVG_LINE_TEMPLATE = """<path id="{id}" d="M {x1} {y1} L{x2} {y2}"/>"""
 SVG_CUBIC_BEZIER_TEMPLATE = """<path id="{id}" d="M {sx} {sy} C {cx1} {cy1} {cx2} {cy2} {tx} {ty}"/>"""
 SVG_END_TEMPLATE = """</g></svg>"""
@@ -364,11 +370,13 @@ def new_x_from_y_with_p(x_batch, y_batch, p_batch):
 
 def train_set(i, x_batch, y_batch, x_no_p_batch, p_batch):
     np.random.seed()
+    sw = np.random.randint(FLAGS.max_stroke_width) + 1
     while True:
         LINE1 = _create_a_path(FLAGS.path_type)
         SVG_LINE1 = SVG_START_TEMPLATE.format(
                 width=FLAGS.image_size,
-                height=FLAGS.image_size
+                height=FLAGS.image_size,
+                sw=sw
             ) + LINE1 + SVG_END_TEMPLATE
 
         y_png = cairosvg.svg2png(bytestring=SVG_LINE1)
@@ -384,7 +392,8 @@ def train_set(i, x_batch, y_batch, x_no_p_batch, p_batch):
 
     SVG_MULTI_LINES = SVG_START_TEMPLATE.format(
             width=FLAGS.image_size,
-            height=FLAGS.image_size
+            height=FLAGS.image_size,
+            sw=sw
         )
     SVG_MULTI_LINES = SVG_MULTI_LINES + LINE1
     for path_id in range(1, FLAGS.num_path):
@@ -394,6 +403,8 @@ def train_set(i, x_batch, y_batch, x_no_p_batch, p_batch):
 
     point_id = np.random.randint(len(line_ids[0]))
     px, py = line_ids[0][point_id], line_ids[1][point_id]
+
+    # cairosvg.svg2pdf(bytestring=SVG_MULTI_LINES, write_to=('x-%d.pdf' % i))
 
     # save x png
     x_png = cairosvg.svg2png(bytestring=SVG_MULTI_LINES)
@@ -440,8 +451,20 @@ def batch(check_result=False):
     if check_result:
         if FLAGS.use_two_channels:
             t = np.concatenate((x_batch, np.zeros([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1])), axis=3)
-            plt.imshow(t[0,:,:,:], cmap=plt.cm.gray)
-            plt.show()
+            # plt.imshow(t[0,:,:,:], cmap=plt.cm.gray)
+            # plt.show()
+
+            for i in xrange(FLAGS.batch_size):
+                s = np.reshape(x_no_p_batch[i,:,:], [FLAGS.image_size, FLAGS.image_size])
+
+                img_rgb_inv = np.ones([FLAGS.image_size, FLAGS.image_size,3])
+                img_rgb_inv[:,:,1] = img_rgb_inv[:,:,1] - s
+                img_rgb_inv[:,:,2] = img_rgb_inv[:,:,2] - s
+                img_rgb_inv[p_batch[i,0],p_batch[i,1],:] = 0.0
+
+                imsave('%d-1.png' % i, 1.0-s)
+                imsave('%d-2.png' % i, img_rgb_inv)
+                imsave('%d-3.png' % i, 1.0-np.reshape(y_batch[i,:,:], [FLAGS.image_size, FLAGS.image_size]))
         else:
             x = np.reshape(x_batch[0,:,:], [FLAGS.image_size, FLAGS.image_size])
             plt.imshow(x, cmap=plt.cm.gray)
@@ -455,6 +478,36 @@ def batch(check_result=False):
 
 
 if __name__ == '__main__':
+    # img_file_name = 'test/1.png'
+    # img = np.array(Image.open(img_file_name).convert('L')).astype(np.float) / 255.0  
+
+    # img_file_name2 = 'test/18.png'
+    # img2 = np.array(Image.open(img_file_name2).convert('L')).astype(np.float) / 255.0  
+    # p = np.nonzero(img2 == 1.0)
+
+    # img = np.reshape(img, [FLAGS.image_size, FLAGS.image_size, 1])
+    # # img_rgb = np.concatenate(img, np.ones([FLAGS.image_size, FLAGS.image_size,2]), axis=2)
+    # # img_rgb[p[0][0],p[1][0],1] = 1.0
+    # # plt.imshow(img_rgb)
+    # # plt.show()
+    # # imsave('test/17_ch2.png', img_rgb)
+
+    
+    # img_rgb_inv = np.ones([FLAGS.image_size, FLAGS.image_size,3])
+    # img_rgb_inv[:,:,1] = img_rgb_inv[:,:,1] - img[:,:,0]
+    # img_rgb_inv[:,:,2] = img_rgb_inv[:,:,2] - img[:,:,0]
+    # img_rgb_inv[p[0][0],p[1][0],0] = 0.0
+    # plt.imshow(img_rgb_inv)
+    # plt.show()   
+    # imsave('test/17_ch2_inv.png', img_rgb_inv)
+
+    # img_file_name3 = 'test/20.png'
+    # img3 = np.array(Image.open(img_file_name3).convert('L')).astype(np.float) / 255.0  
+    # imsave('test/20_inv.png', 1.0-img3)
+
+
+
+
     # test
     batch(True)
     # batch_for_pbmap_test(4) # 2 4 17

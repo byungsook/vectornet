@@ -639,7 +639,7 @@ def test():
     crop_size = -1
     if FLAGS.use_batch:
         dist = int(FLAGS.window_size * FLAGS.neighbor_sigma + 0.5)
-        crop_size = 2 * dist + 1
+        # crop_size = 2 * dist + 1
 
     linenet_manager = LinenetManager([FLAGS.image_height, FLAGS.image_width], crop_size)
     duration = time.time() - start_time

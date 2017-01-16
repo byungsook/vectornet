@@ -16,12 +16,12 @@ from six.moves import xrange  # pylint: disable=redefined-builtin
 import numpy as np
 import tensorflow as tf
 
-import linenet_data_intersect2
+import linenet_data_intersect_chinese
 import linenet_model
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('log_dir', 'log/intersect',
+tf.app.flags.DEFINE_string('log_dir', 'log/overlap_ch2',
                            """Directory where to write event logs """
                            """and checkpoint.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
@@ -30,10 +30,10 @@ tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', '',
                            """If specified, restore this pretrained model """
                            """before beginning any training.
                            e.g. log/second_train/linenet.ckpt """)
-# tf.app.flags.DEFINE_boolean('transform', True,
-#                             """Whether to transform character.""")
-# tf.app.flags.DEFINE_string('file_list', 'train.txt',
-#                            """file_list""")
+tf.app.flags.DEFINE_boolean('transform', True,
+                            """Whether to transform character.""")
+tf.app.flags.DEFINE_string('file_list', 'train.txt',
+                           """file_list""")
 tf.app.flags.DEFINE_integer('max_steps', 3,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_integer('decay_steps', 30000,
@@ -145,7 +145,7 @@ def train():
         # # Start the queue runners.
         # tf.train.start_queue_runners(sess=sess)
         # Initialize the batch manager
-        batch_manager = linenet_data_intersect2.BatchManager()
+        batch_manager = linenet_data_intersect_chinese.BatchManager()
         # print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
 
         ####################################################################

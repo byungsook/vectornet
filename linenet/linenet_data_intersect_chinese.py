@@ -32,7 +32,7 @@ import tensorflow as tf
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_integer('batch_size', 4,
                             """Number of images to process in a batch.""")
-tf.app.flags.DEFINE_string('data_dir', 'data/chinese1',
+tf.app.flags.DEFINE_string('data_dir', 'data/chinese2',
                            """Path to the chinese data directory.""")
 tf.app.flags.DEFINE_integer('image_width', 128,
                             """Image Width.""")
@@ -40,7 +40,7 @@ tf.app.flags.DEFINE_integer('image_height', 128,
                             """Image Height.""")
 tf.app.flags.DEFINE_integer('num_processors', 8,
                             """# of processors for batch generation.""")
-tf.app.flags.DEFINE_boolean('chinese1', True,
+tf.app.flags.DEFINE_boolean('chinese1', False,
                             """whether chinese1 or not""")
 
 
@@ -133,7 +133,7 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
                 r = np.random.randint(-45, 45)
                 # s_sign = np.random.choice([1, -1], 1)[0]
                 s_sign = -1
-                s = 1.75 * np.random.random_sample(2) + 0.5 # [0.5, 2)
+                s = 1.5 * np.random.random_sample(2) + 0.5 # [0.5, 2)
                 s[1] = s[1] * s_sign
                 t = np.random.randint(-20, 20, 2)
                 if s_sign == 1:
@@ -149,9 +149,9 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
                 r = np.random.randint(-45, 45)
                 # s_sign = np.random.choice([1, -1], 1)[0]
                 s_sign = 1
-                s = 1.75 * np.random.random_sample(2) + 0.25 # [0.25, 2)
+                s = 1.5 * np.random.random_sample(2) + 0.5 # [0.5, 2)
                 s[1] = s[1] * s_sign
-                t = np.random.randint(-10, 10, 2)
+                t = np.random.randint(-20, 20, 2)
                 if s_sign == -1:
                     t[1] = t[1] - 109
             else:
@@ -196,7 +196,33 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
 
                 stroke_list.append(stroke)
         else:
-            pass
+            id = 0
+            num_paths = 0
+            while id != -1:
+                id = svg.find('path id', id + 1)
+                num_paths = num_paths + 1
+            num_paths = num_paths - 1 # uncount last one
+            
+            for path_id in xrange(num_paths):
+                svg_one_stroke = svg
+                id = len(svg_one_stroke)
+                for c in xrange(num_paths):
+                    id = svg_one_stroke.rfind('path id', 0, id)
+                    if c != path_id:
+                        id_start = svg_one_stroke.rfind('>', 0, id) + 1
+                        id_end = svg_one_stroke.find('/>', id_start) + 2
+                        svg_one_stroke = svg_one_stroke[:id_start] + svg_one_stroke[id_end:]
+
+                stroke_png = cairosvg.svg2png(bytestring=svg_one_stroke)
+                stroke_img = Image.open(io.BytesIO(stroke_png))
+                stroke = (np.array(stroke_img)[:,:,3] > 0)
+                
+                # # debug
+                # stroke_img = np.array(stroke_img)[:,:,3].astype(np.float) / 255.0
+                # plt.imshow(stroke_img, cmap=plt.cm.gray)
+                # plt.show()
+
+                stroke_list.append(stroke)
 
         for i in xrange(num_paths-1):
             for j in xrange(i+1, num_paths):

@@ -54,11 +54,11 @@ int main(int argc, char **argv)
 	
 	float **pred = new float*[n_sites];
 	for (int i = 0; i < n_sites; ++i) {
-		pred[i] = new float[n_sites];
+		pred[i] = new float[n_sites]();
 	}
 	float **w = new float*[n_sites];
 	for (int i = 0; i < n_sites; ++i) {
-		w[i] = new float[n_sites];
+		w[i] = new float[n_sites]();
 	}
 
 	while (is.good()) {
@@ -77,12 +77,8 @@ int main(int argc, char **argv)
 
 
 	int n_iters = 3;
-
-	float *data = new float[n_sites*n_labels];
-	for (int i = 0; i < n_sites*n_labels; ++i)
-		data[i] = 0;
-
-	int *labels = new int[n_sites];
+	float *data = new float[n_sites*n_labels]();
+	int *labels = new int[n_sites]();
 
 	try {
 		GCoptimizationGeneralGraph *gc = new GCoptimizationGeneralGraph(n_sites, n_labels);

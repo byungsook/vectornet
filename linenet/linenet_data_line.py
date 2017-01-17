@@ -41,12 +41,14 @@ tf.app.flags.DEFINE_integer('num_processors', 8,
                             """# of processors for batch generation.""")
 tf.app.flags.DEFINE_integer('min_length', 10,
                             """minimum length of a line.""")
-tf.app.flags.DEFINE_integer('num_paths', 10,
+tf.app.flags.DEFINE_integer('num_paths', 5,
                             """# paths for batch generation""")
 tf.app.flags.DEFINE_integer('path_type', 2,
                             """path type 0:line, 1:curve, 2:both""")
 tf.app.flags.DEFINE_integer('max_stroke_width', 5,
                           """max stroke width""")
+tf.app.flags.DEFINE_boolean('use_two_channels', True,
+                            """use two channels for input""")
 
 
 SVG_START_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
@@ -112,7 +114,8 @@ class BatchManager(object):
             FLAGS.num_processors = FLAGS.batch_size
 
         if FLAGS.num_processors == 1:
-            self.x_batch = np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1], dtype=np.float)
+            self.s_batch = np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1], dtype=np.float)
+            self.x_batch = np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 2], dtype=np.float)
             self.y_batch = np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1], dtype=np.float)
         else:
             class MPManager(multiprocessing.managers.SyncManager):
@@ -123,9 +126,10 @@ class BatchManager(object):
             self._mpmanager.start()
             self._pool = multiprocessing.pool.Pool(processes=FLAGS.num_processors)
             
-            self.x_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1], dtype=np.float)
+            self.s_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1], dtype=np.float)
+            self.x_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 2], dtype=np.float)
             self.y_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1], dtype=np.float)
-            self._func = partial(train_set, x_batch=self.x_batch, y_batch=self.y_batch)
+            self._func = partial(train_set, s_batch=self.s_batch, x_batch=self.x_batch, y_batch=self.y_batch)
 
 
     def __del__(self):
@@ -137,81 +141,78 @@ class BatchManager(object):
     def batch(self):
         if FLAGS.num_processors == 1:
             for i in xrange(FLAGS.batch_size):
-                train_set(i, self.x_batch, self.y_batch)
+                train_set(i, self.s_batch, self.x_batch, self.y_batch)
         else:
             self._pool.map(self._func, range(FLAGS.batch_size))
 
-        return self.x_batch, self.y_batch
+        return self.s_batch, self.x_batch, self.y_batch
 
 
 
-def train_set(batch_id, x_batch, y_batch):
+def train_set(batch_id, s_batch, x_batch, y_batch):
     np.random.seed()
     
-    svg = SVG_START_TEMPLATE.format(
-                width=FLAGS.image_width,
-                height=FLAGS.image_height
-            )
-    y = np.zeros([FLAGS.image_height, FLAGS.image_width], dtype=np.int)
-    stroke_list = []
-    for i in xrange(FLAGS.num_paths):
-        LINE1 = _create_a_path(FLAGS.path_type, i)
-        svg_one_stroke = SVG_START_TEMPLATE.format(
-                width=FLAGS.image_width,
-                height=FLAGS.image_height
-            ) + LINE1 + SVG_END_TEMPLATE
-        svg += LINE1
+    while True:
+        svg = SVG_START_TEMPLATE.format(
+                    width=FLAGS.image_width,
+                    height=FLAGS.image_height
+                )
+        y = np.zeros([FLAGS.image_height, FLAGS.image_width], dtype=np.int)
 
-        stroke_png = cairosvg.svg2png(bytestring=svg_one_stroke)
-        stroke_img = Image.open(io.BytesIO(stroke_png))
-        stroke = (np.array(stroke_img)[:,:,3] > 0)
+        path_id = np.random.randint(FLAGS.num_paths)
+        for i in xrange(FLAGS.num_paths):
+            LINE1 = _create_a_path(FLAGS.path_type, i)
+            svg += LINE1
+
+            svg_one_stroke = SVG_START_TEMPLATE.format(
+                    width=FLAGS.image_width,
+                    height=FLAGS.image_height
+                ) + LINE1 + SVG_END_TEMPLATE
+            
+            if i == path_id:
+                y_png = cairosvg.svg2png(bytestring=svg_one_stroke)
+                y_img = Image.open(io.BytesIO(y_png))
+
+        svg += SVG_END_TEMPLATE
+        s_png = cairosvg.svg2png(bytestring=svg)
+        s_img = Image.open(io.BytesIO(s_png))
+        s = np.array(s_img)[:,:,3].astype(np.float) # / 255.0
+        max_intensity = np.amax(s)
+        
+        if max_intensity == 0:
+            continue
+        else:
+            s = s / max_intensity
 
         # # debug
-        # stroke_img = Image.open(io.BytesIO(stroke_png))
-        # # stroke_img = np.array(stroke_img)[:,:,3].astype(np.float) / 255.0
-        # plt.imshow(stroke_img)
+        # plt.imshow(s_img)
         # plt.show()
 
-        stroke_list.append(stroke)
+        # leave only one path
+        y = np.array(y_img)[:,:,3].astype(np.float) / max_intensity
 
-    svg += SVG_END_TEMPLATE
-    x_png = cairosvg.svg2png(bytestring=svg)
-    x_img = Image.open(io.BytesIO(x_png))
-    x = np.array(x_img)[:,:,3].astype(np.float) # / 255.0
-    max_intensity = np.amax(x)
+        # # debug
+        # plt.imshow(y, cmap=plt.cm.gray)
+        # plt.show()
 
-    for i in xrange(FLAGS.num_paths-1):
-        for j in xrange(i+1, FLAGS.num_paths):
-            intersect = np.logical_and(stroke_list[i], stroke_list[j])
-            y += intersect
+        # select arbitrary marking pixel
+        line_ids = np.nonzero(y)
+        if len(line_ids[0]) == 0:
+            continue
+        else:
+            break
 
-            # # debug
-            # plt.figure()
-            # plt.subplot(221)
-            # plt.imshow(stroke_list[i], cmap=plt.cm.gray)
-            # plt.subplot(222)
-            # plt.imshow(stroke_list[j], cmap=plt.cm.gray)
-            # plt.subplot(223)
-            # plt.imshow(intersect, cmap=plt.cm.gray)
-            # plt.subplot(224)
-            # plt.imshow(y, cmap=plt.cm.gray)
-            # mng = plt.get_current_fig_manager()
-            # mng.full_screen_toggle()
-            # plt.show()
 
-    # # debug
-    # print('max intersection', np.amax(y))
-    # plt.figure()
-    # plt.subplot(121)
-    # plt.imshow(x_img)
-    # plt.subplot(122)
-    # plt.imshow(y, cmap=plt.cm.gray)
-    # mng = plt.get_current_fig_manager()
-    # mng.full_screen_toggle()
-    # plt.show()
+    point_id = np.random.randint(len(line_ids[0]))
+    px, py = line_ids[0][point_id], line_ids[1][point_id]
 
-    x_batch[batch_id,:,:,0] = x
+    s_batch[batch_id,:,:,0] = s
     y_batch[batch_id,:,:,0] = y
+    
+    x_batch[batch_id,:,:,0] = s
+    x_point = np.zeros(s.shape)
+    x_point[px, py] = 1.0
+    x_batch[batch_id,:,:,1] = x_point
 
 
 if __name__ == '__main__':
@@ -222,20 +223,18 @@ if __name__ == '__main__':
         os.chdir(working_path)
 
     # parameters 
-    tf.app.flags.DEFINE_string('file_list', 'train.txt', """file_list""")
     FLAGS.num_processors = 1
-    FLAGS.transform = False
 
     batch_manager = BatchManager()
-    x_batch, y_batch = batch_manager.batch()
+    s_batch, x_batch, y_batch = batch_manager.batch()
     
     for i in xrange(FLAGS.batch_size):
-        # plt.imshow(np.reshape(x_batch[i,:], [FLAGS.image_height, FLAGS.image_width]), cmap=plt.cm.gray)
-        # plt.show()
-        # plt.imshow(np.reshape(y_batch[i,:], [FLAGS.image_height, FLAGS.image_width]), cmap=plt.cm.gray)
-        # plt.show()
-
-        scipy.misc.imsave(current_path + '/inter_x%d.png' % i, np.reshape(x_batch[i,:], [FLAGS.image_height, FLAGS.image_width]))
-        scipy.misc.imsave(current_path + '/inter_y%d.png' % i, np.reshape(y_batch[i,:], [FLAGS.image_height, FLAGS.image_width]))
+        plt.imshow(np.reshape(s_batch[i,:], [FLAGS.image_height, FLAGS.image_width]), cmap=plt.cm.gray)
+        plt.show()
+        t = np.concatenate((x_batch, np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1])), axis=3)
+        plt.imshow(t[i,:,:,:], cmap=plt.cm.gray)
+        plt.show()
+        plt.imshow(np.reshape(y_batch[i,:], [FLAGS.image_height, FLAGS.image_width]), cmap=plt.cm.gray)
+        plt.show()
 
     print('Done')

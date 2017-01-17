@@ -81,7 +81,7 @@ def _compute_accuracy(svg, labels, line_pixels, num_line_pixels, dup_rev_dict):
             svg_xml[0]._children = [svg_xml[0]._children[i]]
             svg_one_stroke = ET.tostring(svg_xml, method='xml')
 
-            y_png = cairosvg.svg2png(bytestring=svg_one_stroke.encode('utf-8'))
+            y_png = cairosvg.svg2png(bytestring=svg_one_stroke)
             y_img = Image.open(io.BytesIO(y_png))
             y = (np.array(y_img)[:,:,3] > 0)
 
@@ -99,7 +99,7 @@ def _compute_accuracy(svg, labels, line_pixels, num_line_pixels, dup_rev_dict):
                 if j != i: svg_xml[0].remove(svg_xml[0][j])
             svg_one_stroke = ET.tostring(svg_xml, method='xml')
 
-            y_png = cairosvg.svg2png(bytestring=svg_one_stroke.encode('utf-8'))
+            y_png = cairosvg.svg2png(bytestring=svg_one_stroke)
             y_img = Image.open(io.BytesIO(y_png))
             y = (np.array(y_img)[:,:,3] > 0)
 

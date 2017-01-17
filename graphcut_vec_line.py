@@ -43,11 +43,11 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('test_dir', 'test/line',
                            """Directory where to write event logs """
                            """and checkpoint.""")
-tf.app.flags.DEFINE_integer('num_test_files', 1,
+tf.app.flags.DEFINE_integer('num_test_files', 100,
                            """num_test_files""")
-tf.app.flags.DEFINE_integer('image_width', 48,
+tf.app.flags.DEFINE_integer('image_width', 64,
                             """Image Width.""")
-tf.app.flags.DEFINE_integer('image_height', 48,
+tf.app.flags.DEFINE_integer('image_height', 64,
                             """Image Height.""")
 tf.app.flags.DEFINE_boolean('use_batch', True,
                             """whether use batch or not""")
@@ -164,9 +164,9 @@ def graphcut(linenet_manager, intersectnet_manager, batch_manager, id):
     with open(s_img_path, 'w') as f:
         f.write(svg)
     
-    # debug
-    plt.imshow(img, cmap=plt.cm.gray)
-    plt.show()
+    # # debug
+    # plt.imshow(img, cmap=plt.cm.gray)
+    # plt.show()
 
 
     # predict using linenet

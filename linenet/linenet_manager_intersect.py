@@ -34,7 +34,7 @@ class IntersectnetManager(object):
             self._phase_train = tf.placeholder(tf.bool, name='phase_train')
 
             self._x = tf.placeholder(dtype=tf.float32, shape=[None, self._h, self._w, 1])
-            self._y_hat = linenet.linenet_model.inference(self._x, self._phase_train)
+            self._y_hat = linenet.linenet_model.inference(self._x, self._phase_train, use_min=False)
 
             self._sess = tf.Session()
 

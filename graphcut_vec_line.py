@@ -81,7 +81,7 @@ def _compute_accuracy(svg, labels, line_pixels, num_line_pixels, dup_rev_dict):
             svg_xml[0]._children = [svg_xml[0]._children[i]]
             svg_one_stroke = ET.tostring(svg_xml, method='xml')
 
-            y_png = cairosvg.svg2png(bytestring=svg_one_stroke)
+            y_png = cairosvg.svg2png(bytestring=svg_one_stroke.encode('utf-8'))
             y_img = Image.open(io.BytesIO(y_png))
             y = (np.array(y_img)[:,:,3] > 0)
 
@@ -99,7 +99,7 @@ def _compute_accuracy(svg, labels, line_pixels, num_line_pixels, dup_rev_dict):
                 if j != i: svg_xml[0].remove(svg_xml[0][j])
             svg_one_stroke = ET.tostring(svg_xml, method='xml')
 
-            y_png = cairosvg.svg2png(bytestring=svg_one_stroke)
+            y_png = cairosvg.svg2png(bytestring=svg_one_stroke.encode('utf-8'))
             y_img = Image.open(io.BytesIO(y_png))
             y = (np.array(y_img)[:,:,3] > 0)
 
@@ -160,9 +160,13 @@ def graphcut(linenet_manager, intersectnet_manager, batch_manager, id):
     # convert svg to raster image
     img, svg, num_paths = batch_manager.input()
 
-    # # debug
-    # plt.imshow(img, cmap=plt.cm.gray)
-    # plt.show()
+    s_img_path = os.path.join(FLAGS.test_dir, file_name + '.svg')
+    with open(s_img_path, 'w') as f:
+        f.write(svg)
+    
+    # debug
+    plt.imshow(img, cmap=plt.cm.gray)
+    plt.show()
 
 
     # predict using linenet

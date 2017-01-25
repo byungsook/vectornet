@@ -17,35 +17,62 @@ from six.moves import xrange  # pylint: disable=redefined-builtin
 import numpy as np
 import tensorflow as tf
 
-import linenet_data
 import linenet_model
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('eval_dir', 'eval/ratio_test/ratio10.0_path4',
+tf.app.flags.DEFINE_string('eval_dir', 'eval/test',
                            """Directory where to write event logs """
                            """and checkpoint.""")
-tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', 'log/ratio_test/',
+tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', 'model/ch1/linenet.ckpt',
                            """If specified, restore this pretrained model.""")
 tf.app.flags.DEFINE_float('moving_avg_decay', 0.9999,
                           """The decay to use for the moving average.""")
-tf.app.flags.DEFINE_integer('max_images', FLAGS.batch_size,
-                            """max # images to save.""")
-tf.app.flags.DEFINE_integer('num_eval', 640,
-                            """# images for evaluation""")
+tf.app.flags.DEFINE_string('train_on', 'sketch',
+                           """specify training data""")
+tf.app.flags.DEFINE_boolean('transform', False,
+                            """Whether to transform character.""")
+tf.app.flags.DEFINE_string('file_list', 'test.txt',
+                           """file_list""")
+tf.app.flags.DEFINE_integer('num_epoch', 10,
+                            """# epoch""")
+tf.app.flags.DEFINE_float('min_prop', 0.0,
+                          """min_prop""")
+
+if FLAGS.train_on == 'chinese':
+    import linenet_data_chinese
+elif FLAGS.train_on == 'sketch':
+    import linenet_data_sketch
+elif FLAGS.train_on == 'hand':
+    import linenet_data_hand
+elif FLAGS.train_on == 'line':
+    import linenet_data_line
+else:
+    print('wrong training data set')
+    assert(False)
 
 
 def evaluate():
     with tf.Graph().as_default() as g:
+        if FLAGS.train_on == 'chinese':
+            batch_manager = linenet_data_chinese.BatchManager()
+            print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
+        elif FLAGS.train_on == 'sketch':
+            batch_manager = linenet_data_sketch.BatchManager()
+            print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
+        elif FLAGS.train_on == 'hand':
+            batch_manager = linenet_data_hand.BatchManager()
+            print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
+        elif FLAGS.train_on == 'line':
+            batch_manager = linenet_data_line.BatchManager()
+
         global_step = tf.Variable(0, name='global_step', trainable=False)
         is_train = False
         phase_train = tf.placeholder(tf.bool, name='phase_train')
 
-        batch_manager = linenet_data.BatchManager()
-
-        input_depth = 2 if FLAGS.use_two_channels else 1
-        x = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, input_depth])
-        y = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
+        d = 2 if FLAGS.use_two_channels else 1
+        x = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, d])
+        y = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 1])
         
         # Build a Graph that computes the logits predictions from the inference model.
         y_hat = linenet_model.inference(x, phase_train)
@@ -61,82 +88,84 @@ def evaluate():
 
 
         # Build the summary writer
-        summary_writer = tf.train.SummaryWriter(FLAGS.eval_dir, g)
+        summary_writer = tf.summary.FileWriter(FLAGS.eval_dir, g)
 
         loss_ph = tf.placeholder(tf.float32)
-        loss_summary = tf.scalar_summary('l2 loss (raw)', loss_ph)
+        loss_summary = tf.summary.scalar('l2 loss (raw)', loss_ph)
         
         loss_avg = tf.placeholder(tf.float32)
-        loss_avg_summary = tf.scalar_summary('l2 loss (avg)', loss_avg)
+        loss_avg_summary = tf.summary.scalar('l2 loss (avg)', loss_avg)
 
-        summary_x_writer = tf.train.SummaryWriter(FLAGS.eval_dir + '/x', g)
-        summary_y_writer = tf.train.SummaryWriter(FLAGS.eval_dir + '/y', g)
-        summary_y_hat_writer = tf.train.SummaryWriter(FLAGS.eval_dir + '/y_hat', g)
-        x_no_p = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 1])
-        x_no_p_summary = tf.image_summary('x_no_p', x_no_p, max_images=FLAGS.max_images)
+        summary_x_writer = tf.summary.FileWriter(FLAGS.eval_dir + '/x', g)
+        summary_y_writer = tf.summary.FileWriter(FLAGS.eval_dir + '/y', g)
+        summary_y_hat_writer = tf.summary.FileWriter(FLAGS.eval_dir + '/y_hat', g)
+        
+        s = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 1])
+        s_summary = tf.summary.image('s', s, max_outputs=FLAGS.batch_size)
         if FLAGS.use_two_channels:
-            p = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_size, FLAGS.image_size, 3])
-            x_summary = tf.image_summary('x', p, max_images=FLAGS.max_images)
-            b_channel = np.zeros([FLAGS.batch_size, FLAGS.image_size, FLAGS.image_size, 1]) # to make x RGB
+            x_rgb = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 3])
+            x_summary = tf.summary.image('x', x_rgb, max_outputs=FLAGS.batch_size)
+            b_channel = np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1]) # to make x RGB
         else:
-            x_summary = tf.image_summary('x', x, max_images=FLAGS.max_images)        
-        y_summary = tf.image_summary('y', y, max_images=FLAGS.max_images)
+            x_summary = tf.summary.image('x', x, max_outputs=FLAGS.batch_size)
+        y_summary = tf.summary.image('y', y, max_outputs=FLAGS.batch_size)
         y_hat_ph = tf.placeholder(tf.float32)
-        y_hat_summary = tf.image_summary('y_hat_ph', y_hat_ph, max_images=FLAGS.max_images)
-
+        y_hat_summary = tf.summary.image('y_hat_ph', y_hat_ph, max_outputs=FLAGS.batch_size)
         
         # Start evaluation
         with tf.Session() as sess:
             if FLAGS.pretrained_model_checkpoint_path:
-                assert tf.gfile.Exists(FLAGS.pretrained_model_checkpoint_path)
+                # assert tf.gfile.Exists(FLAGS.pretrained_model_checkpoint_path)
                 saver.restore(sess, FLAGS.pretrained_model_checkpoint_path)
                 print('%s: Pre-trained model restored from %s' %
                     (datetime.now(), FLAGS.pretrained_model_checkpoint_path))
             
-            num_iter = int(math.ceil(FLAGS.num_eval / FLAGS.batch_size))
+            num_eval = batch_manager.num_examples_per_epoch * FLAGS.num_epoch
+            num_iter = int(math.ceil(num_eval / FLAGS.batch_size))
+            # num_iter = 1
             print('total iter: %d' % num_iter)
             total_loss = 0
             for step in range(num_iter):
                 start_time = time.time()
-                x_batch, y_batch, x_no_p_batch, _ = batch_manager.batch()
+                s_batch, x_batch, y_batch = batch_manager.batch()
                 y_hat_value, loss_value = sess.run([y_hat, loss], feed_dict={phase_train: is_train,
                                                                              x: x_batch, y: y_batch})
                 total_loss += loss_value
                 duration = time.time() - start_time
                 examples_per_sec = FLAGS.batch_size / float(duration)
-                print('%s: step %d, loss = %.2f (%.1f examples/sec; %.3f sec/batch)' % (
-                        datetime.now(), step, loss_value, examples_per_sec, duration))
+                print('%s: epoch %d, step %d, loss = %.2f (%.1f examples/sec; %.3f sec/batch)' % (
+                        datetime.now(), batch_manager.num_epoch, step, loss_value, examples_per_sec, duration))
 
                 if FLAGS.use_two_channels:
-                    loss_summary_str, x_no_p_summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
-                        [loss_summary, x_no_p_summary, x_summary, y_summary, y_hat_summary],
+                    loss_summary_str, s_summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
+                        [loss_summary, s_summary, x_summary, y_summary, y_hat_summary],
                         feed_dict={loss_ph: loss_value,
-                                x_no_p: x_no_p_batch, x: x_batch, y: y_batch, y_hat_ph: y_hat_value,
-                                p: np.concatenate((x_batch, b_channel), axis=3)})
+                                s: s_batch, x: x_batch, y: y_batch, y_hat_ph: y_hat_value,
+                                x_rgb: np.concatenate((x_batch, b_channel), axis=3)})
                 else:
-                    loss_summary_str, x_no_p_summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
-                        [loss_summary, x_no_p_summary, x_summary, y_summary, y_hat_summary],
+                    loss_summary_str, s_summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
+                        [loss_summary, s_summary, x_summary, y_summary, y_hat_summary],
                         feed_dict={loss_ph: loss_value,
-                                x_no_p: x_no_p_batch, x: x_batch, y: y_batch, y_hat_ph: y_hat_value})
+                                s: s_batch, x: x_batch, y: y_batch, y_hat_ph: y_hat_value})
 
                 summary_writer.add_summary(loss_summary_str, step)
 
-                x_no_p_summary_tmp = tf.Summary()
+                s_summary_tmp = tf.Summary()
                 x_summary_tmp = tf.Summary()
                 y_summary_tmp = tf.Summary()
                 y_hat_summary_tmp = tf.Summary()
-                x_no_p_summary_tmp.ParseFromString(x_no_p_summary_str)
+                s_summary_tmp.ParseFromString(s_summary_str)
                 x_summary_tmp.ParseFromString(x_summary_str)
                 y_summary_tmp.ParseFromString(y_summary_str)
                 y_hat_summary_tmp.ParseFromString(y_hat_summary_str)
-                for i in xrange(FLAGS.max_images):
+                for i in xrange(FLAGS.batch_size):
                     new_tag = '%06d/%03d' % (step, i)
-                    x_no_p_summary_tmp.value[i].tag = new_tag
+                    s_summary_tmp.value[i].tag = new_tag
                     x_summary_tmp.value[i].tag = new_tag
                     y_summary_tmp.value[i].tag = new_tag
                     y_hat_summary_tmp.value[i].tag = new_tag
 
-                summary_writer.add_summary(x_no_p_summary_tmp, step)
+                summary_writer.add_summary(s_summary_tmp, step)
                 summary_x_writer.add_summary(x_summary_tmp, step)
                 summary_y_writer.add_summary(y_summary_tmp, step)
                 summary_y_hat_writer.add_summary(y_hat_summary_tmp, step)
@@ -158,7 +187,7 @@ def main(_):
     if not current_path.endswith('linenet'):
         working_path = os.path.join(current_path, 'vectornet/linenet')
         os.chdir(working_path)
-        
+
     # create eval directory
     if tf.gfile.Exists(FLAGS.eval_dir):
         tf.gfile.DeleteRecursively(FLAGS.eval_dir)

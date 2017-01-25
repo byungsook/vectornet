@@ -18,6 +18,7 @@ import copy
 import multiprocessing.managers
 import multiprocessing.pool
 from functools import partial
+import platform
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -33,9 +34,9 @@ import tensorflow as tf
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_integer('batch_size', 8,
                             """Number of images to process in a batch.""")
-tf.app.flags.DEFINE_string('data_tar', 'data/chinese1.tar.gz',
-                           """Path to the Sketch data file.""")
-tf.app.flags.DEFINE_string('data_dir', 'data/chinese1',
+# tf.app.flags.DEFINE_string('data_tar', 'data/chinese1.tar.gz',
+#                            """Path to the Sketch data file.""")
+tf.app.flags.DEFINE_string('data_dir', 'data/chinese2',
                            """Path to the data directory.""")
 tf.app.flags.DEFINE_integer('image_width', 128, # 48-24-12-6
                             """Image Width.""")
@@ -47,7 +48,7 @@ tf.app.flags.DEFINE_boolean('use_two_channels', True,
                             """use two channels for input""")
 tf.app.flags.DEFINE_integer('num_processors', 8,
                             """# of processors for batch generation.""")
-tf.app.flags.DEFINE_boolean('chinese1', True,
+tf.app.flags.DEFINE_boolean('chinese1', False,
                             """whether chinese1 or not""")
 
 
@@ -68,7 +69,7 @@ class BatchManager(object):
                     if not line: break
 
                     file_path = os.path.join(FLAGS.data_dir, line.rstrip())
-                    with open(file_path, 'r') as sf:
+                    with open(file_path, 'r', encoding="utf-8") as sf:
                         svg = sf.read()
                         self._svg_list.append(svg)
 
@@ -79,7 +80,7 @@ class BatchManager(object):
                         continue
 
                     file_path = os.path.join(root, file)
-                    with open(file_path, 'r') as f:
+                    with open(file_path, 'r', encoding="utf-8") as f:
                         svg = f.read()
                         self._svg_list.append(svg)
 
@@ -90,6 +91,9 @@ class BatchManager(object):
         self.num_epoch = 1
 
         d = 2 if FLAGS.use_two_channels else 1
+
+        if platform.system() == 'Windows':
+            FLAGS.num_processors = 1 # doesn't support MP
 
         if FLAGS.num_processors > FLAGS.batch_size:
             FLAGS.num_processors = FLAGS.batch_size
@@ -180,7 +184,7 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
         svg = svg_batch[i].format(
                 w=FLAGS.image_width, h=FLAGS.image_height,
                 r=r, sx=s[0], sy=s[1], tx=t[0], ty=t[1])
-        s_png = cairosvg.svg2png(bytestring=svg)
+        s_png = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
         s_img = Image.open(io.BytesIO(s_png))
         s = np.array(s_img)[:,:,3].astype(np.float) # / 255.0
         max_intensity = np.amax(s)
@@ -197,8 +201,14 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
         # leave only one path
         if FLAGS.chinese1:
             svg_xml = et.fromstring(svg)
-            path_id = np.random.randint(len(svg_xml[0]._children))
-            svg_xml[0]._children = [svg_xml[0]._children[path_id]]
+            # path_id = np.random.randint(len(svg_xml[0]._children))
+            # svg_xml[0]._children = [svg_xml[0]._children[path_id]]
+            num_strokes = len(svg_xml[0])
+            stroke_id = np.random.randint(num_strokes)
+            stroke = svg_xml[0][stroke_id]
+            for c in reversed(xrange(num_strokes)):
+                if svg_xml[0][c] != stroke:
+                    svg_xml[0].remove(svg_xml[0][c])
             svg = et.tostring(svg_xml, method='xml')
         else:
             id = 0
@@ -217,7 +227,10 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
                     id_end = svg.find('/>', id_start) + 2
                     svg = svg[:id_start] + svg[id_end:]
 
-        y_png = cairosvg.svg2png(bytestring=svg)
+        if FLAGS.chinese1:
+            y_png = cairosvg.svg2png(bytestring=svg)
+        else:
+            y_png = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
         y_img = Image.open(io.BytesIO(y_png))
         y = np.array(y_img)[:,:,3].astype(np.float) / max_intensity
         

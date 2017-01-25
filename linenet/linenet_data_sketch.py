@@ -17,6 +17,7 @@ import copy
 import multiprocessing.managers
 import multiprocessing.pool
 from functools import partial
+import platform
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -29,7 +30,7 @@ import tensorflow as tf
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_integer('batch_size', 4,
+tf.app.flags.DEFINE_integer('batch_size', 8,
                             """Number of images to process in a batch.""")
 tf.app.flags.DEFINE_string('data_dir', 'data/sketch',
                            """Path to the Sketch data directory.""")
@@ -39,7 +40,8 @@ tf.app.flags.DEFINE_integer('image_height', 96,
                             """Image Height.""")
 tf.app.flags.DEFINE_integer('num_processors', 8,
                             """# of processors for batch generation.""")
-
+tf.app.flags.DEFINE_boolean('use_two_channels', True,
+                            """use two channels for input""")
 
 class BatchManager(object):
     def __init__(self):
@@ -72,6 +74,9 @@ class BatchManager(object):
 
         self.num_examples_per_epoch = len(self._svg_list)
         self.num_epoch = 1
+
+        if platform.system() == 'Windows':
+            FLAGS.num_processors = 1 # doesn't support MP
 
         if FLAGS.num_processors > FLAGS.batch_size:
             FLAGS.num_processors = FLAGS.batch_size
@@ -144,12 +149,17 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
     # leave only one path
     svg_xml = et.fromstring(svg)
     # the first child of [0] is title
-    num_paths = len(svg_xml[0]._children) - 1
+    # num_paths = len(svg_xml[0]._children) - 1
+    num_paths = len(svg_xml[0]) - 1
     
     path_id_list = np.random.permutation(xrange(1,num_paths+1))
 
     for path_id in path_id_list:
-        svg_xml[0]._children = [svg_xml[0]._children[path_id]]
+        # svg_xml[0]._children = [svg_xml[0]._children[path_id]]
+        stroke = svg_xml[0][path_id]
+        for c in reversed(xrange(1,num_paths+1)):
+            if svg_xml[0][c] != stroke:
+                svg_xml[0].remove(svg_xml[0][c])
         svg_new = et.tostring(svg_xml, method='xml')
 
         y_png = cairosvg.svg2png(bytestring=svg_new)

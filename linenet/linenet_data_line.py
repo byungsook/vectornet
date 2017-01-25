@@ -19,6 +19,7 @@ import multiprocessing.managers
 import multiprocessing.pool
 from functools import partial
 import scipy.misc
+import platform
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -110,6 +111,12 @@ def _create_a_path(path_type, id):
 
 class BatchManager(object):
     def __init__(self):
+        self.num_examples_per_epoch = 1000
+        self.num_epoch = 1
+
+        if platform.system() == 'Windows':
+            FLAGS.num_processors = 1 # doesn't support MP
+
         if FLAGS.num_processors > FLAGS.batch_size:
             FLAGS.num_processors = FLAGS.batch_size
 
@@ -170,11 +177,11 @@ def train_set(batch_id, s_batch, x_batch, y_batch):
                 ) + LINE1 + SVG_END_TEMPLATE
             
             if i == path_id:
-                y_png = cairosvg.svg2png(bytestring=svg_one_stroke)
+                y_png = cairosvg.svg2png(bytestring=svg_one_stroke.encode('utf-8'))
                 y_img = Image.open(io.BytesIO(y_png))
 
         svg += SVG_END_TEMPLATE
-        s_png = cairosvg.svg2png(bytestring=svg)
+        s_png = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
         s_img = Image.open(io.BytesIO(s_png))
         s = np.array(s_img)[:,:,3].astype(np.float) # / 255.0
         max_intensity = np.amax(s)

@@ -18,6 +18,7 @@ import copy
 import multiprocessing.managers
 import multiprocessing.pool
 from functools import partial
+import platform
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -30,7 +31,7 @@ import tensorflow as tf
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_integer('batch_size', 4,
+tf.app.flags.DEFINE_integer('batch_size', 8,
                             """Number of images to process in a batch.""")
 tf.app.flags.DEFINE_string('data_dir', 'data/hand',
                            """Path to the hand writing data directory.""")
@@ -40,8 +41,8 @@ tf.app.flags.DEFINE_integer('image_width', 128,
                             """Image Width.""")
 tf.app.flags.DEFINE_integer('image_height', 128,
                             """Image Height.""")
-tf.app.flags.DEFINE_float('noise_intensity', 0.2,
-                          """uniform noise intensity""")
+# tf.app.flags.DEFINE_float('noise_intensity', 0.2,
+#                           """uniform noise intensity""")
 tf.app.flags.DEFINE_integer('max_stroke_width', 5,
                           """max stroke width""")
 tf.app.flags.DEFINE_integer('num_processors', 8,
@@ -79,6 +80,9 @@ class BatchManager(object):
 
         self.num_examples_per_epoch = len(self._svg_list)
         self.num_epoch = 1
+
+        if platform.system() == 'Windows':
+            FLAGS.num_processors = 1 # doesn't support MP
 
         if FLAGS.num_processors > FLAGS.batch_size:
             FLAGS.num_processors = FLAGS.batch_size

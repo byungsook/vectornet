@@ -16,12 +16,11 @@ from six.moves import xrange  # pylint: disable=redefined-builtin
 import numpy as np
 import tensorflow as tf
 
-import linenet_data_intersect_chinese
 import linenet_model
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('log_dir', 'log/overlap_ch2',
+tf.app.flags.DEFINE_string('log_dir', 'log/test',
                            """Directory where to write event logs """
                            """and checkpoint.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
@@ -30,11 +29,7 @@ tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', '',
                            """If specified, restore this pretrained model """
                            """before beginning any training.
                            e.g. log/second_train/linenet.ckpt """)
-tf.app.flags.DEFINE_boolean('transform', True,
-                            """Whether to transform character.""")
-tf.app.flags.DEFINE_string('file_list', 'train.txt',
-                           """file_list""")
-tf.app.flags.DEFINE_integer('max_steps', 3,
+tf.app.flags.DEFINE_integer('max_steps', 1,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_integer('decay_steps', 30000,
                             """Decay steps""")
@@ -54,11 +49,41 @@ tf.app.flags.DEFINE_integer('summary_steps', 100,
                             """summary steps.""")
 tf.app.flags.DEFINE_integer('save_steps', 5000,
                             """save steps""")
+tf.app.flags.DEFINE_string('train_on', 'line',
+                           """specify training data""")
+tf.app.flags.DEFINE_boolean('transform', False,
+                            """Whether to transform character.""")
+tf.app.flags.DEFINE_string('file_list', 'train.txt',
+                           """file_list""")
+
+if FLAGS.train_on == 'chinese':
+    import linenet_data_ov_chinese
+elif FLAGS.train_on == 'sketch':
+    import linenet_data_ov_sketch
+elif FLAGS.train_on == 'hand':
+    import linenet_data_ov_hand
+elif FLAGS.train_on == 'line':
+    import linenet_data_ov_line
+else:
+    print('wrong training data set')
+    assert(False)
 
 
 def train():
     """Train the network for a number of steps."""
     with tf.Graph().as_default():
+        if FLAGS.train_on == 'chinese':
+            batch_manager = linenet_data_ov_chinese.BatchManager()
+            print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
+        elif FLAGS.train_on == 'sketch':
+            batch_manager = linenet_data_ov_sketch.BatchManager()
+            print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
+        elif FLAGS.train_on == 'hand':
+            batch_manager = linenet_data_ov_hand.BatchManager()
+            print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
+        elif FLAGS.train_on == 'line':
+            batch_manager = linenet_data_ov_line.BatchManager()
+
         is_train = True
         phase_train = tf.placeholder(tf.bool, name='phase_train')
 
@@ -125,7 +150,7 @@ def train():
         # Create a saver (restorer).
         saver = tf.train.Saver()
         if FLAGS.pretrained_model_checkpoint_path:
-            assert tf.gfile.Exists(FLAGS.pretrained_model_checkpoint_path)
+            # assert tf.gfile.Exists(FLAGS.pretrained_model_checkpoint_path)
             saver.restore(sess, FLAGS.pretrained_model_checkpoint_path)
             print('%s: Pre-trained model restored from %s' %
                 (datetime.now(), FLAGS.pretrained_model_checkpoint_path))
@@ -141,12 +166,6 @@ def train():
         x_summary = tf.summary.image('x', x, max_outputs=FLAGS.max_images)
         y_summary = tf.summary.image('y', y, max_outputs=FLAGS.max_images)
         y_hat_summary = tf.summary.image('y_hat', y_hat, max_outputs=FLAGS.max_images)
-
-        # # Start the queue runners.
-        # tf.train.start_queue_runners(sess=sess)
-        # Initialize the batch manager
-        batch_manager = linenet_data_intersect_chinese.BatchManager()
-        # print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
 
         ####################################################################
         # Start to train.

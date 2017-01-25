@@ -18,6 +18,7 @@ import copy
 import multiprocessing.managers
 import multiprocessing.pool
 from functools import partial
+import platform
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -69,12 +70,15 @@ class BatchManager(object):
                         continue
 
                     file_path = os.path.join(root, file)
-                    with open(file_path, 'r') as f:
+                    with open(file_path, 'r', encoding="utf-8") as f:
                         svg = f.read()
                         self._svg_list.append(svg)
 
         self.num_examples_per_epoch = len(self._svg_list)
         self.num_epoch = 1
+
+        if platform.system() == 'Windows':
+            FLAGS.num_processors = 1 # doesn't support MP
 
         if FLAGS.num_processors > FLAGS.batch_size:
             FLAGS.num_processors = FLAGS.batch_size
@@ -159,12 +163,12 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
                 s = [1, 1]
                 t = [0, 0]
         
-        with open(svg_batch[batch_id], 'r') as sf:
+        with open(svg_batch[batch_id], 'r', encoding="utf-8") as sf:
             svg = sf.read().format(
                 w=FLAGS.image_width, h=FLAGS.image_height,
                 r=r, sx=s[0], sy=s[1], tx=t[0], ty=t[1])
 
-        x_png = cairosvg.svg2png(bytestring=svg)
+        x_png = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
         x_img = Image.open(io.BytesIO(x_png))
         x = np.array(x_img)[:,:,3].astype(np.float) # / 255.0
         max_intensity = np.amax(x)
@@ -178,11 +182,16 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
         stroke_list = []
         if FLAGS.chinese1:
             svg_xml = ET.fromstring(svg)
-            num_paths = len(svg_xml[0]._children)
+            # num_paths = len(svg_xml[0]._children)
+            num_paths = len(svg_xml[0])
 
             for i in xrange(num_paths):
                 svg_xml = ET.fromstring(svg)
-                svg_xml[0]._children = [svg_xml[0]._children[i]]
+                # svg_xml[0]._children = [svg_xml[0]._children[i]]
+                stroke = svg_xml[0][i]
+                for c in reversed(xrange(num_paths)):
+                    if svg_xml[0][c] != stroke:
+                        svg_xml[0].remove(svg_xml[0][c])
                 svg_one_stroke = ET.tostring(svg_xml, method='xml')
 
                 stroke_png = cairosvg.svg2png(bytestring=svg_one_stroke)
@@ -213,7 +222,7 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
                         id_end = svg_one_stroke.find('/>', id_start) + 2
                         svg_one_stroke = svg_one_stroke[:id_start] + svg_one_stroke[id_end:]
 
-                stroke_png = cairosvg.svg2png(bytestring=svg_one_stroke)
+                stroke_png = cairosvg.svg2png(bytestring=svg_one_stroke.encode('utf-8'))
                 stroke_img = Image.open(io.BytesIO(stroke_png))
                 stroke = (np.array(stroke_img)[:,:,3] > 0)
                 
@@ -243,7 +252,8 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
                 # mng.full_screen_toggle()
                 # plt.show()
 
-        y = np.multiply(x, y) * 1000
+        # y = np.multiply(x, y) * 1000
+        y = y.astype(np.float) * 1000
 
         # # debug
         # plt.figure()
@@ -271,11 +281,13 @@ if __name__ == '__main__':
     # parameters 
     tf.app.flags.DEFINE_string('file_list', 'train.txt', """file_list""")
     FLAGS.num_processors = 1
+    FLAGS.chinese1 = False
+    FLAGS.data_dir = 'data/chinese2'
     FLAGS.transform = True
 
     batch_manager = BatchManager()
     x_batch, y_batch = batch_manager.batch()
-    
+
     for i in xrange(FLAGS.batch_size):
         plt.imshow(np.reshape(x_batch[i,:], [FLAGS.image_height, FLAGS.image_width]), cmap=plt.cm.gray)
         plt.show()

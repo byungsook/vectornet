@@ -280,8 +280,9 @@ if __name__ == '__main__':
 
     FLAGS.image_width = 128
     FLAGS.image_height = 128
-    FLAGS.data_dir = 'data/chinese2'
     FLAGS.chinese1 = False
+    FLAGS.data_dir = 'data/chinese2'
+    FLAGS.transform = True
 
     batch_manager = BatchManager()
     s_batch, x_batch, y_batch = batch_manager.batch()

@@ -320,7 +320,8 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
         print('bx', bx)
         y_crop = np.zeros([FLAGS.image_height, FLAGS.image_width], dtype=np.bool)
 
-    y = np.multiply(x, y_crop) * 1000
+    # y = np.multiply(x, y_crop) * 1000
+    y = y_crop.astype(np.float) * 1000
 
     # # debug
     # plt.figure()
@@ -351,8 +352,7 @@ if __name__ == '__main__':
     FLAGS.transform = True
 
     batch_manager = BatchManager()
-    while True:
-        x_batch, y_batch = batch_manager.batch()
+    x_batch, y_batch = batch_manager.batch()
     
     for i in xrange(FLAGS.batch_size):
         plt.imshow(np.reshape(x_batch[i,:], [FLAGS.image_height, FLAGS.image_width]), cmap=plt.cm.gray)

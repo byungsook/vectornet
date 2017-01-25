@@ -29,10 +29,6 @@ tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', '',
                            """If specified, restore this pretrained model """
                            """before beginning any training.
                            e.g. log/second_train/linenet.ckpt """)
-tf.app.flags.DEFINE_string('file_list', 'train.txt',
-                           """file_list""")
-tf.app.flags.DEFINE_float('min_prop', 0.01,
-                          """min_prop""")
 tf.app.flags.DEFINE_integer('max_steps', 1,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_integer('decay_steps', 30000,
@@ -55,6 +51,13 @@ tf.app.flags.DEFINE_integer('save_steps', 5000,
                             """save steps""")
 tf.app.flags.DEFINE_string('train_on', 'line',
                            """specify training data""")
+tf.app.flags.DEFINE_boolean('transform', False,
+                            """Whether to transform character.""")
+tf.app.flags.DEFINE_string('file_list', 'train.txt',
+                           """file_list""")
+tf.app.flags.DEFINE_float('min_prop', 0.01,
+                          """min_prop""")
+
 
 if FLAGS.train_on == 'chinese':
     import linenet_data_chinese

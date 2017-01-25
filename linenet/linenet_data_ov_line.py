@@ -19,6 +19,7 @@ import multiprocessing.managers
 import multiprocessing.pool
 from functools import partial
 import scipy.misc
+import platform
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -108,6 +109,12 @@ def _create_a_path(path_type, id):
 
 class BatchManager(object):
     def __init__(self):
+        self.num_examples_per_epoch = 1000
+        self.num_epoch = 1
+
+        if platform.system() == 'Windows':
+            FLAGS.num_processors = 1 # doesn't support MP
+
         if FLAGS.num_processors > FLAGS.batch_size:
             FLAGS.num_processors = FLAGS.batch_size
 
@@ -162,7 +169,7 @@ def train_set(batch_id, x_batch, y_batch):
             ) + LINE1 + SVG_END_TEMPLATE
         svg += LINE1
 
-        stroke_png = cairosvg.svg2png(bytestring=svg_one_stroke)
+        stroke_png = cairosvg.svg2png(bytestring=svg_one_stroke.encode('utf-8'))
         stroke_img = Image.open(io.BytesIO(stroke_png))
         stroke = (np.array(stroke_img)[:,:,3] > 0)
 
@@ -175,7 +182,7 @@ def train_set(batch_id, x_batch, y_batch):
         stroke_list.append(stroke)
 
     svg += SVG_END_TEMPLATE
-    x_png = cairosvg.svg2png(bytestring=svg)
+    x_png = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
     x_img = Image.open(io.BytesIO(x_png))
     x = np.array(x_img)[:,:,3].astype(np.float) # / 255.0
     max_intensity = np.amax(x)
@@ -200,7 +207,8 @@ def train_set(batch_id, x_batch, y_batch):
             # mng.full_screen_toggle()
             # plt.show()
 
-    y = np.multiply(x, y)
+    # y = np.multiply(x, y)
+    y = y.astype(np.float) * 1000
     
     # # debug
     # print('max intersection', np.amax(y))

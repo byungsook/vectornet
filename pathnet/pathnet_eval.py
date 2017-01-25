@@ -122,7 +122,7 @@ def evaluate():
             
             num_eval = batch_manager.num_examples_per_epoch * FLAGS.num_epoch
             num_iter = int(math.ceil(num_eval / FLAGS.batch_size))
-            num_iter = 1
+            # num_iter = 1
             print('total iter: %d' % num_iter)
             total_loss = 0
             for step in range(num_iter):

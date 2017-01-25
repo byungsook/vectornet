@@ -17,7 +17,6 @@ import copy
 import multiprocessing.managers
 import multiprocessing.pool
 from functools import partial
-import platform
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -43,6 +42,19 @@ tf.app.flags.DEFINE_integer('num_processors', 8,
 tf.app.flags.DEFINE_boolean('use_two_channels', True,
                             """use two channels for input""")
 
+class MPManager(multiprocessing.managers.SyncManager):
+    pass
+MPManager.register('np_empty', np.empty, multiprocessing.managers.ArrayProxy)
+
+
+class Param(object):
+    def __init__(self):
+        self.image_width = FLAGS.image_width
+        self.image_height = FLAGS.image_height
+        self.use_two_channels = FLAGS.use_two_channels
+        self.min_prop = FLAGS.min_prop
+
+            
 class BatchManager(object):
     def __init__(self):
         # read all svg files
@@ -75,9 +87,6 @@ class BatchManager(object):
         self.num_examples_per_epoch = len(self._svg_list)
         self.num_epoch = 1
 
-        if platform.system() == 'Windows':
-            FLAGS.num_processors = 1 # doesn't support MP
-
         if FLAGS.num_processors > FLAGS.batch_size:
             FLAGS.num_processors = FLAGS.batch_size
 
@@ -86,10 +95,6 @@ class BatchManager(object):
             self.x_batch = np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 2], dtype=np.float)
             self.y_batch = np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1], dtype=np.float)
         else:
-            class MPManager(multiprocessing.managers.SyncManager):
-                pass
-            MPManager.register('np_empty', np.empty, multiprocessing.managers.ArrayProxy)
-
             self._mpmanager = MPManager()
             self._mpmanager.start()
             self._pool = multiprocessing.pool.Pool(processes=FLAGS.num_processors)
@@ -99,7 +104,7 @@ class BatchManager(object):
             self.y_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1], dtype=np.float)
             self._svg_batch = self._mpmanager.list(['' for _ in xrange(FLAGS.batch_size)])
             self._func = partial(train_set, svg_batch=self._svg_batch,
-                                 s_batch=self.s_batch, x_batch=self.x_batch, y_batch=self.y_batch)
+                                 s_batch=self.s_batch, x_batch=self.x_batch, y_batch=self.y_batch, FLAGS=Param())
 
     def __del__(self):
         if FLAGS.num_processors > 1:
@@ -112,7 +117,7 @@ class BatchManager(object):
             svg_batch = []
             for i in xrange(FLAGS.batch_size):
                 svg_batch.append(self._svg_list[self._next_svg_id])
-                train_set(i, svg_batch, self.s_batch, self.x_batch, self.y_batch)
+                train_set(i, svg_batch, self.s_batch, self.x_batch, self.y_batch, FLAGS)
                 self._next_svg_id = (self._next_svg_id + 1) % len(self._svg_list)
                 if self._next_svg_id == 0:
                     self.num_epoch = self.num_epoch + 1
@@ -132,7 +137,7 @@ class BatchManager(object):
         return self.s_batch, self.x_batch, self.y_batch
 
 
-def train_set(i, svg_batch, s_batch, x_batch, y_batch):
+def train_set(i, svg_batch, s_batch, x_batch, y_batch, FLAGS):
     with open(svg_batch[i], 'r') as sf:
         svg = sf.read().format(w=FLAGS.image_width, h=FLAGS.image_height)
 

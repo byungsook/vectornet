@@ -18,7 +18,6 @@ import copy
 import multiprocessing.managers
 import multiprocessing.pool
 from functools import partial
-import platform
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -50,6 +49,20 @@ tf.app.flags.DEFINE_integer('num_processors', 8,
                             """# of processors for batch generation.""")
 tf.app.flags.DEFINE_boolean('chinese1', False,
                             """whether chinese1 or not""")
+
+
+class MPManager(multiprocessing.managers.SyncManager):
+    pass
+MPManager.register('np_empty', np.empty, multiprocessing.managers.ArrayProxy)
+
+
+class Param(object):
+    def __init__(self):
+        self.image_width = FLAGS.image_width
+        self.image_height = FLAGS.image_height
+        self.use_two_channels = FLAGS.use_two_channels
+        self.chinese1 = FLAGS.chinese1
+        self.transform = FLAGS.transform
 
 
 class BatchManager(object):
@@ -92,9 +105,6 @@ class BatchManager(object):
 
         d = 2 if FLAGS.use_two_channels else 1
 
-        if platform.system() == 'Windows':
-            FLAGS.num_processors = 1 # doesn't support MP
-
         if FLAGS.num_processors > FLAGS.batch_size:
             FLAGS.num_processors = FLAGS.batch_size
             
@@ -103,10 +113,6 @@ class BatchManager(object):
             self.x_batch = np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, d], dtype=np.float)
             self.y_batch = np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1], dtype=np.float)
         else:
-            class MPManager(multiprocessing.managers.SyncManager):
-                pass
-            MPManager.register('np_empty', np.empty, multiprocessing.managers.ArrayProxy)
-
             self._mpmanager = MPManager()
             self._mpmanager.start()
             self._pool = multiprocessing.pool.Pool(processes=FLAGS.num_processors)
@@ -116,7 +122,7 @@ class BatchManager(object):
             self.y_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1], dtype=np.float)
             self._svg_batch = self._mpmanager.list(['' for _ in xrange(FLAGS.batch_size)])
             self._func = partial(train_set, svg_batch=self._svg_batch,
-                                 s_batch=self.s_batch, x_batch=self.x_batch, y_batch=self.y_batch)
+                                 s_batch=self.s_batch, x_batch=self.x_batch, y_batch=self.y_batch, FLAGS=Param())
 
 
     def __del__(self):
@@ -130,7 +136,7 @@ class BatchManager(object):
             svg_batch = []
             for i in xrange(FLAGS.batch_size):
                 svg_batch.append(self._svg_list[self._next_svg_id])
-                train_set(i, svg_batch, self.s_batch, self.x_batch, self.y_batch)
+                train_set(i, svg_batch, self.s_batch, self.x_batch, self.y_batch, FLAGS)
                 self._next_svg_id = (self._next_svg_id + 1) % len(self._svg_list)
                 if self._next_svg_id == 0:
                     self.num_epoch = self.num_epoch + 1
@@ -148,7 +154,7 @@ class BatchManager(object):
         return self.s_batch, self.x_batch, self.y_batch
 
 
-def train_set(i, svg_batch, s_batch, x_batch, y_batch):
+def train_set(i, svg_batch, s_batch, x_batch, y_batch, FLAGS):
     while True:
         if FLAGS.chinese1:
             if FLAGS.transform:

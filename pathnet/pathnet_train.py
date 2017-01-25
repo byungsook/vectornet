@@ -49,7 +49,7 @@ tf.app.flags.DEFINE_integer('summary_steps', 100,
                             """summary steps.""")
 tf.app.flags.DEFINE_integer('save_steps', 5000,
                             """save steps""")
-tf.app.flags.DEFINE_string('train_on', 'line',
+tf.app.flags.DEFINE_string('train_on', 'chinese',
                            """specify training data""")
 tf.app.flags.DEFINE_boolean('transform', False,
                             """Whether to transform character.""")

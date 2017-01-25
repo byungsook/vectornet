@@ -19,7 +19,6 @@ import multiprocessing.managers
 import multiprocessing.pool
 from functools import partial
 import scipy.misc
-import platform
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -32,7 +31,7 @@ import tensorflow as tf
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_integer('batch_size', 4,
+tf.app.flags.DEFINE_integer('batch_size', 8,
                             """Number of images to process in a batch.""")
 tf.app.flags.DEFINE_integer('image_width', 128,
                             """Image Width.""")
@@ -61,9 +60,9 @@ SVG_CUBIC_BEZIER_TEMPLATE = """<path id="{id}" d="M {sx} {sy} C {cx1} {cy1} {cx2
 SVG_END_TEMPLATE = """</g></svg>"""
 
 
-def _create_a_line(id, image_height, image_width, min_length):
+def _create_a_line(id, image_height, image_width, min_length, max_stroke_width):
     stroke_color = np.random.randint(240, size=3)
-    stroke_width = np.random.rand() * FLAGS.max_stroke_width + 1
+    stroke_width = np.random.rand() * max_stroke_width + 1
     while True:
         x = np.random.randint(low=0, high=image_width, size=2)
         y = np.random.randint(low=0, high=image_height, size=2)
@@ -80,11 +79,11 @@ def _create_a_line(id, image_height, image_width, min_length):
     )
 
 
-def _create_a_cubic_bezier_curve(id, image_height, image_width, min_length):
+def _create_a_cubic_bezier_curve(id, image_height, image_width, min_length, max_stroke_width):
     x = np.random.randint(low=0, high=image_width, size=4)
     y = np.random.randint(low=0, high=image_height, size=4)
     stroke_color = np.random.randint(240, size=3)
-    stroke_width = np.random.rand() * FLAGS.max_stroke_width + 1
+    stroke_width = np.random.rand() * max_stroke_width + 1
 
     return SVG_CUBIC_BEZIER_TEMPLATE.format(
         id=id,
@@ -97,7 +96,7 @@ def _create_a_cubic_bezier_curve(id, image_height, image_width, min_length):
     )
 
 
-def _create_a_path(path_type, id):
+def _create_a_path(path_type, id, FLAGS):
     if path_type == 2:
         path_type = np.random.randint(2)
 
@@ -106,16 +105,29 @@ def _create_a_path(path_type, id):
         1: _create_a_cubic_bezier_curve
     }
 
-    return path_selector[path_type](id, FLAGS.image_height, FLAGS.image_width, FLAGS.min_length)
+    return path_selector[path_type](id, FLAGS.image_height, FLAGS.image_width, 
+                                    FLAGS.min_length, FLAGS.max_stroke_width)
+
+
+class MPManager(multiprocessing.managers.SyncManager):
+    pass
+MPManager.register('np_empty', np.empty, multiprocessing.managers.ArrayProxy)
+
+
+class Param(object):
+    def __init__(self):
+        self.image_width = FLAGS.image_width
+        self.image_height = FLAGS.image_height
+        self.min_length = FLAGS.min_length
+        self.num_paths = FLAGS.num_paths
+        self.path_type = FLAGS.path_type
+        self.max_stroke_width = FLAGS.max_stroke_width
 
 
 class BatchManager(object):
     def __init__(self):
         self.num_examples_per_epoch = 1000
         self.num_epoch = 1
-
-        if platform.system() == 'Windows':
-            FLAGS.num_processors = 1 # doesn't support MP
 
         if FLAGS.num_processors > FLAGS.batch_size:
             FLAGS.num_processors = FLAGS.batch_size
@@ -125,18 +137,14 @@ class BatchManager(object):
             self.x_batch = np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 2], dtype=np.float)
             self.y_batch = np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1], dtype=np.float)
         else:
-            class MPManager(multiprocessing.managers.SyncManager):
-                pass
-            MPManager.register('np_empty', np.empty, multiprocessing.managers.ArrayProxy)
-
             self._mpmanager = MPManager()
             self._mpmanager.start()
             self._pool = multiprocessing.pool.Pool(processes=FLAGS.num_processors)
-            
+            self._FLAGS = FLAGS
             self.s_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1], dtype=np.float)
             self.x_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 2], dtype=np.float)
             self.y_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1], dtype=np.float)
-            self._func = partial(train_set, s_batch=self.s_batch, x_batch=self.x_batch, y_batch=self.y_batch)
+            self._func = partial(train_set, s_batch=self.s_batch, x_batch=self.x_batch, y_batch=self.y_batch, FLAGS=Param())
 
 
     def __del__(self):
@@ -148,7 +156,7 @@ class BatchManager(object):
     def batch(self):
         if FLAGS.num_processors == 1:
             for i in xrange(FLAGS.batch_size):
-                train_set(i, self.s_batch, self.x_batch, self.y_batch)
+                train_set(i, self.s_batch, self.x_batch, self.y_batch, FLAGS)
         else:
             self._pool.map(self._func, range(FLAGS.batch_size))
 
@@ -156,7 +164,7 @@ class BatchManager(object):
 
 
 
-def train_set(batch_id, s_batch, x_batch, y_batch):
+def train_set(batch_id, s_batch, x_batch, y_batch, FLAGS):
     np.random.seed()
     
     while True:
@@ -168,7 +176,7 @@ def train_set(batch_id, s_batch, x_batch, y_batch):
 
         path_id = np.random.randint(FLAGS.num_paths)
         for i in xrange(FLAGS.num_paths):
-            LINE1 = _create_a_path(FLAGS.path_type, i)
+            LINE1 = _create_a_path(FLAGS.path_type, i, FLAGS)
             svg += LINE1
 
             svg_one_stroke = SVG_START_TEMPLATE.format(
@@ -230,7 +238,7 @@ if __name__ == '__main__':
         os.chdir(working_path)
 
     # parameters 
-    FLAGS.num_processors = 1
+    # FLAGS.num_processors = 1
 
     batch_manager = BatchManager()
     s_batch, x_batch, y_batch = batch_manager.batch()

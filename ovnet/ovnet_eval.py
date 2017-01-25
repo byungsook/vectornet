@@ -17,15 +17,15 @@ from six.moves import xrange  # pylint: disable=redefined-builtin
 import numpy as np
 import tensorflow as tf
 
-import linenet_data_intersect
-import linenet_model
+import ovnet_data_intersect
+import ovnet_model
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('eval_dir', 'eval/intersect',
+tf.app.flags.DEFINE_string('eval_dir', 'eval/test',
                            """Directory where to write event logs """
                            """and checkpoint.""")
-tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', 'log/intersect_train/linenet.ckpt',
+tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', 'log/intersect_train/ovnet.ckpt',
                            """If specified, restore this pretrained model.""")
 tf.app.flags.DEFINE_float('moving_avg_decay', 0.9999,
                           """The decay to use for the moving average.""")
@@ -52,10 +52,10 @@ def evaluate():
         y = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 1])
         
         # Build a Graph that computes the logits predictions from the inference model.
-        y_hat = linenet_model.inference(x, phase_train)
+        y_hat = ovnet_model.inference(x, phase_train)
 
         # Calculate loss.
-        loss = linenet_model.loss(y_hat, y)
+        loss = ovnet_model.loss(y_hat, y)
 
         # # Restore the moving average version of the learned variables for eval.
         # variable_averages = tf.train.ExponentialMovingAverage(FLAGS.moving_avg_decay)
@@ -81,7 +81,7 @@ def evaluate():
         y_hat_ph = tf.placeholder(tf.float32)
         y_hat_summary = tf.summary.image('y_hat_ph', y_hat_ph, max_outputs=FLAGS.max_images)
 
-        batch_manager = linenet_data_intersect.BatchManager()
+        batch_manager = ovnet_data_intersect.BatchManager()
         print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
 
         # Start evaluation
@@ -143,8 +143,8 @@ def evaluate():
 def main(_):
     # if release mode, change current path
     current_path = os.getcwd()
-    if not current_path.endswith('linenet'):
-        working_path = os.path.join(current_path, 'vectornet/linenet')
+    if not current_path.endswith('ovnet'):
+        working_path = os.path.join(current_path, 'vectornet/ovnet')
         os.chdir(working_path)
         
     # create eval directory

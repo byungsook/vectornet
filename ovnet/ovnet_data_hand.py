@@ -18,10 +18,10 @@ import copy
 import multiprocessing.managers
 import multiprocessing.pool
 from functools import partial
-import platform
 
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy.ndimage
 
 import cairosvg
 from PIL import Image
@@ -33,11 +33,11 @@ import tensorflow as tf
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_integer('batch_size', 4,
                             """Number of images to process in a batch.""")
-tf.app.flags.DEFINE_string('data_dir', 'data/sketch',
+tf.app.flags.DEFINE_string('data_dir', 'data/hand',
                            """Path to the chinese data directory.""")
 tf.app.flags.DEFINE_integer('image_width', 128,
                             """Image Width.""")
-tf.app.flags.DEFINE_integer('image_height', 96,
+tf.app.flags.DEFINE_integer('image_height', 128,
                             """Image Height.""")
 tf.app.flags.DEFINE_integer('num_processors', 8,
                             """# of processors for batch generation.""")
@@ -50,6 +50,8 @@ class BatchManager(object):
         self._svg_list = []
         if FLAGS.file_list:
             file_list_path = os.path.join(FLAGS.data_dir, FLAGS.file_list)
+            # file_int_list_path = os.path.join(FLAGS.data_dir, 'inter.txt')
+            # fff = open(file_int_list_path, 'w')
             with open(file_list_path, 'r') as f:
                 while True:
                     line = f.readline()
@@ -57,7 +59,10 @@ class BatchManager(object):
 
                     file_path = os.path.join(FLAGS.data_dir, line.rstrip())
                     self._svg_list.append(file_path)
-
+            #         if find_intersection(file_path):
+            #             self._svg_list.append(file_path)
+            #             fff.write(line)
+            # fff.close()
         else:
             for root, _, files in os.walk(FLAGS.data_dir):
                 for file in files:
@@ -71,9 +76,6 @@ class BatchManager(object):
 
         self.num_examples_per_epoch = len(self._svg_list)
         self.num_epoch = 1
-
-        if platform.system() == 'Windows':
-            FLAGS.num_processors = 1 # doesn't support MP
 
         if FLAGS.num_processors > FLAGS.batch_size:
             FLAGS.num_processors = FLAGS.batch_size
@@ -107,7 +109,7 @@ class BatchManager(object):
             svg_batch = []
             for i in xrange(FLAGS.batch_size):
                 svg_batch.append(self._svg_list[self._next_svg_id])
-                train_set(i, svg_batch, self.x_batch, self.y_batch)
+                train_set(i, svg_batch, self.x_batch, self.y_batch)                
                 self._next_svg_id = (self._next_svg_id + 1) % len(self._svg_list)
                 if self._next_svg_id == 0:
                     self.num_epoch = self.num_epoch + 1
@@ -125,48 +127,45 @@ class BatchManager(object):
         return self.x_batch, self.y_batch
 
 
-def train_set(batch_id, svg_batch, x_batch, y_batch):
-    while True:
-        with open(svg_batch[batch_id], 'r') as sf:
-            svg = sf.read().format(w=FLAGS.image_width, h=FLAGS.image_height)
-            trans = '<g display="inline" transform="rotate({r},512,512) scale({sx},{sy}) translate({tx},{ty})">\n'
-            r = np.random.randint(-45, 45)
-            s_sign = np.random.choice([1, -1], 1)[0]
-            s = 1.5 * np.random.random_sample(2) + 0.5 # [0.5, 2)
-            s[1] = s[1] * s_sign
-            t = np.random.randint(-20, 20, 2)
-            start = svg.find('<g')
-            end = svg.find('>', start+1) + 1
-            svg = svg[:start] + trans.format(r=r, sx=s[0], sy=s[1], tx=t[0], ty=t[1]) + svg[end:]
+def find_intersection(svg_file_path):
+    with open(svg_file_path, 'r') as sf:
+        svg = sf.read()
 
-        x_png = cairosvg.svg2png(bytestring=svg)
-        x_img = Image.open(io.BytesIO(x_png))
-        x = np.array(x_img)[:,:,3].astype(np.float) # / 255.0
-        max_intensity = np.amax(x)
-        
-        if max_intensity == 0:
-            continue
-        else:
-            x = x / max_intensity
-        break
+    c_start = svg.find('<!--') + 4
+    c_end = svg.find('-->', c_start)
+    w, h = svg[c_start:c_end].split()
+    w = int(round(float(w)))
+    h = int(round(float(h)))
+    w_end = c_end
+    
+    num_lines = svg.count('\n')
+    num_strokes = int((num_lines - 5) / 2) # polyline start 6
+    # stroke_width = np.random.randint(FLAGS.max_stroke_width) + 1
+    stroke_width = 1
 
-    # # debug
-    # plt.imshow(x, cmap=plt.cm.gray)
-    # plt.show()
+    svg = svg.format(
+        w=w, h=h,
+        bx=0, by=0, bw=w, bh=h,
+        sw=stroke_width)
 
-    y = np.zeros([FLAGS.image_height, FLAGS.image_width], dtype=np.bool)
+    y = np.zeros([h, w], dtype=np.bool)
     stroke_list = []
-    svg_xml = ET.fromstring(svg)
-    num_paths = len(svg_xml[0]._children) - 1
+    for stroke_id in xrange(num_strokes):
 
-    for i in xrange(1,num_paths+1):
+        # leave only one path
         svg_xml = ET.fromstring(svg)
-        svg_xml[0]._children = [svg_xml[0]._children[i]]
+        if sys.version_info > (2,7):
+            stroke = svg_xml[0][stroke_id]
+            for c in reversed(xrange(num_strokes)):
+                if svg_xml[0][c] != stroke:
+                    svg_xml[0].remove(svg_xml[0][c])
+        else:
+            svg_xml[0]._children = [svg_xml[0]._children[stroke_id]]
         svg_one_stroke = ET.tostring(svg_xml, method='xml')
 
         stroke_png = cairosvg.svg2png(bytestring=svg_one_stroke)
         stroke_img = Image.open(io.BytesIO(stroke_png))
-        stroke = (np.array(stroke_img)[:,:,3] > 0)
+        stroke = np.array(stroke_img)[:,:,3].astype(np.float)
 
         # # debug
         # stroke_img = np.array(stroke_img)[:,:,3].astype(np.float) / 255.0
@@ -175,11 +174,102 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
 
         stroke_list.append(stroke)
 
-    # accumulate intersections
-    for i in xrange(num_paths-1):
-        for j in xrange(i+1, num_paths):
+    for i in xrange(num_strokes-1):
+        for j in xrange(i+1, num_strokes):
             intersect = np.logical_and(stroke_list[i], stroke_list[j])
             y = np.logical_or(intersect, y)
+            
+            # # debug
+            # if np.sum(intersect) > 0:
+            #     plt.figure()
+            #     plt.subplot(221)
+            #     plt.imshow(stroke_list[i], cmap=plt.cm.gray)
+            #     plt.subplot(222)
+            #     plt.imshow(stroke_list[j], cmap=plt.cm.gray)
+            #     plt.subplot(223)
+            #     plt.imshow(intersect, cmap=plt.cm.gray)
+            #     plt.subplot(224)
+            #     plt.imshow(y, cmap=plt.cm.gray)
+            #     mng = plt.get_current_fig_manager()
+            #     mng.full_screen_toggle()
+            #     plt.show()
+
+    num_intersections = np.sum(y)
+    return num_intersections > 0
+
+
+def train_set(batch_id, svg_batch, x_batch, y_batch):
+    np.random.seed()
+    with open(svg_batch[batch_id], 'r') as sf:
+        svg = sf.read()
+
+    c_start = svg.find('<!--') + 4
+    c_end = svg.find('-->', c_start)
+    w, h = svg[c_start:c_end].split()
+    w = float(w)
+    h = float(h)
+    w_end = c_end
+    
+    num_lines = svg.count('\n')
+    num_strokes = int((num_lines - 5) / 2) # polyline start 6
+    stroke_width = 3
+
+    g_start = svg.find('fill="none"')
+    svg = svg[:g_start] + 'transform="rotate({r},512,512) scale({sx},{sy}) translate({tx},{ty})" ' + svg[g_start:]
+    r = np.random.randint(-10, 10)
+    by = np.random.rand()*20.0 - 10.0
+    
+    svg_all = svg.format(
+        w=w, h=h,
+        bx=0, by=by, bw=w, bh=h,
+        sw=stroke_width,
+        r=r, sx=1, sy=1, tx=0, ty=0)
+
+    stroke_list = []
+    # stroke_bbox_list = []
+    stroke_id_list = np.random.permutation(xrange(0,num_strokes))
+    for stroke_id in stroke_id_list:
+        # c_end = w_end
+
+        # for _ in xrange(stroke_id+1):
+        #     c_start = svg.find('<!--', c_end) + 4
+        #     c_end = svg.find('-->', c_start)
+        # x1, x2, _, _ = svg[c_start:c_end].split()
+
+        # min_bx = max(0, float(x2)-FLAGS.image_width)
+        # max_bx = min(w-FLAGS.image_width, float(x1))
+        # stroke_bbox_list.append((min_bx,max_bx))
+
+        # leave only one path
+        svg_xml = ET.fromstring(svg_all)
+        if sys.version_info > (2,7):
+            stroke = svg_xml[0][stroke_id]
+            for c in reversed(xrange(num_strokes)):
+                if svg_xml[0][c] != stroke:
+                    svg_xml[0].remove(svg_xml[0][c])
+        else:
+            svg_xml[0]._children = [svg_xml[0]._children[stroke_id]]
+        svg_one_stroke = ET.tostring(svg_xml, method='xml')
+
+        stroke_png = cairosvg.svg2png(bytestring=svg_one_stroke)
+        stroke_img = Image.open(io.BytesIO(stroke_png))
+        stroke = np.array(stroke_img)[:,:,3].astype(np.float)
+
+        # # debug
+        # stroke_img = np.array(stroke_img)[:,:,3].astype(np.float) / 255.0
+        # plt.imshow(stroke_img, cmap=plt.cm.gray)
+        # plt.show()
+
+        stroke_list.append(stroke)
+
+    
+    y = np.zeros([stroke.shape[0], stroke.shape[1]], dtype=np.bool)
+    find_intersection = False
+    for i in xrange(num_strokes-1):
+        for j in xrange(i+1, num_strokes):
+            intersect = np.logical_and(stroke_list[i], stroke_list[j])
+            y = np.logical_or(intersect, y)
+            num_intersect = np.sum(intersect)
 
             # # debug
             # plt.figure()
@@ -195,13 +285,51 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
             # mng.full_screen_toggle()
             # plt.show()
 
-    y = np.multiply(x, y) * 1000
+            if num_intersect > 0 and not find_intersection:
+                cols = np.any(intersect, axis=0)
+                cmin, cmax = np.where(cols)[0][[0, -1]]
+                cmin = max(0, cmin-5)
+                cmax = min(w, cmax+5)
+                min_bx = max(0, cmax-FLAGS.image_width)
+                max_bx = min(w-FLAGS.image_width, cmin)
+                bx = np.random.rand() * (max_bx - min_bx) + min_bx
+                find_intersection = True
+
+
+    if not find_intersection:
+        bx = np.random.rand() * (w-FLAGS.image_width)
+
+    bx = int(bx)
+    y_crop = y[:,bx:bx+FLAGS.image_width]
+
+    svg_crop = svg.format(
+        w=FLAGS.image_width, h=FLAGS.image_height,
+        bx=bx, by=by, bw=FLAGS.image_width, bh=FLAGS.image_height,
+        sw=stroke_width,
+        r=r, sx=1, sy=1, tx=0, ty=0)
+
+    s_png = cairosvg.svg2png(bytestring=svg_crop.encode('utf-8'))
+    s_img = Image.open(io.BytesIO(s_png))
+
+    x = np.array(s_img)[:,:,3].astype(np.float) # / 255.0
+    max_intensity = np.amax(x)
+    if max_intensity > 0:
+        x /= max_intensity
+    
+    if x.shape != y_crop.shape:
+        print('bx', bx)
+        y_crop = np.zeros([FLAGS.image_height, FLAGS.image_width], dtype=np.bool)
+
+    # y = np.multiply(x, y_crop) * 1000
+    y = y_crop.astype(np.float) * 1000
 
     # # debug
     # plt.figure()
-    # plt.subplot(121)
+    # plt.subplot(131)
+    # plt.imshow(s_img)
+    # plt.subplot(132)
     # plt.imshow(x, cmap=plt.cm.gray)
-    # plt.subplot(122)
+    # plt.subplot(133)
     # plt.imshow(y, cmap=plt.cm.gray)
     # mng = plt.get_current_fig_manager()
     # mng.full_screen_toggle()
@@ -214,8 +342,8 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
 if __name__ == '__main__':
     # if release mode, change current path
     current_path = os.getcwd()
-    if not current_path.endswith('linenet'):
-        working_path = os.path.join(current_path, 'vectornet/linenet')
+    if not current_path.endswith('ovnet'):
+        working_path = os.path.join(current_path, 'vectornet/ovnet')
         os.chdir(working_path)
 
     # parameters 

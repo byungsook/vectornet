@@ -17,7 +17,7 @@ from six.moves import xrange  # pylint: disable=redefined-builtin
 import numpy as np
 import tensorflow as tf
 
-import linenet_model
+import pathnet_model
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
@@ -40,13 +40,13 @@ tf.app.flags.DEFINE_float('min_prop', 0.0,
                           """min_prop""")
 
 if FLAGS.train_on == 'chinese':
-    import linenet_data_chinese
+    import pathnet_data_chinese
 elif FLAGS.train_on == 'sketch':
-    import linenet_data_sketch
+    import pathnet_data_sketch
 elif FLAGS.train_on == 'hand':
-    import linenet_data_hand
+    import pathnet_data_hand
 elif FLAGS.train_on == 'line':
-    import linenet_data_line
+    import pathnet_data_line
 else:
     print('wrong training data set')
     assert(False)
@@ -55,16 +55,16 @@ else:
 def evaluate():
     with tf.Graph().as_default() as g:
         if FLAGS.train_on == 'chinese':
-            batch_manager = linenet_data_chinese.BatchManager()
+            batch_manager = pathnet_data_chinese.BatchManager()
             print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
         elif FLAGS.train_on == 'sketch':
-            batch_manager = linenet_data_sketch.BatchManager()
+            batch_manager = pathnet_data_sketch.BatchManager()
             print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
         elif FLAGS.train_on == 'hand':
-            batch_manager = linenet_data_hand.BatchManager()
+            batch_manager = pathnet_data_hand.BatchManager()
             print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
         elif FLAGS.train_on == 'line':
-            batch_manager = linenet_data_line.BatchManager()
+            batch_manager = pathnet_data_line.BatchManager()
 
         global_step = tf.Variable(0, name='global_step', trainable=False)
         is_train = False
@@ -75,10 +75,10 @@ def evaluate():
         y = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 1])
         
         # Build a Graph that computes the logits predictions from the inference model.
-        y_hat = linenet_model.inference(x, phase_train)
+        y_hat = pathnet_model.inference(x, phase_train)
 
         # Calculate loss.
-        loss = linenet_model.loss(y_hat, y)
+        loss = pathnet_model.loss(y_hat, y)
 
         # # Restore the moving average version of the learned variables for eval.
         # variable_averages = tf.train.ExponentialMovingAverage(FLAGS.moving_avg_decay)
@@ -122,7 +122,7 @@ def evaluate():
             
             num_eval = batch_manager.num_examples_per_epoch * FLAGS.num_epoch
             num_iter = int(math.ceil(num_eval / FLAGS.batch_size))
-            # num_iter = 1
+            num_iter = 1
             print('total iter: %d' % num_iter)
             total_loss = 0
             for step in range(num_iter):
@@ -184,8 +184,8 @@ def evaluate():
 def main(_):
     # if release mode, change current path
     current_path = os.getcwd()
-    if not current_path.endswith('linenet'):
-        working_path = os.path.join(current_path, 'vectornet/linenet')
+    if not current_path.endswith('pathnet'):
+        working_path = os.path.join(current_path, 'vectornet/pathnet')
         os.chdir(working_path)
 
     # create eval directory

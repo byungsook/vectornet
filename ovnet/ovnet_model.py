@@ -179,7 +179,7 @@ def model1(x, phase_train):
     h_conv18 = _conv2d('18_flat', h_conv17, 3, 1, 64, phase_train)
     h_conv19 = _conv2d('19_flat', h_conv18, 3, 1, 64, phase_train)
     h_conv20 = _conv2d('20_flat', h_conv19, 3, 1,  1, phase_train)
-    return tf.minimum(h_conv20, 1.0)
+    return h_conv20
 
 
 def inference(x, phase_train, model=1):

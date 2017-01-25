@@ -16,7 +16,7 @@ from six.moves import xrange  # pylint: disable=redefined-builtin
 import numpy as np
 import tensorflow as tf
 
-import linenet_model
+import ovnet_model
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
@@ -28,7 +28,7 @@ tf.app.flags.DEFINE_boolean('log_device_placement', False,
 tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', '',
                            """If specified, restore this pretrained model """
                            """before beginning any training.
-                           e.g. log/second_train/linenet.ckpt """)
+                           e.g. log/second_train/ovnet.ckpt """)
 tf.app.flags.DEFINE_integer('max_steps', 1,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_integer('decay_steps', 30000,
@@ -57,13 +57,13 @@ tf.app.flags.DEFINE_string('file_list', 'train.txt',
                            """file_list""")
 
 if FLAGS.train_on == 'chinese':
-    import linenet_data_ov_chinese
+    import ovnet_data_chinese
 elif FLAGS.train_on == 'sketch':
-    import linenet_data_ov_sketch
+    import ovnet_data_sketch
 elif FLAGS.train_on == 'hand':
-    import linenet_data_ov_hand
+    import ovnet_data_hand
 elif FLAGS.train_on == 'line':
-    import linenet_data_ov_line
+    import ovnet_data_line
 else:
     print('wrong training data set')
     assert(False)
@@ -73,16 +73,16 @@ def train():
     """Train the network for a number of steps."""
     with tf.Graph().as_default():
         if FLAGS.train_on == 'chinese':
-            batch_manager = linenet_data_ov_chinese.BatchManager()
+            batch_manager = ovnet_data_chinese.BatchManager()
             print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
         elif FLAGS.train_on == 'sketch':
-            batch_manager = linenet_data_ov_sketch.BatchManager()
+            batch_manager = ovnet_data_sketch.BatchManager()
             print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
         elif FLAGS.train_on == 'hand':
-            batch_manager = linenet_data_ov_hand.BatchManager()
+            batch_manager = ovnet_data_hand.BatchManager()
             print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
         elif FLAGS.train_on == 'line':
-            batch_manager = linenet_data_ov_line.BatchManager()
+            batch_manager = ovnet_data_line.BatchManager()
 
         is_train = True
         phase_train = tf.placeholder(tf.bool, name='phase_train')
@@ -91,10 +91,10 @@ def train():
         y = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 1])
 
         # Build a Graph that computes the logits predictions from the inference model.
-        y_hat = linenet_model.inference(x, phase_train, use_min=False)
+        y_hat = ovnet_model.inference(x, phase_train)
 
         # Calculate loss.
-        loss = linenet_model.loss(y_hat, y)
+        loss = ovnet_model.loss(y_hat, y)
 
         ###############################################################################
         # Build a Graph that trains the model with one batch of examples and
@@ -212,7 +212,7 @@ def train():
 
             # Save the model checkpoint periodically.
             if (step + 1) % FLAGS.save_steps == 0 or (step + 1) == FLAGS.max_steps:
-                checkpoint_path = os.path.join(FLAGS.log_dir, 'linenet.ckpt')
+                checkpoint_path = os.path.join(FLAGS.log_dir, 'ovnet.ckpt')
                 saver.save(sess, checkpoint_path)
 
         # tf.gfile.DeleteRecursively(FLAGS.data_dir)
@@ -222,8 +222,8 @@ def train():
 def main(_):
     # if release mode, change current path
     current_path = os.getcwd()
-    if not current_path.endswith('linenet'):
-        working_path = os.path.join(current_path, 'vectornet/linenet')
+    if not current_path.endswith('ovnet'):
+        working_path = os.path.join(current_path, 'vectornet/ovnet')
         os.chdir(working_path)
 
     # create log directory

@@ -265,8 +265,8 @@ def train_set(i, svg_batch, s_batch, x_batch, y_batch):
 if __name__ == '__main__':
     # if release mode, change current path
     current_path = os.getcwd()
-    if not current_path.endswith('linenet'):
-        working_path = os.path.join(current_path, 'vectornet/linenet')
+    if not current_path.endswith('pathnet'):
+        working_path = os.path.join(current_path, 'vectornet/pathnet')
         os.chdir(working_path)
 
     tf.app.flags.DEFINE_boolean('transform', True, """Whether to transform character.""")

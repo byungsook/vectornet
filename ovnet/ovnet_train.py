@@ -29,7 +29,7 @@ tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', '',
                            """If specified, restore this pretrained model """
                            """before beginning any training.
                            e.g. log/second_train/ovnet.ckpt """)
-tf.app.flags.DEFINE_integer('max_steps', 1,
+tf.app.flags.DEFINE_integer('max_steps', 1, # 20000
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_integer('decay_steps', 30000,
                             """Decay steps""")

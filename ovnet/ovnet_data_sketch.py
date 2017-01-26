@@ -51,8 +51,6 @@ class Param(object):
     def __init__(self):
         self.image_width = FLAGS.image_width
         self.image_height = FLAGS.image_height
-        self.use_two_channels = FLAGS.use_two_channels
-        self.chinese1 = FLAGS.chinese1
         self.transform = FLAGS.transform
 
 
@@ -136,11 +134,16 @@ def train_set(batch_id, svg_batch, x_batch, y_batch, FLAGS):
         with open(svg_batch[batch_id], 'r') as sf:
             svg = sf.read().format(w=FLAGS.image_width, h=FLAGS.image_height)
             trans = '<g display="inline" transform="rotate({r},512,512) scale({sx},{sy}) translate({tx},{ty})">\n'
-            r = np.random.randint(-45, 45)
-            s_sign = np.random.choice([1, -1], 1)[0]
-            s = 1.5 * np.random.random_sample(2) + 0.5 # [0.5, 2)
-            s[1] = s[1] * s_sign
-            t = np.random.randint(-20, 20, 2)
+            if FLAGS.transform:
+                r = np.random.randint(-45, 45)
+                s_sign = np.random.choice([1, -1], 1)[0]
+                s = 1.5 * np.random.random_sample(2) + 0.5 # [0.5, 2)
+                s[1] = s[1] * s_sign
+                t = np.random.randint(-20, 20, 2)
+            else:
+                r = 0
+                s = [1, 1]
+                t = [0, 0]
             start = svg.find('<g')
             end = svg.find('>', start+1) + 1
             svg = svg[:start] + trans.format(r=r, sx=s[0], sy=s[1], tx=t[0], ty=t[1]) + svg[end:]

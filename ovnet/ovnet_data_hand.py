@@ -33,7 +33,7 @@ import tensorflow as tf
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_integer('batch_size', 4,
                             """Number of images to process in a batch.""")
-tf.app.flags.DEFINE_string('data_dir', 'data/hand',
+tf.app.flags.DEFINE_string('data_dir', '../data/hand',
                            """Path to the chinese data directory.""")
 tf.app.flags.DEFINE_integer('image_width', 128,
                             """Image Width.""")
@@ -209,6 +209,9 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
     w = float(w)
     h = float(h)
     w_end = c_end
+
+    if w < FLAGS.image_width:
+        w = FLAGS.image_width
     
     num_lines = svg.count('\n')
     num_strokes = int((num_lines - 5) / 2) # polyline start 6
@@ -216,8 +219,12 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
 
     g_start = svg.find('fill="none"')
     svg = svg[:g_start] + 'transform="rotate({r},512,512) scale({sx},{sy}) translate({tx},{ty})" ' + svg[g_start:]
-    r = np.random.randint(-10, 10)
-    by = np.random.rand()*20.0 - 10.0
+    if FLAGS.transform:
+        r = np.random.randint(-10, 10)
+        by = np.random.rand()*20.0 - 10.0
+    else:
+        r = 0
+        by = 0
     
     svg_all = svg.format(
         w=w, h=h,
@@ -264,6 +271,7 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
 
     
     y = np.zeros([stroke.shape[0], stroke.shape[1]], dtype=np.bool)
+    bx = int(np.random.rand() * (w-FLAGS.image_width))
     find_intersection = False
     for i in xrange(num_strokes-1):
         for j in xrange(i+1, num_strokes):
@@ -292,14 +300,9 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
                 cmax = min(w, cmax+5)
                 min_bx = max(0, cmax-FLAGS.image_width)
                 max_bx = min(w-FLAGS.image_width, cmin)
-                bx = np.random.rand() * (max_bx - min_bx) + min_bx
+                bx = int(np.random.rand() * (max_bx - min_bx) + min_bx)
                 find_intersection = True
 
-
-    if not find_intersection:
-        bx = np.random.rand() * (w-FLAGS.image_width)
-
-    bx = int(bx)
     y_crop = y[:,bx:bx+FLAGS.image_width]
 
     svg_crop = svg.format(
@@ -316,24 +319,20 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
     if max_intensity > 0:
         x /= max_intensity
     
-    if x.shape != y_crop.shape:
-        print('bx', bx)
-        y_crop = np.zeros([FLAGS.image_height, FLAGS.image_width], dtype=np.bool)
-
     # y = np.multiply(x, y_crop) * 1000
     y = y_crop.astype(np.float) * 1000
 
-    # # debug
-    # plt.figure()
-    # plt.subplot(131)
-    # plt.imshow(s_img)
-    # plt.subplot(132)
-    # plt.imshow(x, cmap=plt.cm.gray)
-    # plt.subplot(133)
-    # plt.imshow(y, cmap=plt.cm.gray)
-    # mng = plt.get_current_fig_manager()
-    # mng.full_screen_toggle()
-    # plt.show()
+    # debug
+    plt.figure()
+    plt.subplot(131)
+    plt.imshow(s_img)
+    plt.subplot(132)
+    plt.imshow(x, cmap=plt.cm.gray)
+    plt.subplot(133)
+    plt.imshow(y, cmap=plt.cm.gray)
+    mng = plt.get_current_fig_manager()
+    mng.full_screen_toggle()
+    plt.show()
 
     x_batch[batch_id,:,:,0] = x
     y_batch[batch_id,:,:,0] = y
@@ -352,7 +351,8 @@ if __name__ == '__main__':
     FLAGS.transform = True
 
     batch_manager = BatchManager()
-    x_batch, y_batch = batch_manager.batch()
+    while True:
+        x_batch, y_batch = batch_manager.batch()
     
     for i in xrange(FLAGS.batch_size):
         plt.imshow(np.reshape(x_batch[i,:], [FLAGS.image_height, FLAGS.image_width]), cmap=plt.cm.gray)

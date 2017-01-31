@@ -322,17 +322,17 @@ def train_set(batch_id, svg_batch, x_batch, y_batch):
     # y = np.multiply(x, y_crop) * 1000
     y = y_crop.astype(np.float) * 1000
 
-    # debug
-    plt.figure()
-    plt.subplot(131)
-    plt.imshow(s_img)
-    plt.subplot(132)
-    plt.imshow(x, cmap=plt.cm.gray)
-    plt.subplot(133)
-    plt.imshow(y, cmap=plt.cm.gray)
-    mng = plt.get_current_fig_manager()
-    mng.full_screen_toggle()
-    plt.show()
+    # # debug
+    # plt.figure()
+    # plt.subplot(131)
+    # plt.imshow(s_img)
+    # plt.subplot(132)
+    # plt.imshow(x, cmap=plt.cm.gray)
+    # plt.subplot(133)
+    # plt.imshow(y, cmap=plt.cm.gray)
+    # mng = plt.get_current_fig_manager()
+    # mng.full_screen_toggle()
+    # plt.show()
 
     x_batch[batch_id,:,:,0] = x
     y_batch[batch_id,:,:,0] = y

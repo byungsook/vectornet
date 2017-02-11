@@ -17,7 +17,6 @@ from six.moves import xrange  # pylint: disable=redefined-builtin
 import numpy as np
 import tensorflow as tf
 
-import ovnet_data_intersect
 import ovnet_model
 
 # parameters
@@ -25,12 +24,14 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('eval_dir', 'eval/test',
                            """Directory where to write event logs """
                            """and checkpoint.""")
-tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', 'log/intersect_train/ovnet.ckpt',
+tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', 'log/ch1/ovnet.ckpt',
                            """If specified, restore this pretrained model.""")
 tf.app.flags.DEFINE_float('moving_avg_decay', 0.9999,
                           """The decay to use for the moving average.""")
-tf.app.flags.DEFINE_integer('max_images', FLAGS.batch_size,
+tf.app.flags.DEFINE_integer('max_images', 8,
                             """max # images to save.""")
+tf.app.flags.DEFINE_string('train_on', 'chinese',
+                           """specify training data""")
 tf.app.flags.DEFINE_boolean('transform', False,
                             """Whether to transform character.""")
 tf.app.flags.DEFINE_string('file_list', 'test.txt',
@@ -40,10 +41,33 @@ tf.app.flags.DEFINE_integer('num_epoch', 10,
 tf.app.flags.DEFINE_float('min_prop', 0.0,
                           """min_prop""")
 
+if FLAGS.train_on == 'chinese':
+    import ovnet_data_chinese
+elif FLAGS.train_on == 'sketch':
+    import ovnet_data_sketch
+elif FLAGS.train_on == 'hand':
+    import ovnet_data_hand
+elif FLAGS.train_on == 'line':
+    import ovnet_data_line
+else:
+    print('wrong training data set')
+    assert(False)
 
 
 def evaluate():
     with tf.Graph().as_default() as g:
+        if FLAGS.train_on == 'chinese':
+            batch_manager = ovnet_data_chinese.BatchManager()
+            print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
+        elif FLAGS.train_on == 'sketch':
+            batch_manager = ovnet_data_sketch.BatchManager()
+            print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
+        elif FLAGS.train_on == 'hand':
+            batch_manager = ovnet_data_hand.BatchManager()
+            print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
+        elif FLAGS.train_on == 'line':
+            batch_manager = ovnet_data_line.BatchManager()
+
         global_step = tf.Variable(0, name='global_step', trainable=False)
         is_train = True
         phase_train = tf.placeholder(tf.bool, name='phase_train')
@@ -80,9 +104,6 @@ def evaluate():
         y_summary = tf.summary.image('y', y, max_outputs=FLAGS.max_images)
         y_hat_ph = tf.placeholder(tf.float32)
         y_hat_summary = tf.summary.image('y_hat_ph', y_hat_ph, max_outputs=FLAGS.max_images)
-
-        batch_manager = ovnet_data_intersect.BatchManager()
-        print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
 
         # Start evaluation
         with tf.Session() as sess:

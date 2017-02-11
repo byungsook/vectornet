@@ -108,6 +108,7 @@ def _create_a_path(path_type, id):
 
 class BatchManager(object):
     def __init__(self):
+        self._next_svg_id = 0
         self.num_examples_per_epoch = 1000
         self.num_epoch = 1
 
@@ -141,8 +142,16 @@ class BatchManager(object):
         if FLAGS.num_processors == 1:
             for i in xrange(FLAGS.batch_size):
                 train_set(i, self.x_batch, self.y_batch)
+                self._next_svg_id += 1
+                if self._next_svg_id >= self.num_examples_per_epoch:
+                    self.num_epoch += 1
+                    self._next_svg_id -= self.num_examples_per_epoch
         else:
             self._pool.map(self._func, range(FLAGS.batch_size))
+            self._next_svg_id += 8
+            if self._next_svg_id >= self.num_examples_per_epoch:
+                    self.num_epoch += 1
+                    self._next_svg_id -= self.num_examples_per_epoch
 
         return self.x_batch, self.y_batch
 

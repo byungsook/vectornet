@@ -31,9 +31,9 @@ import tensorflow as tf
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_integer('batch_size', 4,
+tf.app.flags.DEFINE_integer('batch_size', 8,
                             """Number of images to process in a batch.""")
-tf.app.flags.DEFINE_string('data_dir', 'data/chinese2',
+tf.app.flags.DEFINE_string('data_dir', '../data/chinese1',
                            """Path to the chinese data directory.""")
 tf.app.flags.DEFINE_integer('image_width', 128,
                             """Image Width.""")
@@ -41,7 +41,7 @@ tf.app.flags.DEFINE_integer('image_height', 128,
                             """Image Height.""")
 tf.app.flags.DEFINE_integer('num_processors', 8,
                             """# of processors for batch generation.""")
-tf.app.flags.DEFINE_boolean('chinese1', False,
+tf.app.flags.DEFINE_boolean('chinese1', True,
                             """whether chinese1 or not""")
 
 

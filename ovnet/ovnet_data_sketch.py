@@ -30,9 +30,9 @@ import tensorflow as tf
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_integer('batch_size', 4,
+tf.app.flags.DEFINE_integer('batch_size', 8,
                             """Number of images to process in a batch.""")
-tf.app.flags.DEFINE_string('data_dir', 'data/sketch',
+tf.app.flags.DEFINE_string('data_dir', '../data/sketch',
                            """Path to the chinese data directory.""")
 tf.app.flags.DEFINE_integer('image_width', 128,
                             """Image Width.""")
@@ -166,11 +166,18 @@ def train_set(batch_id, svg_batch, x_batch, y_batch, FLAGS):
     y = np.zeros([FLAGS.image_height, FLAGS.image_width], dtype=np.bool)
     stroke_list = []
     svg_xml = ET.fromstring(svg)
-    num_paths = len(svg_xml[0]._children) - 1
+    # num_paths = len(svg_xml[0]._children) - 1
+    num_paths = len(svg_xml[0]) - 1 # 0 is title
 
     for i in xrange(1,num_paths+1):
         svg_xml = ET.fromstring(svg)
-        svg_xml[0]._children = [svg_xml[0]._children[i]]
+        # if sys.version_info > (2,7):
+        stroke = svg_xml[0][i]
+        for c in reversed(xrange(1,num_paths+1)):
+            if svg_xml[0][c] != stroke:
+                svg_xml[0].remove(svg_xml[0][c])
+        # else:
+        #     svg_xml[0]._children = [svg_xml[0]._children[i]]
         svg_one_stroke = ET.tostring(svg_xml, method='xml')
 
         stroke_png = cairosvg.svg2png(bytestring=svg_one_stroke)
@@ -204,7 +211,8 @@ def train_set(batch_id, svg_batch, x_batch, y_batch, FLAGS):
             # mng.full_screen_toggle()
             # plt.show()
 
-    y = np.multiply(x, y) * 1000
+    # y = np.multiply(x, y) * 1000
+    y = y.astype(np.float) * 1000
 
     # # debug
     # plt.figure()

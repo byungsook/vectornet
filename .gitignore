@@ -4,6 +4,10 @@
 *.o
 *~
 log/
+data/chinese1/
+data/chinese2/
+data/hand/
+data/sketch/
 data_tmp/
 eval/
 test/

@@ -54,7 +54,6 @@ class Param(object):
     def __init__(self):
         self.image_width = FLAGS.image_width
         self.image_height = FLAGS.image_height
-        self.use_two_channels = FLAGS.use_two_channels
         self.chinese1 = FLAGS.chinese1
         self.transform = FLAGS.transform
 

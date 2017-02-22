@@ -58,9 +58,24 @@ SVG_CUBIC_BEZIER_TEMPLATE = """<path id="{id}" d="M {sx} {sy} C {cx1} {cy1} {cx2
 SVG_END_TEMPLATE = """</g></svg>"""
 
 
-def _create_a_line(id, image_height, image_width, min_length):
+class MPManager(multiprocessing.managers.SyncManager):
+    pass
+MPManager.register('np_empty', np.empty, multiprocessing.managers.ArrayProxy)
+
+
+class Param(object):
+    def __init__(self):
+        self.image_width = FLAGS.image_width
+        self.image_height = FLAGS.image_height
+        self.min_length = FLAGS.min_length
+        self.num_paths = FLAGS.num_paths
+        self.path_type = FLAGS.path_type
+        self.max_stroke_width = FLAGS.max_stroke_width
+
+
+def _create_a_line(id, image_height, image_width, min_length, max_stroke_width):
     stroke_color = np.random.randint(240, size=3)
-    stroke_width = np.random.rand() * FLAGS.max_stroke_width + 1
+    stroke_width = np.random.rand() * max_stroke_width + 1
     while True:
         x = np.random.randint(low=0, high=image_width, size=2)
         y = np.random.randint(low=0, high=image_height, size=2)
@@ -77,11 +92,11 @@ def _create_a_line(id, image_height, image_width, min_length):
     )
 
 
-def _create_a_cubic_bezier_curve(id, image_height, image_width, min_length):
+def _create_a_cubic_bezier_curve(id, image_height, image_width, min_length, max_stroke_width):
     x = np.random.randint(low=0, high=image_width, size=4)
     y = np.random.randint(low=0, high=image_height, size=4)
     stroke_color = np.random.randint(240, size=3)
-    stroke_width = np.random.rand() * FLAGS.max_stroke_width + 1
+    stroke_width = np.random.rand() * max_stroke_width + 1
 
     return SVG_CUBIC_BEZIER_TEMPLATE.format(
         id=id,
@@ -94,7 +109,7 @@ def _create_a_cubic_bezier_curve(id, image_height, image_width, min_length):
     )
 
 
-def _create_a_path(path_type, id):
+def _create_a_path(path_type, id, FLAGS):
     if path_type == 2:
         path_type = np.random.randint(2)
 
@@ -103,7 +118,8 @@ def _create_a_path(path_type, id):
         1: _create_a_cubic_bezier_curve
     }
 
-    return path_selector[path_type](id, FLAGS.image_height, FLAGS.image_width, FLAGS.min_length)
+    return path_selector[path_type](id, FLAGS.image_height, FLAGS.image_width, 
+                                    FLAGS.min_length, FLAGS.max_stroke_width)
 
 
 class BatchManager(object):
@@ -119,17 +135,13 @@ class BatchManager(object):
             self.x_batch = np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1], dtype=np.float)
             self.y_batch = np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1], dtype=np.float)
         else:
-            class MPManager(multiprocessing.managers.SyncManager):
-                pass
-            MPManager.register('np_empty', np.empty, multiprocessing.managers.ArrayProxy)
-
             self._mpmanager = MPManager()
             self._mpmanager.start()
             self._pool = multiprocessing.pool.Pool(processes=FLAGS.num_processors)
             
             self.x_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1], dtype=np.float)
             self.y_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1], dtype=np.float)
-            self._func = partial(train_set, x_batch=self.x_batch, y_batch=self.y_batch)
+            self._func = partial(train_set, x_batch=self.x_batch, y_batch=self.y_batch, FLAGS=Param())
 
 
     def __del__(self):
@@ -141,7 +153,7 @@ class BatchManager(object):
     def batch(self):
         if FLAGS.num_processors == 1:
             for i in xrange(FLAGS.batch_size):
-                train_set(i, self.x_batch, self.y_batch)
+                train_set(i, self.x_batch, self.y_batch, FLAGS)
                 self._next_svg_id += 1
                 if self._next_svg_id >= self.num_examples_per_epoch:
                     self.num_epoch += 1
@@ -157,7 +169,7 @@ class BatchManager(object):
 
 
 
-def train_set(batch_id, x_batch, y_batch):
+def train_set(batch_id, x_batch, y_batch, FLAGS):
     np.random.seed()
     
     svg = SVG_START_TEMPLATE.format(
@@ -167,7 +179,7 @@ def train_set(batch_id, x_batch, y_batch):
     y = np.zeros([FLAGS.image_height, FLAGS.image_width], dtype=np.int)
     stroke_list = []
     for i in xrange(FLAGS.num_paths):
-        LINE1 = _create_a_path(FLAGS.path_type, i)
+        LINE1 = _create_a_path(FLAGS.path_type, i, FLAGS)
         svg_one_stroke = SVG_START_TEMPLATE.format(
                 width=FLAGS.image_width,
                 height=FLAGS.image_height

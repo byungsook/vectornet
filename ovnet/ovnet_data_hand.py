@@ -43,6 +43,19 @@ tf.app.flags.DEFINE_integer('num_processors', 8,
                             """# of processors for batch generation.""")
 
 
+class MPManager(multiprocessing.managers.SyncManager):
+    pass
+MPManager.register('np_empty', np.empty, multiprocessing.managers.ArrayProxy)
+
+
+class Param(object):
+    def __init__(self):
+        self.image_size = FLAGS.image_size
+        self.image_width = FLAGS.image_width
+        self.image_height = FLAGS.image_height
+        self.max_stroke_width = FLAGS.max_stroke_width
+
+
 class BatchManager(object):
     def __init__(self):
         # read all svg files
@@ -84,10 +97,6 @@ class BatchManager(object):
             self.x_batch = np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1], dtype=np.float)
             self.y_batch = np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1], dtype=np.float)
         else:
-            class MPManager(multiprocessing.managers.SyncManager):
-                pass
-            MPManager.register('np_empty', np.empty, multiprocessing.managers.ArrayProxy)
-
             self._mpmanager = MPManager()
             self._mpmanager.start()
             self._pool = multiprocessing.pool.Pool(processes=FLAGS.num_processors)
@@ -95,7 +104,7 @@ class BatchManager(object):
             self.x_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1], dtype=np.float)
             self.y_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1], dtype=np.float)
             self._svg_batch = self._mpmanager.list(['' for _ in xrange(FLAGS.batch_size)])
-            self._func = partial(train_set, svg_batch=self._svg_batch, x_batch=self.x_batch, y_batch=self.y_batch)
+            self._func = partial(train_set, svg_batch=self._svg_batch, x_batch=self.x_batch, y_batch=self.y_batch, FLAGS=Param())
 
 
     def __del__(self):
@@ -109,7 +118,7 @@ class BatchManager(object):
             svg_batch = []
             for i in xrange(FLAGS.batch_size):
                 svg_batch.append(self._svg_list[self._next_svg_id])
-                train_set(i, svg_batch, self.x_batch, self.y_batch)                
+                train_set(i, svg_batch, self.x_batch, self.y_batch, FLAGS)
                 self._next_svg_id = (self._next_svg_id + 1) % len(self._svg_list)
                 if self._next_svg_id == 0:
                     self.num_epoch = self.num_epoch + 1
@@ -198,7 +207,7 @@ def find_intersection(svg_file_path):
     return num_intersections > 0
 
 
-def train_set(batch_id, svg_batch, x_batch, y_batch):
+def train_set(batch_id, svg_batch, x_batch, y_batch, FLAGS):
     np.random.seed()
     with open(svg_batch[batch_id], 'r') as sf:
         svg = sf.read()

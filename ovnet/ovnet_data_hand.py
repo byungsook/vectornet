@@ -50,7 +50,6 @@ MPManager.register('np_empty', np.empty, multiprocessing.managers.ArrayProxy)
 
 class Param(object):
     def __init__(self):
-        self.image_size = FLAGS.image_size
         self.image_width = FLAGS.image_width
         self.image_height = FLAGS.image_height
         self.max_stroke_width = FLAGS.max_stroke_width
@@ -360,8 +359,7 @@ if __name__ == '__main__':
     FLAGS.transform = True
 
     batch_manager = BatchManager()
-    while True:
-        x_batch, y_batch = batch_manager.batch()
+    x_batch, y_batch = batch_manager.batch()
     
     for i in xrange(FLAGS.batch_size):
         plt.imshow(np.reshape(x_batch[i,:], [FLAGS.image_height, FLAGS.image_width]), cmap=plt.cm.gray)

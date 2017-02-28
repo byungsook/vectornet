@@ -3,6 +3,7 @@
 *.suo
 *.o
 *~
+*.db
 log/
 data/chinese1/
 data/chinese2/
@@ -13,3 +14,4 @@ eval/
 test/
 result/
 model/
+gco/gco_vs2015/x64

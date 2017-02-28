@@ -3,6 +3,7 @@
 *.suo
 *.o
 *~
+*.sql
 *.db
 log/
 data/chinese1/

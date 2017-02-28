@@ -31,7 +31,7 @@ import tensorflow as tf
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_integer('batch_size', 8,
                             """Number of images to process in a batch.""")
-tf.app.flags.DEFINE_string('data_dir', 'data/sketch',
+tf.app.flags.DEFINE_string('data_dir', '../data/sketch',
                            """Path to the Sketch data directory.""")
 tf.app.flags.DEFINE_integer('image_width', 128,
                             """Image Width.""")

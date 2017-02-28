@@ -237,7 +237,7 @@ def train():
             # Save the model checkpoint periodically.
             if (step + 1) % FLAGS.save_steps == 0 or (step + 1) == FLAGS.max_steps:
                 checkpoint_path = os.path.join(FLAGS.log_dir, 'pathnet.ckpt')
-                saver.save(sess, checkpoint_path)
+                saver.save(sess, checkpoint_path, global_step=global_step)
 
         # tf.gfile.DeleteRecursively(FLAGS.data_dir)
         print('done')

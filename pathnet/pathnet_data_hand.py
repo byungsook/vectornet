@@ -32,7 +32,7 @@ import tensorflow as tf
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_integer('batch_size', 8,
                             """Number of images to process in a batch.""")
-tf.app.flags.DEFINE_string('data_dir', 'data/hand',
+tf.app.flags.DEFINE_string('data_dir', '../data/hand',
                            """Path to the hand writing data directory.""")
 tf.app.flags.DEFINE_integer('image_size', 128,
                             """Image size.""")

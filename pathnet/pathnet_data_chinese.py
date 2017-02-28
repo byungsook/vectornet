@@ -35,7 +35,7 @@ tf.app.flags.DEFINE_integer('batch_size', 8,
                             """Number of images to process in a batch.""")
 # tf.app.flags.DEFINE_string('data_tar', 'data/chinese1.tar.gz',
 #                            """Path to the Sketch data file.""")
-tf.app.flags.DEFINE_string('data_dir', 'data/chinese2',
+tf.app.flags.DEFINE_string('data_dir', '../data/chinese1',
                            """Path to the data directory.""")
 tf.app.flags.DEFINE_integer('image_width', 128, # 48-24-12-6
                             """Image Width.""")
@@ -47,7 +47,7 @@ tf.app.flags.DEFINE_boolean('use_two_channels', True,
                             """use two channels for input""")
 tf.app.flags.DEFINE_integer('num_processors', 8,
                             """# of processors for batch generation.""")
-tf.app.flags.DEFINE_boolean('chinese1', False,
+tf.app.flags.DEFINE_boolean('chinese1', True,
                             """whether chinese1 or not""")
 
 
@@ -287,7 +287,7 @@ if __name__ == '__main__':
     FLAGS.image_width = 128
     FLAGS.image_height = 128
     FLAGS.chinese1 = False
-    FLAGS.data_dir = 'data/chinese2'
+    FLAGS.data_dir = '../data/chinese2'
     FLAGS.transform = True
 
     batch_manager = BatchManager()

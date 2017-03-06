@@ -44,7 +44,7 @@ def read_svg(file_path):
         svg = svg.format(
                 w=FLAGS.image_width, h=FLAGS.image_height,
                 r=r, sx=s[0], sy=s[1], tx=t[0], ty=t[1])
-        s_png = cairosvg.svg2png(bytestring=svg)
+        s_png = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
         s_img = Image.open(io.BytesIO(s_png))
         s = np.array(s_img)[:,:,3].astype(np.float) # / 255.0
         max_intensity = np.amax(s)
@@ -109,7 +109,7 @@ def get_stroke_list(labels, pm):
                         id_end = svg_one_stroke.find('/>', id_start) + 2
                         svg_one_stroke = svg_one_stroke[:id_start] + svg_one_stroke[id_end:]
 
-                y_png = cairosvg.svg2png(bytestring=svg_one_stroke)
+                y_png = cairosvg.svg2png(bytestring=svg_one_stroke.encode('utf-8'))
                 y_img = Image.open(io.BytesIO(y_png))
                 y = (np.array(y_img)[:,:,3] > 0)
 

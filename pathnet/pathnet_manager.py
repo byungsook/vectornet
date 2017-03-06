@@ -8,28 +8,27 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from six.moves import xrange  # pylint: disable=redefined-builtin
 from datetime import datetime
 
+from six.moves import xrange  # pylint: disable=redefined-builtin
 import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
-import scipy.misc
 
-import linenet.linenet_model
+import pathnet.pathnet_model
 
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('linenet_ckpt', 'model/line_train/linenet.ckpt',
-                           """linenet checkpoint file path.""")
+tf.app.flags.DEFINE_string('pathnet_ckpt', 'pathnet/model/no_trans/ch1/pathnet.ckpt',
+                           """pathnet checkpoint file path.""")
 tf.app.flags.DEFINE_boolean('use_two_channels', True,
                             """use two channels for input""")
 
 
-class LinenetManager(object):
+class PathnetManager(object):
     """
-    Linenet
+    Pathnet
     """
     def __init__(self, img_shape, crop_size=-1):
         self._h = img_shape[0]
@@ -45,41 +44,41 @@ class LinenetManager(object):
                 self._x = tf.placeholder(dtype=tf.float32, shape=[None, self._h, self._w, d])
             else:
                 self._x = tf.placeholder(dtype=tf.float32, shape=[None, self._crop_size, self._crop_size, d])
-            self._y_hat = linenet.linenet_model.inference(self._x, self._phase_train)
+            self._y_hat = pathnet.pathnet_model.inference(self._x, self._phase_train)
 
             self._sess = tf.Session()
         
             saver = tf.train.Saver()
-            saver.restore(self._sess, FLAGS.linenet_ckpt)
-            print('%s: Pre-trained model restored from %s' % (datetime.now(), FLAGS.linenet_ckpt))
+            saver.restore(self._sess, FLAGS.pathnet_ckpt)
+            print('%s: Pre-trained model restored from %s' % (datetime.now(), FLAGS.pathnet_ckpt))
 
 
     def extract_all(self, img):
-        """extract lines from all line pixels
+        """extract paths from all path pixels
 
         Args:
             img: Input image. 2D Tensor of [image_size, image_size]  
         Returns:
-            y: 3D Tensor of [# line pixels, image_size, image_size]
-            line_pixels: coordinates of all line pixels
+            y: 3D Tensor of [# path pixels, image_size, image_size]
+            path_pixels: coordinates of all path pixels
         """
 
-        line_pixels = np.nonzero(img)
-        num_line_pixels = len(line_pixels[0]) 
-        assert(num_line_pixels > 0)
+        path_pixels = np.nonzero(img)
+        num_path_pixels = len(path_pixels[0]) 
+        assert(num_path_pixels > 0)
         
         if FLAGS.use_two_channels:
-            x_batch = np.zeros([num_line_pixels, self._h, self._w, 2])
-            for i in xrange(num_line_pixels):
+            x_batch = np.zeros([num_path_pixels, self._h, self._w, 2])
+            for i in xrange(num_path_pixels):
                 x_batch[i,:,:,0] = img
-                px, py = line_pixels[0][i], line_pixels[1][i]
+                px, py = path_pixels[0][i], path_pixels[1][i]
                 x_batch[i,px,py,1] = 1.0
         else:
             img = img / FLAGS.intensity_ratio
 
-            x_batch = np.zeros([num_line_pixels, self._h, self._w])
-            for i in xrange(num_line_pixels):
-                px, py = line_pixels[0][i], line_pixels[1][i]
+            x_batch = np.zeros([num_path_pixels, self._h, self._w])
+            for i in xrange(num_path_pixels):
+                px, py = path_pixels[0][i], path_pixels[1][i]
                 x_batch[i,:,:] = img
                 x_batch[i,px,py] = 1.0
 
@@ -87,7 +86,7 @@ class LinenetManager(object):
                 # plt.imshow(x_batch[i,:,:], cmap=plt.cm.gray)
                 # plt.show()
             
-            x_batch = np.reshape(x_batch, [num_line_pixels, self._h, self._w, 1])
+            x_batch = np.reshape(x_batch, [num_path_pixels, self._h, self._w, 1])
         
         with self._graph.as_default():
             y_batch = self._sess.run(self._y_hat, feed_dict={self._phase_train: False, self._x: x_batch})
@@ -97,17 +96,10 @@ class LinenetManager(object):
             # plt.imshow(y_vis, cmap=plt.cm.gray)
             # plt.show()
             
-            return y_batch, line_pixels
+            return y_batch, path_pixels
 
-    def extract_save(self, img, batch_size, save_path):
-        if self._crop_size == -1:
-            return self.extract_save_no_crop(img, batch_size, save_path)
-        else:
-            return self.extract_save_crop(img, batch_size, save_path)
-
-
-    def extract_save_no_crop(self, img, batch_size, save_path):
-        """extract lines from px, py"""
+    def extract(self, img, px, py):
+        """extract paths from px, py"""
 
         if FLAGS.use_two_channels:
             x_batch = np.zeros([1, self._h, self._w, 2])
@@ -139,15 +131,15 @@ class LinenetManager(object):
     def extract_save(self, img, batch_size, save_path):
         """extract and save"""
 
-        line_pixels = np.nonzero(img)
-        num_line_pixels = len(line_pixels[0]) 
-        assert(num_line_pixels > 0)
+        path_pixels = np.nonzero(img)
+        num_path_pixels = len(path_pixels[0]) 
+        assert(num_path_pixels > 0)
 
         if not FLAGS.use_two_channels:
             img = img / FLAGS.intensity_ratio
         
         id_start = 0
-        id_end = min(batch_size, num_line_pixels)
+        id_end = min(batch_size, num_path_pixels)
         while True:
             bs = min(batch_size, id_end - id_start)
 
@@ -155,12 +147,12 @@ class LinenetManager(object):
                 x_batch = np.zeros([batch_size, self._h, self._w, 2])
                 for i in xrange(bs):
                     x_batch[i,:,:,0] = img
-                    px, py = line_pixels[0][id_start+i], line_pixels[1][id_start+i]
+                    px, py = path_pixels[0][id_start+i], path_pixels[1][id_start+i]
                     x_batch[i,px,py,1] = 1.0
             else:
                 x_batch = np.zeros([batch_size, self._h, self._w, 1])
                 for i in xrange(bs):
-                    px, py = line_pixels[0][id_start+i], line_pixels[1][id_start+i]
+                    px, py = path_pixels[0][id_start+i], path_pixels[1][id_start+i]
                     x_batch[i,:,:,0] = img
                     x_batch[i,px,py,0] = 1.0
 
@@ -179,11 +171,11 @@ class LinenetManager(object):
                 y_vis = np.reshape(y_batch[i,:,:,:], [self._h, self._w])                
                 np.save(save_path.format(id=id_start+i), y_vis)
 
-            if id_end == num_line_pixels:
+            if id_end == num_path_pixels:
                 break
             else:
                 id_start = id_end
-                id_end = min(id_end + batch_size, num_line_pixels)
+                id_end = min(id_end + batch_size, num_path_pixels)
 
 
     def extract_save_crop(self, img, batch_size, save_path):
@@ -191,15 +183,15 @@ class LinenetManager(object):
 
         dist = center = int((self._crop_size - 1) / 2)
 
-        line_pixels = np.nonzero(img)
-        num_line_pixels = len(line_pixels[0]) 
-        assert(num_line_pixels > 0)
+        path_pixels = np.nonzero(img)
+        num_path_pixels = len(path_pixels[0]) 
+        assert(num_path_pixels > 0)
 
         if not FLAGS.use_two_channels:
             img = img / FLAGS.intensity_ratio
         
         id_start = 0
-        id_end = min(batch_size, num_line_pixels)
+        id_end = min(batch_size, num_path_pixels)
         while True:
             bs = min(batch_size, id_end - id_start)
 
@@ -207,7 +199,7 @@ class LinenetManager(object):
                 x_batch = np.zeros([batch_size, self._crop_size, self._crop_size, 2])
                 x_batch[:,center,center,1] = 1.0
                 for i in xrange(bs):
-                    px, py = line_pixels[0][id_start+i], line_pixels[1][id_start+i]
+                    px, py = path_pixels[0][id_start+i], path_pixels[1][id_start+i]
                     cx_start = px - dist
                     cx_end = px + dist + 1
                     dx1 = dist
@@ -239,7 +231,7 @@ class LinenetManager(object):
                 assert(False)
                 # x_batch = np.zeros([batch_size, self._h, self._w, 1])
                 # for i in xrange(bs):
-                #     px, py = line_pixels[0][id_start+i], line_pixels[1][id_start+i]
+                #     px, py = path_pixels[0][id_start+i], path_pixels[1][id_start+i]
                 #     x_batch[i,:,:,0] = img
                 #     x_batch[i,px,py,0] = 1.0
 
@@ -258,9 +250,9 @@ class LinenetManager(object):
                 y_vis = np.reshape(y_batch[i,:,:,:], [self._crop_size, self._crop_size])
                 np.save(save_path.format(id=id_start+i), y_vis)
 
-            if id_end == num_line_pixels:
+            if id_end == num_path_pixels:
                 break
             else:
                 id_start = id_end
-                id_end = min(id_end + batch_size, num_line_pixels)
+                id_end = min(id_end + batch_size, num_path_pixels)
                 

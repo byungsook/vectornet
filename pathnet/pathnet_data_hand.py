@@ -34,11 +34,11 @@ tf.app.flags.DEFINE_integer('batch_size', 8,
                             """Number of images to process in a batch.""")
 tf.app.flags.DEFINE_string('data_dir', '../data/hand',
                            """Path to the hand writing data directory.""")
-tf.app.flags.DEFINE_integer('image_size', 128,
+tf.app.flags.DEFINE_integer('image_size', 64,
                             """Image size.""")
-tf.app.flags.DEFINE_integer('image_width', 128,
+tf.app.flags.DEFINE_integer('image_width', 64,
                             """Image Width.""")
-tf.app.flags.DEFINE_integer('image_height', 128,
+tf.app.flags.DEFINE_integer('image_height', 64,
                             """Image Height.""")
 # tf.app.flags.DEFINE_float('noise_intensity', 0.2,
 #                           """uniform noise intensity""")

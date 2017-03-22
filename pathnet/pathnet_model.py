@@ -192,6 +192,7 @@ def inference(x, phase_train, model=1):
 
 def loss(y_hat, y):
     # y_hat: estimate, y: training set
-    loss_scale = float(1e5) / (FLAGS.batch_size * FLAGS.image_width * FLAGS.image_height)
-    l2_loss = tf.multiply(tf.nn.l2_loss(y_hat - y), loss_scale, name='l2_loss')
+    # loss_scale = float(1e5) / (FLAGS.batch_size * FLAGS.image_width * FLAGS.image_height)
+    # l2_loss = tf.multiply(tf.nn.l2_loss(y_hat - y), loss_scale, name='l2_loss')
+    l2_loss = tf.nn.l2_loss(y_hat - y, name='l2_loss')
     return l2_loss

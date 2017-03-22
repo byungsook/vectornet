@@ -37,9 +37,9 @@ tf.app.flags.DEFINE_integer('batch_size', 8,
 #                            """Path to the Sketch data file.""")
 tf.app.flags.DEFINE_string('data_dir', '../data/chinese1',
                            """Path to the data directory.""")
-tf.app.flags.DEFINE_integer('image_width', 128, # 48-24-12-6
+tf.app.flags.DEFINE_integer('image_width', 64, # 48-24-12-6
                             """Image Width.""")
-tf.app.flags.DEFINE_integer('image_height', 128, # 48-24-12-6
+tf.app.flags.DEFINE_integer('image_height', 64, # 48-24-12-6
                             """Image Height.""")
 tf.app.flags.DEFINE_float('intensity_ratio', 10.0,
                           """intensity ratio of point to lines""")

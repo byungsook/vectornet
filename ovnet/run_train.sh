@@ -1,4 +1,9 @@
-python ovnet_train.py --train_on=sketch --data_dir=../data/sketch --transform=True --log_dir=log/sketch --max_steps=50000
+# # 20-03-17 Mon. train on IoU metric, 64^2, 50000 steps, without transform
+# python ovnet_train.py --train_on=chinese --log_dir=log/no_trans_64/ch1 --max_steps=50000 --transform=False --image_width=64 --image_height=64 --batch_size=8 --data_dir=../data/chinese1 --chinese1=True
+# python ovnet_train.py --train_on=chinese --log_dir=log/no_trans_64/ch2 --max_steps=50000 --transform=False --image_width=64 --image_height=64 --batch_size=8 --data_dir=../data/chinese2 --chinese1=False
+python ovnet_train.py --train_on=line --log_dir=log/no_trans_64/line --max_steps=50000 --image_width=64 --image_height=64 --batch_size=8 --max_stroke_width=2 --num_paths=4
+./run_eval.sh
+# python ovnet_train.py --train_on=sketch --data_dir=../data/sketch --transform=True --log_dir=log/sketch --max_steps=50000
 
 # 28-02-17 Tue., without transform
 # python ovnet_train.py --train_on=line --log_dir=log/line --max_steps=50000

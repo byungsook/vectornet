@@ -35,9 +35,9 @@ tf.app.flags.DEFINE_integer('batch_size', 8,
                             """Number of images to process in a batch.""")
 tf.app.flags.DEFINE_string('data_dir', '../data/hand',
                            """Path to the chinese data directory.""")
-tf.app.flags.DEFINE_integer('image_width', 128,
+tf.app.flags.DEFINE_integer('image_width', 64,
                             """Image Width.""")
-tf.app.flags.DEFINE_integer('image_height', 128,
+tf.app.flags.DEFINE_integer('image_height', 64,
                             """Image Height.""")
 tf.app.flags.DEFINE_integer('num_processors', 8,
                             """# of processors for batch generation.""")
@@ -328,7 +328,8 @@ def train_set(batch_id, svg_batch, x_batch, y_batch, FLAGS):
         x /= max_intensity
     
     # y = np.multiply(x, y_crop) * 1000
-    y = y_crop.astype(np.float) * 1000
+    # y = y_crop.astype(np.float) * 1000
+    y = y_crop
 
     # # debug
     # plt.figure()

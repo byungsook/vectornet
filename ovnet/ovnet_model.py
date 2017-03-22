@@ -93,7 +93,7 @@ def _batch_normalization(name, x, d_next, phase_train, is_conv=True):
     return n
 
 
-def _conv2d(layer_name, x, k, s, d_next, phase_train):
+def _conv2d(layer_name, x, k, s, d_next, phase_train, use_relu=True):
     """down, flat-convolution layer"""
     with tf.variable_scope(layer_name):
         d_prev = x.get_shape()[3].value
@@ -101,9 +101,14 @@ def _conv2d(layer_name, x, k, s, d_next, phase_train):
         conv = tf.nn.conv2d(x, W, strides=[1, s, s, 1], padding='SAME', name='2_conv_feature')
         # _variable_summaries(conv)
         batch = _batch_normalization('3_batch_norm', conv, d_next, phase_train)
-        relu = tf.nn.relu(batch, name='4_relu')
-        # _variable_summaries(relu)
-        return relu
+        if use_relu:
+            relu = tf.nn.relu(batch, name='4_relu')
+            # _variable_summaries(relu)
+            return relu
+        else:
+            sigmoid = tf.nn.sigmoid(batch, name='4_sigmoid')
+            return sigmoid
+
 
 
 def _up_conv2d(layer_name, x, k, s, d_next, out_h, out_w, phase_train):
@@ -178,7 +183,7 @@ def model1(x, phase_train):
     h_conv17 = _conv2d('17_flat', h_conv16, 3, 1, 64, phase_train)
     h_conv18 = _conv2d('18_flat', h_conv17, 3, 1, 64, phase_train)
     h_conv19 = _conv2d('19_flat', h_conv18, 3, 1, 64, phase_train)
-    h_conv20 = _conv2d('20_flat', h_conv19, 3, 1,  1, phase_train)
+    h_conv20 = _conv2d('20_flat', h_conv19, 3, 1,  1, phase_train, use_relu=False)
     return h_conv20
 
 
@@ -192,5 +197,14 @@ def inference(x, phase_train, model=1):
 
 def loss(y_hat, y):
     # y_hat: estimate, y: training set
-    l2_loss = tf.multiply(tf.nn.l2_loss(y_hat - y), 1e-6, name='l2_loss')
-    return l2_loss
+    # l2_loss = tf.multiply(tf.nn.l2_loss(y_hat - y), 1e-6, name='l2_loss')
+    # return l2_loss
+    logits = tf.reshape(y_hat, [-1])
+    labels = tf.reshape(y, [-1])
+
+    inter = tf.reduce_sum(tf.multiply(logits, labels))
+    union = tf.reduce_sum(tf.subtract(tf.add(logits, labels), tf.multiply(logits, labels)))
+
+    iou = tf.where(tf.equal(union, 0.), 1., tf.div(inter, union))
+    loss = tf.subtract(tf.constant(1.0, dtype=tf.float32), iou)
+    return loss

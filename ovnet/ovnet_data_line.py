@@ -205,6 +205,7 @@ def train_set(batch_id, x_batch, y_batch, FLAGS):
     x_img = Image.open(io.BytesIO(x_png))
     x = np.array(x_img)[:,:,3].astype(np.float) # / 255.0
     max_intensity = np.amax(x)
+    x = x / max_intensity
 
     for i in xrange(FLAGS.num_paths-1):
         for j in xrange(i+1, FLAGS.num_paths):

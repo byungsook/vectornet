@@ -20,8 +20,10 @@ import ovnet.ovnet_model
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('ovnet_ckpt', 'ovnet/model/no_trans/ch1/ovnet.ckpt',
+tf.app.flags.DEFINE_string('ovnet_ckpt', 'ovnet/model/no_trans_64/ch1/ovnet.ckpt-50000',
                            """pathnet checkpoint file path.""")
+tf.app.flags.DEFINE_float('moving_avg_decay', 0.9999,
+                          """The decay to use for the moving average.""")
 tf.app.flags.DEFINE_float('threshold', 0.5,
                           """threshold""")
 
@@ -41,7 +43,10 @@ class OvnetManager(object):
             self._sess = tf.Session()
             
             global_step = tf.Variable(0, name='global_step', trainable=False)
-            saver = tf.train.Saver()
+            # saver = tf.train.Saver()
+            variable_averages = tf.train.ExponentialMovingAverage(FLAGS.moving_avg_decay)
+            variables_to_restore = variable_averages.variables_to_restore()
+            saver = tf.train.Saver(variables_to_restore)
             saver.restore(self._sess, FLAGS.ovnet_ckpt)
             print('%s: Pre-trained model restored from %s' % (datetime.now(), FLAGS.ovnet_ckpt))
 
@@ -63,5 +68,5 @@ class OvnetManager(object):
             # plt.show()
 
             y = np.reshape(y_hat_batch[0,:,:,0], [img.shape[0], img.shape[1]])
-            y = (scipy.stats.threshold(y, threshmin=FLAGS.threshold*1000, newval=0) > 0)
+            y = (scipy.stats.threshold(y, threshmin=FLAGS.threshold, newval=0) > 0)
             return y

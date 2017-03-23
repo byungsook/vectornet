@@ -27,7 +27,7 @@ tf.app.flags.DEFINE_integer('num_paths', 4,
                             """# paths for batch generation""")
 tf.app.flags.DEFINE_integer('path_type', 2,
                             """path type 0:line, 1:curve, 2:both""")
-tf.app.flags.DEFINE_integer('max_stroke_width', 3,
+tf.app.flags.DEFINE_integer('max_stroke_width', 2,
                           """max stroke width""")
 
 
@@ -42,7 +42,8 @@ SVG_END_TEMPLATE = """</g></svg>"""
 
 def _create_a_line(id, image_height, image_width, min_length, max_stroke_width):
     stroke_color = np.random.randint(240, size=3)
-    stroke_width = np.random.rand() * max_stroke_width + 1
+    # stroke_width = np.random.rand() * max_stroke_width + 1
+    stroke_width = max_stroke_width
     while True:
         x = np.random.randint(low=0, high=image_width, size=2)
         y = np.random.randint(low=0, high=image_height, size=2)
@@ -63,7 +64,8 @@ def _create_a_cubic_bezier_curve(id, image_height, image_width, min_length, max_
     x = np.random.randint(low=0, high=image_width, size=4)
     y = np.random.randint(low=0, high=image_height, size=4)
     stroke_color = np.random.randint(240, size=3)
-    stroke_width = np.random.rand() * max_stroke_width + 1
+    # stroke_width = np.random.rand() * max_stroke_width + 1
+    stroke_width = max_stroke_width
 
     return SVG_CUBIC_BEZIER_TEMPLATE.format(
         id=id,

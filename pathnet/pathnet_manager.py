@@ -20,7 +20,7 @@ import pathnet.pathnet_model
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('pathnet_ckpt', 'pathnet/model/no_trans/ch1/pathnet.ckpt',
+tf.app.flags.DEFINE_string('pathnet_ckpt', 'pathnet/model/no_trans_64/ch1/pathnet.ckpt-50000',
                            """pathnet checkpoint file path.""")
 tf.app.flags.DEFINE_boolean('use_two_channels', True,
                             """use two channels for input""")
@@ -53,7 +53,7 @@ class PathnetManager(object):
             print('%s: Pre-trained model restored from %s' % (datetime.now(), FLAGS.pathnet_ckpt))
 
 
-    def extract_all(self, img):
+    def extract_all(self, img, batch_size=None):
         """extract paths from all path pixels
 
         Args:
@@ -66,36 +66,55 @@ class PathnetManager(object):
         path_pixels = np.nonzero(img)
         num_path_pixels = len(path_pixels[0]) 
         assert(num_path_pixels > 0)
-        
-        if FLAGS.use_two_channels:
-            x_batch = np.zeros([num_path_pixels, self._h, self._w, 2])
-            for i in xrange(num_path_pixels):
-                x_batch[i,:,:,0] = img
-                px, py = path_pixels[0][i], path_pixels[1][i]
-                x_batch[i,px,py,1] = 1.0
-        else:
-            img = img / FLAGS.intensity_ratio
 
-            x_batch = np.zeros([num_path_pixels, self._h, self._w])
-            for i in xrange(num_path_pixels):
-                px, py = path_pixels[0][i], path_pixels[1][i]
-                x_batch[i,:,:] = img
-                x_batch[i,px,py] = 1.0
+        if batch_size is None:            
+            if FLAGS.use_two_channels:
+                x_batch = np.zeros([num_path_pixels, self._h, self._w, 2])
+                for i in xrange(num_path_pixels):
+                    x_batch[i,:,:,0] = img
+                    px, py = path_pixels[0][i], path_pixels[1][i]
+                    x_batch[i,px,py,1] = 1.0
+            else:
+                img = img / FLAGS.intensity_ratio
 
+                x_batch = np.zeros([num_path_pixels, self._h, self._w])
+                for i in xrange(num_path_pixels):
+                    px, py = path_pixels[0][i], path_pixels[1][i]
+                    x_batch[i,:,:] = img
+                    x_batch[i,px,py] = 1.0
+
+                    # # debug
+                    # plt.imshow(x_batch[i,:,:], cmap=plt.cm.gray)
+                    # plt.show()
+                
+                x_batch = np.reshape(x_batch, [num_path_pixels, self._h, self._w, 1])
+            
+            with self._graph.as_default():
+                y_batch = self._sess.run(self._y_hat, feed_dict={self._phase_train: False, self._x: x_batch})
+                
                 # # debug
-                # plt.imshow(x_batch[i,:,:], cmap=plt.cm.gray)
+                # y_vis = np.reshape(y_batch[0,:,:,:], [self._h, self._w])
+                # plt.imshow(y_vis, cmap=plt.cm.gray)
                 # plt.show()
+                
+                return y_batch, path_pixels
+        else:
+            y_batch = None
+            for b in xrange(0,num_path_pixels,batch_size):
+                b_size = min(batch_size, num_path_pixels - b)
+                x_batch = np.zeros([b_size, self._h, self._w, 2])
+                for i in xrange(b_size):
+                    x_batch[i,:,:,0] = img
+                    px, py = path_pixels[0][b+i], path_pixels[1][b+i]
+                    x_batch[i,px,py,1] = 1.0
             
-            x_batch = np.reshape(x_batch, [num_path_pixels, self._h, self._w, 1])
-        
-        with self._graph.as_default():
-            y_batch = self._sess.run(self._y_hat, feed_dict={self._phase_train: False, self._x: x_batch})
-            
-            # # debug
-            # y_vis = np.reshape(y_batch[0,:,:,:], [self._h, self._w])
-            # plt.imshow(y_vis, cmap=plt.cm.gray)
-            # plt.show()
-            
+                with self._graph.as_default():
+                    y_b = self._sess.run(self._y_hat, feed_dict={self._phase_train: False, self._x: x_batch})
+                    if y_batch is None:
+                        y_batch = y_b
+                    else:
+                        y_batch = np.concatenate((y_batch, y_b), axis=0)
+
             return y_batch, path_pixels
 
     def extract(self, img, px, py):

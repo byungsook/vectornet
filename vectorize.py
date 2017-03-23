@@ -33,18 +33,18 @@ from ovnet.ovnet_manager import OvnetManager
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('test_dir', 'test/line',
+tf.app.flags.DEFINE_string('test_dir', 'log/test',
                            """Directory where to write event logs """
                            """and checkpoint.""")
-tf.app.flags.DEFINE_string('data_dir', 'data/line',
+tf.app.flags.DEFINE_string('data_dir', 'data/chinese1',
                            """Data directory""")
 tf.app.flags.DEFINE_string('file_list', 'test.txt',
                            """file_list""")
-tf.app.flags.DEFINE_integer('num_test_files', 1,
+tf.app.flags.DEFINE_integer('num_test_files', 8,
                            """num_test_files""")
-tf.app.flags.DEFINE_integer('image_width', 48,
+tf.app.flags.DEFINE_integer('image_width', 64,
                             """Image Width.""")
-tf.app.flags.DEFINE_integer('image_height', 48,
+tf.app.flags.DEFINE_integer('image_height', 64,
                             """Image Height.""")
 tf.app.flags.DEFINE_integer('max_num_labels', 64,
                            """the maximum number of labels""")
@@ -103,10 +103,14 @@ def predict(pathnet_manager, ovnet_manager, file_path):
 
     # predict paths through pathnet
     start_time = time.time()
-    y_batch, path_pixels = pathnet_manager.extract_all(img)
+    y_batch, path_pixels = pathnet_manager.extract_all(img, batch_size=512)
     num_path_pixels = len(path_pixels[0])
     duration = time.time() - start_time
     print('%s: %s, predict paths (#pixels:%d) through pathnet (%.3f sec)' % (datetime.now(), file_name, num_path_pixels, duration))
+
+    dup_dict = {}
+    dup_rev_dict = {}
+    dup_id = num_path_pixels # start id of duplicated pixels
 
     if FLAGS.find_overlap:
         # predict overlap using overlap net
@@ -120,9 +124,6 @@ def predict(pathnet_manager, ovnet_manager, file_path):
         # plt.imshow(overlap, cmap=plt.cm.gray)
         # plt.show()
 
-        dup_dict = {}
-        dup_rev_dict = {}
-        dup_id = num_path_pixels # start id of duplicated pixels
         for i in xrange(num_path_pixels):
             if overlap[path_pixels[0][i], path_pixels[1][i]]:
                 dup_dict[i] = dup_id
@@ -151,6 +152,7 @@ def predict(pathnet_manager, ovnet_manager, file_path):
     f.write('%d\n' % dup_id)
 
     # support only symmetric edge weight
+    penalty = -1000
     for i in xrange(num_path_pixels-1):
         p1 = np.array([path_pixels[0][i], path_pixels[1][i]])
         pred_p1 = np.reshape(y_batch[i,:,:,:], [FLAGS.image_height, FLAGS.image_width])
@@ -168,11 +170,11 @@ def predict(pathnet_manager, ovnet_manager, file_path):
             dup_i = dup_dict.get(i)
             if dup_i is not None:
                 f.write('%d %d %f %f\n' % (j, dup_i, pred, spatial)) # as dup is always smaller than normal id
-                f.write('%d %d %f %f\n' % (i, dup_i, -1000, 1)) # might need to set negative pred rather than 0
+                f.write('%d %d %f %f\n' % (i, dup_i, penalty, 1)) # might need to set negative pred rather than 0
             dup_j = dup_dict.get(j)
             if dup_j is not None:
                 f.write('%d %d %f %f\n' % (i, dup_j, pred, spatial)) # as dup is always smaller than normal id
-                f.write('%d %d %f %f\n' % (j, dup_j, -1000, 1)) # might need to set negative pred rather than 0
+                f.write('%d %d %f %f\n' % (j, dup_j, penalty, 1)) # might need to set negative pred rather than 0
 
             if dup_i is not None and dup_j is not None:
                 f.write('%d %d %f %f\n' % (dup_i, dup_j, pred, spatial)) # dup_i < dup_j
@@ -425,146 +427,6 @@ def save_label_img(labels, unique_labels, num_labels, diff_labels, acc_avg, pm):
     scipy.misc.imsave(label_map_path, label_map)
 
 
-def postprocess(stat_dir):
-    num_files = 0
-    path_list = []
-    diff_list = []
-    acc_list = []
-    duration_list = []
-    
-    stat_path = os.path.join(stat_dir, 'stat.txt')
-    with open(stat_path, 'r') as f:
-        while True:
-            line = f.readline()
-            if not line: break
-            elif line.find('total') > -1: break
-            
-            name, num_labels, diff_labels, accuracy, duration = line.split()
-            
-    # for root, _, files in os.walk(FLAGS.test_dir):
-    #     for file in files:
-    #         ss = file.split('_')
-    #         if len(ss) < 7: continue
-    #         name = ss[2]
-    #         num_labels = ss[5]
-    #         diff_labels = ss[6]
-    #         accuracy = ss[7]
-    #         accuracy = accuracy.rstrip('.png')
-    #         duration = 0
-            
-            num_labels = int(num_labels)
-            diff_labels = int(diff_labels)
-            accuracy = float(accuracy)
-            duration = float(duration)
-            num_paths = num_labels - diff_labels
-
-            num_files = num_files + 1
-            path_list.append(num_paths)
-            diff_list.append(diff_labels)
-            acc_list.append(accuracy)
-            duration_list.append(duration)
-
-    # the histogram of the data
-    path_list = np.array(path_list)
-    diff_list = np.array(diff_list)
-    acc_list = np.array(acc_list)
-    duration_list = np.array(duration_list)
-
-    max_paths = np.amax(path_list)
-    min_paths = np.amin(path_list)
-    avg_paths = np.average(path_list)
-    max_diff_labels = np.amax(diff_list)
-    min_diff_labels = np.amin(diff_list)
-    avg_diff_labels = np.average(np.abs(diff_list))
-    max_acc = np.amax(acc_list)
-    min_acc = np.amin(acc_list)
-    avg_acc = np.average(acc_list)
-    max_duration = np.amax(duration_list)
-    min_duration = np.amin(duration_list)
-    avg_duration = np.average(duration_list)
-    
-    bins = max_diff_labels - min_diff_labels + 1    
-    fig = plt.figure()
-    weights = np.ones_like(diff_list)/float(len(diff_list))
-    plt.hist(diff_list, bins=bins, color='blue', normed=False, alpha=0.75, weights=weights)
-    plt.xlim(min_diff_labels, max_diff_labels)
-    plt.ylim(0, 1)
-    plt.title('Histogram of Label Difference (normalized)')
-    plt.grid(True)
-    
-    fig.canvas.draw()
-    pred_hist = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
-    pred_hist = pred_hist.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-    plt.close(fig)
-
-    hist_path = os.path.join(stat_dir, 'label_diff_hist_norm.png')
-    scipy.misc.imsave(hist_path, pred_hist)
-
-    
-    fig = plt.figure()
-    plt.hist(diff_list, bins=bins, color='blue', normed=False, alpha=0.75)
-    plt.xlim(min_diff_labels, max_diff_labels)
-    plt.title('Histogram of Label Difference')
-    plt.grid(True)
-    
-    fig.canvas.draw()
-    pred_hist = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
-    pred_hist = pred_hist.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-    plt.close(fig)
-
-    hist_path = os.path.join(stat_dir, 'label_diff_hist.png')
-    scipy.misc.imsave(hist_path, pred_hist)
-
-
-    fig = plt.figure()
-    bins = 20
-    weights = np.ones_like(acc_list)/float(len(acc_list))
-    plt.hist(acc_list, bins=bins, color='blue', normed=False, alpha=0.75, weights=weights)
-    # plt.hist(acc_list, bins=bins, color='blue', normed=False, alpha=0.75)
-    plt.xlim(0, 1)
-    plt.ylim(0, 1)
-    plt.title('Histogram of Accuracy (normalized)')
-    plt.grid(True)
-    
-    fig.canvas.draw()
-    pred_hist = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
-    pred_hist = pred_hist.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-    plt.close(fig)
-
-    hist_path = os.path.join(stat_dir, 'accuracy_hist_norm.png')
-    scipy.misc.imsave(hist_path, pred_hist)
-
-    
-    fig = plt.figure()
-    plt.hist(acc_list, bins=bins, color='blue', normed=False, alpha=0.75)
-    plt.xlim(0, 1)
-    plt.title('Histogram of Accuracy')
-    plt.grid(True)
-    
-    fig.canvas.draw()
-    pred_hist = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
-    pred_hist = pred_hist.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-    plt.close(fig)
-
-    hist_path = os.path.join(stat_dir, 'accuracy_hist.png')
-    scipy.misc.imsave(hist_path, pred_hist)
-
-
-    print('total # files: %d' % num_files)
-    print('min/max/avg. paths: %d, %d, %.3f' % (min_paths, max_paths, avg_paths))
-    print('min/max/avg. abs diff labels: %d, %d, %.3f' % (min_diff_labels, max_diff_labels, avg_diff_labels))
-    print('min/max/avg. accuracy: %.3f, %.3f, %.3f' % (min_acc, max_acc, avg_acc))
-    print('min/max/avg. duration (sec): %.3f, %.3f, %.3f' % (min_duration, max_duration, avg_duration))
-    
-    result_path = os.path.join(stat_dir, 'result.txt')
-    f = open(result_path, 'w')
-    f.write('min/max/avg. paths: %d, %d, %.3f\n' % (min_paths, max_paths, avg_paths))
-    f.write('min/max/avg. abs diff labels: %d, %d, %.3f\n' % (min_diff_labels, max_diff_labels, avg_diff_labels))
-    f.write('min/max/avg. accuracy: %.3f, %.3f, %.3f\n' % (min_acc, max_acc, avg_acc))
-    f.write('min/max/avg. duration (sec): %.3f, %.3f, %.3f\n' % (min_duration, max_duration, avg_duration))    
-    f.close()
-
-
 def test():
     # create managers
     start_time = time.time()
@@ -610,8 +472,10 @@ def test():
         # select test files
         num_total_test_files = len(file_path_list)
         FLAGS.num_test_files = min(num_total_test_files, FLAGS.num_test_files)
-        np.random.seed(0)
-        file_path_list_id = np.random.choice(num_total_test_files, FLAGS.num_test_files)
+        # np.random.seed(0)
+        # file_path_list_id = np.random.choice(num_total_test_files, FLAGS.num_test_files)
+        # file_path_list.sort()
+        file_path_list_id = xrange(FLAGS.num_test_files)
 
         grand_start_time = time.time()
         for file_path_id in file_path_list_id:

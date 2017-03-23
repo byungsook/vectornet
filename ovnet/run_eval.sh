@@ -5,7 +5,7 @@
 # python ovnet_eval.py --train_on=chinese --eval_dir=eval/no_trans_64/ch2 --data_dir=../data/chinese2 --pretrained_model_checkpoint_path=log/no_trans_64/ch2/ovnet.ckpt-50000 --image_width=64 --image_height=64 --batch_size=8 --max_images=8 --num_epoch=1 --transform=False --chinese1=False
 # python ovnet_eval.py --train_on=chinese --eval_dir=eval/no_trans_64/ch2_ch1 --data_dir=../data/chinese1 --pretrained_model_checkpoint_path=log/no_trans_64/ch2/ovnet.ckpt-50000 --image_width=64 --image_height=64 --batch_size=8 --max_images=8 --num_epoch=1 --transform=False --chinese1=True
 
-python ovnet_eval.py --train_on=line --eval_dir=eval/no_trans_64/line --pretrained_model_checkpoint_path=log/no_trans_64/line/ovnet.ckpt-50000 --image_width=64 --image_height=64 --batch_size=8 --max_images=8 --num_epoch=1 --max_stroke_width=2 --num_paths=4
+# python ovnet_eval.py --train_on=line --eval_dir=eval/no_trans_64/line --pretrained_model_checkpoint_path=log/no_trans_64/line/ovnet.ckpt-50000 --image_width=64 --image_height=64 --batch_size=8 --max_images=8 --num_epoch=1 --max_stroke_width=2 --num_paths=4
 
 
 # 02-03-17 Thu., IoU cross eval

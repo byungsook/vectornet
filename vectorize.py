@@ -50,15 +50,15 @@ tf.app.flags.DEFINE_integer('max_num_labels', 64,
                            """the maximum number of labels""")
 tf.app.flags.DEFINE_integer('label_cost', 0,
                            """label cost""")
-tf.app.flags.DEFINE_float('neighbor_sigma', 8,
+tf.app.flags.DEFINE_float('neighbor_sigma', 8, # 48 - 8, 64 - 10.67?
                            """neighbor sigma""")
-tf.app.flags.DEFINE_float('prediction_sigma', 0.7, # 0.7 for 0.5 threshold
+tf.app.flags.DEFINE_float('prediction_sigma', 0.7,
                            """prediction sigma""")
 tf.app.flags.DEFINE_boolean('compile', False,
                             """whether compile gco or not""")
 tf.app.flags.DEFINE_boolean('find_overlap', True,
                             """whether to find overlap or not""")
-tf.app.flags.DEFINE_string('data_type', 'line',
+tf.app.flags.DEFINE_string('data_type', 'chinese',
                            """specify data""")
 
 if FLAGS.data_type == 'chinese':
@@ -152,7 +152,7 @@ def predict(pathnet_manager, ovnet_manager, file_path):
     f.write('%d\n' % dup_id)
 
     # support only symmetric edge weight
-    penalty = -1000
+    high_spatial = 1000
     for i in xrange(num_path_pixels-1):
         p1 = np.array([path_pixels[0][i], path_pixels[1][i]])
         pred_p1 = np.reshape(y_batch[i,:,:,:], [FLAGS.image_height, FLAGS.image_width])
@@ -170,11 +170,11 @@ def predict(pathnet_manager, ovnet_manager, file_path):
             dup_i = dup_dict.get(i)
             if dup_i is not None:
                 f.write('%d %d %f %f\n' % (j, dup_i, pred, spatial)) # as dup is always smaller than normal id
-                f.write('%d %d %f %f\n' % (i, dup_i, penalty, 1)) # might need to set negative pred rather than 0
+                f.write('%d %d %f %f\n' % (i, dup_i, 0, high_spatial)) # shouldn't be labeled together
             dup_j = dup_dict.get(j)
             if dup_j is not None:
                 f.write('%d %d %f %f\n' % (i, dup_j, pred, spatial)) # as dup is always smaller than normal id
-                f.write('%d %d %f %f\n' % (j, dup_j, penalty, 1)) # might need to set negative pred rather than 0
+                f.write('%d %d %f %f\n' % (j, dup_j, 0, high_spatial)) # shouldn't be labeled together
 
             if dup_i is not None and dup_j is not None:
                 f.write('%d %d %f %f\n' % (dup_i, dup_j, pred, spatial)) # dup_i < dup_j

@@ -40,7 +40,12 @@ class OvnetManager(object):
             self._phase_train = tf.placeholder(tf.bool, name='phase_train')
             self._x = tf.placeholder(dtype=tf.float32, shape=[None, self._h, self._w, 1])
             self._y_hat = ovnet.ovnet_model.inference(self._x, self._phase_train)
-            self._sess = tf.Session()
+            
+            config = tf.ConfigProto()
+            config.gpu_options.allow_growth = True
+            config.allow_soft_placement = True
+            config.log_device_placement = False
+            self._sess = tf.Session(config=config)
             
             global_step = tf.Variable(0, name='global_step', trainable=False)
             # saver = tf.train.Saver()

@@ -25,7 +25,7 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('eval_dir', 'eval/test',
                            """Directory where to write event logs """
                            """and checkpoint.""")
-tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', 'log/ch1/ovnet.ckpt',
+tf.app.flags.DEFINE_string('checkpoint_dir', 'log/ch1',
                            """If specified, restore this pretrained model.""")
 tf.app.flags.DEFINE_float('moving_avg_decay', 0.9999,
                           """The decay to use for the moving average.""")
@@ -46,6 +46,8 @@ if FLAGS.train_on == 'chinese':
     import ovnet_data_chinese
 elif FLAGS.train_on == 'sketch':
     import ovnet_data_sketch
+elif FLAGS.train_on == 'sketch2':
+    import ovnet_data_sketch2
 elif FLAGS.train_on == 'hand':
     import ovnet_data_hand
 elif FLAGS.train_on == 'line':
@@ -62,6 +64,9 @@ def evaluate():
             print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
         elif FLAGS.train_on == 'sketch':
             batch_manager = ovnet_data_sketch.BatchManager()
+            print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
+        elif FLAGS.train_on == 'sketch2':
+            batch_manager = ovnet_data_sketch2.BatchManager()
             print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
         elif FLAGS.train_on == 'hand':
             batch_manager = ovnet_data_hand.BatchManager()
@@ -108,11 +113,12 @@ def evaluate():
 
         # Start evaluation
         with tf.Session() as sess:
-            if FLAGS.pretrained_model_checkpoint_path:
-                # assert tf.gfile.Exists(FLAGS.pretrained_model_checkpoint_path)
-                saver.restore(sess, FLAGS.pretrained_model_checkpoint_path)
-                print('%s: Pre-trained model restored from %s' %
-                    (datetime.now(), FLAGS.pretrained_model_checkpoint_path))
+            ckpt = tf.train.get_checkpoint_state(FLAGS.checkpoint_dir)
+            if ckpt and FLAGS.checkpoint_dir:
+                ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
+                saver.restore(sess, os.path.join(FLAGS.checkpoint_dir, ckpt_name))
+                print('%s: Pre-trained model restored from %s' % 
+                    (datetime.now(), ckpt_name))
 
             num_eval = batch_manager.num_examples_per_epoch * FLAGS.num_epoch
             num_iter = int(math.ceil(num_eval / FLAGS.batch_size))

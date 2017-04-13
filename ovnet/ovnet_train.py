@@ -25,10 +25,10 @@ tf.app.flags.DEFINE_string('log_dir', 'log/test',
                            """and checkpoint.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
-tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', '',
+tf.app.flags.DEFINE_string('checkpoint_dir', '',
                            """If specified, restore this pretrained model """
                            """before beginning any training.
-                           e.g. log/second_train/ovnet.ckpt """)
+                           e.g. log/second_train """)
 tf.app.flags.DEFINE_integer('max_steps', 1, # 20000
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_integer('decay_steps', 30000,
@@ -60,6 +60,8 @@ if FLAGS.train_on == 'chinese':
     import ovnet_data_chinese
 elif FLAGS.train_on == 'sketch':
     import ovnet_data_sketch
+elif FLAGS.train_on == 'sketch2':
+    import ovnet_data_sketch2
 elif FLAGS.train_on == 'hand':
     import ovnet_data_hand
 elif FLAGS.train_on == 'line':
@@ -77,6 +79,9 @@ def train():
             print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
         elif FLAGS.train_on == 'sketch':
             batch_manager = ovnet_data_sketch.BatchManager()
+            print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
+        elif FLAGS.train_on == 'sketch2':
+            batch_manager = ovnet_data_sketch2.BatchManager()
             print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
         elif FLAGS.train_on == 'hand':
             batch_manager = ovnet_data_hand.BatchManager()
@@ -149,11 +154,12 @@ def train():
 
         # Create a saver (restorer).
         saver = tf.train.Saver()
-        if FLAGS.pretrained_model_checkpoint_path:
-            # assert tf.gfile.Exists(FLAGS.pretrained_model_checkpoint_path)
-            saver.restore(sess, FLAGS.pretrained_model_checkpoint_path)
-            print('%s: Pre-trained model restored from %s' %
-                (datetime.now(), FLAGS.pretrained_model_checkpoint_path))
+        ckpt = tf.train.get_checkpoint_state(FLAGS.checkpoint_dir)
+        if ckpt and FLAGS.checkpoint_dir:
+            ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
+            saver.restore(sess, os.path.join(FLAGS.checkpoint_dir, ckpt_name))
+            print('%s: Pre-trained model restored from %s' % 
+                (datetime.now(), ckpt_name))
         else:
             sess.run(tf.global_variables_initializer(), feed_dict={phase_train: is_train})
 

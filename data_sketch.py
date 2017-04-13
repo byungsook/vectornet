@@ -41,7 +41,7 @@ def read_svg(file_path):
     return s, num_paths
 
 
-def get_stroke_list(labels, pm):
+def get_stroke_list(pm):
     stroke_list = []
     with open(pm.file_path, 'r') as f:
         svg = f.read()

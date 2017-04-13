@@ -46,7 +46,11 @@ class PathnetManager(object):
                 self._x = tf.placeholder(dtype=tf.float32, shape=[None, self._crop_size, self._crop_size, d])
             self._y_hat = pathnet.pathnet_model.inference(self._x, self._phase_train)
 
-            self._sess = tf.Session()
+            config = tf.ConfigProto()
+            config.gpu_options.allow_growth = True
+            config.allow_soft_placement = True
+            config.log_device_placement = False
+            self._sess = tf.Session(config=config)
         
             saver = tf.train.Saver()
             saver.restore(self._sess, FLAGS.pathnet_ckpt)

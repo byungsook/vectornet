@@ -302,6 +302,71 @@ def preprocess_hand(file_path, scale_to):
     return svg_pre
 
 
+def preprocess_sketch_schneider(file_path, size=800):
+    strokes = []
+    with open(file_path, 'r') as f:
+        while True:
+            line = f.readline()
+            if line == '': break
+
+            xy_list = line.split()
+            xy_list.pop(0)
+
+            stroke = []
+            for i in xrange(0,len(xy_list),2):
+                stroke.append([int(xy_list[i]), int(xy_list[i+1])])
+
+            strokes.append(stroke)
+
+    # draw to svg
+    num_strokes = len(strokes)
+    c_data = np.array(np.random.rand(num_strokes,3)*240, dtype=np.uint8)
+    # w, h info
+    svg_pre = SVG_START_TEMPLATE
+    svg_pre += '<!-- {w} {h} -->\n'.format(w=size, h=size)    
+    for i in xrange(num_strokes):
+        svg_pre += SVG_LINE_START_TEMPLATE.format(id=i)
+
+        min_x = 1e20
+        max_x = 0
+        min_y = 1e20
+        max_y = 0
+
+        for j in xrange(len(strokes[i])):
+            svg_pre += str(strokes[i][j][0]) + ' ' + str(strokes[i][j][1]) + ' '
+            min_x = min(min_x, strokes[i][j][0])
+            max_x = max(max_x, strokes[i][j][0])
+            min_y = min(min_y, strokes[i][j][1])
+            max_y = max(max_y, strokes[i][j][1])
+
+        # svg_pre += """\"/>\n"""
+        svg_pre += SVG_LINE_END_TEMPLATE.format(r=c_data[i][0], g=c_data[i][1], b=c_data[i][2])
+        # bounding box info
+        svg_pre += '<!-- {x1} {x2} {y1} {y2} -->\n'.format(
+            x1=min_x, x2=max_x,
+            y1=min_y, y2=max_y)
+    svg_pre += SVG_END_TEMPLATE
+
+    # # debug
+    # # color
+    # img = cairosvg.svg2png(bytestring=svg_pre.format(
+    #     w=size, h=size, sw=1,
+    #     bx=0, by=0, bw=size, bh=size))
+    #     # w=scale_to, h=scale_to,
+    #     # bx=100, by=0, bw=scale_to, bh=scale_to))
+    # img = Image.open(io.BytesIO(img))
+    # plt.imshow(img)
+    # plt.show()
+
+    # # gray
+    # img = np.array(img)[:,:,3].astype(np.float)
+    # img = img / np.amax(img)
+    # plt.imshow(img, cmap=plt.cm.gray)
+    # plt.show()
+
+    return svg_pre
+
+
 def preprocess(run_id):
     if run_id == 0:
         data_dir = 'linenet/data/sketches'
@@ -313,6 +378,8 @@ def preprocess(run_id):
         data_dir = 'data_tmp/fidelity/output/svg'
     elif run_id == 4:
         data_dir = 'linenet/data/lineStrokes'
+    elif run_id == 5:
+        data_dir = 'data_tmp/schneider/Supplementary/Dataset/Strokes'
 
     if run_id == 0:
         valid_file_list_name = 'checked.txt'
@@ -354,7 +421,47 @@ def preprocess(run_id):
                 write_path = os.path.join(FLAGS.dst_dir, file[:-3] + 'svg_pre')
                 with open(write_path, 'w') as wf:
                     wf.write(svg_pre)
+    elif run_id == 5:
+        f_train = open(os.path.join(FLAGS.dst_dir,'train.txt'), 'w')
+        f_test = open(os.path.join(FLAGS.dst_dir,'test.txt'), 'w')
 
+        for root, _, files in os.walk(data_dir):
+            if not root.lower().endswith('str'):
+                continue
+
+            file_path_list = []
+            for file in files:
+                if not file.lower().endswith('txt') or file.lower().startswith('label'):
+                    continue
+
+                file_path = os.path.join(root, file)
+                file_path_list.append(file_path)
+
+            file_path_list.sort()
+
+            for i, file_path in enumerate(file_path_list):
+                svg_pre = preprocess_sketch_schneider(file_path, size=800)
+                
+                # write preprocessed svg
+                file = os.path.basename(file_path)
+                print(file)
+                write_path = os.path.join(FLAGS.dst_dir, file[:-3] + 'svg_pre')
+                with open(write_path, 'w') as wf:
+                    wf.write(svg_pre)
+
+                if len(file_path_list) == 20:
+                    if i < 15:
+                        f_train.write(file[:-3] + 'svg_pre\n')
+                    else:
+                        f_test.write(file[:-3] + 'svg_pre\n')
+                else: # 30
+                    if i < 20:
+                        f_train.write(file[:-3] + 'svg_pre\n')
+                    else:
+                        f_test.write(file[:-3] + 'svg_pre\n')
+
+        f_train.close()
+        f_test.close()
     else:
         for root, _, files in os.walk(data_dir):
             for file in files:
@@ -383,8 +490,8 @@ def preprocess(run_id):
                 with open(write_path, 'w') as f:
                     f.write(svg_pre)
 
-    # split train/test dataset
-    split_dataset()
+    # # split train/test dataset
+    # split_dataset()
 
     # compress
     with tarfile.open(FLAGS.dst_tar, "w:gz") as tar:
@@ -394,15 +501,15 @@ def preprocess(run_id):
 def init_arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('process_num',
-                    default=0,
+                    default=5,
                     help='process number',
                     nargs='?') 
     parser.add_argument('dst_dir',
-                    default='linenet/data/sketch_trans', # 'data_tmp/gc_test',
+                    default='data_tmp/sketch_schneider', # 'data_tmp/gc_test',
                     help='destination directory',
                     nargs='?') # optional arg.
     parser.add_argument('dst_tar',
-                    default='linenet/data/sketch_trans.tar.gz', # 'data_tmp/gc_test',
+                    default='data_tmp/sketch_schneider.tar.gz', # 'data_tmp/gc_test',
                     help='destination tar file',
                     nargs='?') # optional arg.
     return parser.parse_args()

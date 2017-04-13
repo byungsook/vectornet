@@ -46,7 +46,7 @@ tf.app.flags.DEFINE_integer('image_width', 64,
                             """Image Width.""")
 tf.app.flags.DEFINE_integer('image_height', 64,
                             """Image Height.""")
-tf.app.flags.DEFINE_integer('max_num_labels', 64,
+tf.app.flags.DEFINE_integer('max_num_labels', 128,
                            """the maximum number of labels""")
 tf.app.flags.DEFINE_integer('label_cost', 0,
                            """label cost""")
@@ -60,6 +60,9 @@ tf.app.flags.DEFINE_boolean('find_overlap', True,
                             """whether to find overlap or not""")
 tf.app.flags.DEFINE_string('data_type', 'chinese',
                            """specify data""")
+tf.app.flags.DEFINE_integer('batch_size', 512,
+                           """batch size""")
+
 
 if FLAGS.data_type == 'chinese':
     from data_chinese import read_svg
@@ -67,6 +70,9 @@ if FLAGS.data_type == 'chinese':
 elif FLAGS.data_type == 'sketch':
     from data_sketch import read_svg
     from data_sketch import get_stroke_list
+elif FLAGS.data_type == 'sketch2':
+    from data_sketch2 import read_svg
+    from data_sketch2 import get_stroke_list
 elif FLAGS.data_type == 'line':
     from data_line import read_svg
     from data_line import get_stroke_list
@@ -103,7 +109,7 @@ def predict(pathnet_manager, ovnet_manager, file_path):
 
     # predict paths through pathnet
     start_time = time.time()
-    y_batch, path_pixels = pathnet_manager.extract_all(img, batch_size=512)
+    y_batch, path_pixels = pathnet_manager.extract_all(img, batch_size=FLAGS.batch_size)
     num_path_pixels = len(path_pixels[0])
     duration = time.time() - start_time
     print('%s: %s, predict paths (#pixels:%d) through pathnet (%.3f sec)' % (datetime.now(), file_name, num_path_pixels, duration))
@@ -118,7 +124,7 @@ def predict(pathnet_manager, ovnet_manager, file_path):
         overlap = ovnet_manager.overlap(img)
 
         overlap_img_path = os.path.join(FLAGS.test_dir, '%s_overlap.png' % file_name)
-        scipy.misc.imsave(overlap_img_path, overlap)
+        scipy.misc.imsave(overlap_img_path, 1 - overlap)
 
         # # debug
         # plt.imshow(overlap, cmap=plt.cm.gray)
@@ -319,7 +325,7 @@ def merge_small_component(labels, pm):
 
 
 def compute_accuracy(labels, pm):
-    stroke_list = get_stroke_list(labels, pm)
+    stroke_list = get_stroke_list(pm)
 
     num_path_pixels = len(pm.path_pixels[0])
 
@@ -371,6 +377,7 @@ def save_label_img(labels, unique_labels, num_labels, diff_labels, acc_avg, pm):
     cscalarmap = cmx.ScalarMappable(norm=cnorm, cmap=cmap)
     
     label_map = np.ones([FLAGS.image_height, FLAGS.image_width, 3], dtype=np.float)
+    label_map_t = np.ones([FLAGS.image_height, FLAGS.image_width, 3], dtype=np.float)
     first_svg = True
     target_svg_path = os.path.join(FLAGS.test_dir, '%s_%d_%d_%.2f.svg' % (file_name, num_labels, diff_labels, acc_avg))
     for i in xrange(FLAGS.max_num_labels):
@@ -394,6 +401,10 @@ def save_label_img(labels, unique_labels, num_labels, diff_labels, acc_avg, pm):
         _, num_cc = skimage.measure.label(i_label_map, background=0, return_num=True)
         i_label_map_path = os.path.join(FLAGS.test_dir + '/tmp', 'i_%s_%d_%d.bmp' % (file_name, i, num_cc))
         scipy.misc.imsave(i_label_map_path, i_label_map)
+
+        i_label_map = np.ones([FLAGS.image_height, FLAGS.image_width, 3], dtype=np.float)
+        i_label_map[pm.path_pixels[0][i_label_list],pm.path_pixels[1][i_label_list]] = color[:3]
+        label_map_t += i_label_map
 
         # vectorize using potrace
         color *= 255
@@ -423,8 +434,24 @@ def save_label_img(labels, unique_labels, num_labels, diff_labels, acc_avg, pm):
         # remove i label map
         call(['rm', i_label_map_path, i_label_map_svg])
 
+    # set opacity 0.5 to see overlaps
+    with open(target_svg_path, 'r') as f:
+        target_svg = f.read()
+    
+    insert_pos = target_svg.find('<g')
+    target_svg = target_svg[:insert_pos] + '<g fill-opacity="0.5">' + target_svg[insert_pos:]
+    insert_pos = target_svg.find('</svg>')
+    target_svg = target_svg[:insert_pos] + '</g>' + target_svg[insert_pos:]
+    
+    with open(target_svg_path, 'w') as f:
+        f.write(target_svg)
+
     label_map_path = os.path.join(FLAGS.test_dir, '%s_%.2f_%.2f_%d_%d_%.2f.png' % (file_name, FLAGS.neighbor_sigma, FLAGS.prediction_sigma, num_labels, diff_labels, acc_avg))
     scipy.misc.imsave(label_map_path, label_map)
+
+    label_map_t /= np.amax(label_map_t)
+    label_map_path = os.path.join(FLAGS.test_dir, '%s_%.2f_%.2f_%d_%d_%.2f_t.png' % (file_name, FLAGS.neighbor_sigma, FLAGS.prediction_sigma, num_labels, diff_labels, acc_avg))
+    scipy.misc.imsave(label_map_path, label_map_t)
 
 
 def test():

@@ -90,9 +90,6 @@ class BatchManager(object):
         self.num_examples_per_epoch = len(self._svg_list)
         self.num_epoch = 1
 
-        if platform.system() == 'Windows':
-            FLAGS.num_processors = 1 # doesn't support MP
-
         if FLAGS.num_processors > FLAGS.batch_size:
             FLAGS.num_processors = FLAGS.batch_size
 

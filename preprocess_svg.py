@@ -302,7 +302,7 @@ def preprocess_hand(file_path, scale_to):
     return svg_pre
 
 
-def preprocess_sketch_schneider(file_path, size=800):
+def preprocess_sketch_schneider(file_path, size=800, use_label=False):
     strokes = []
     with open(file_path, 'r') as f:
         while True:
@@ -320,38 +320,102 @@ def preprocess_sketch_schneider(file_path, size=800):
 
     # draw to svg
     num_strokes = len(strokes)
-    c_data = np.array(np.random.rand(num_strokes,3)*240, dtype=np.uint8)
     # w, h info
     svg_pre = SVG_START_TEMPLATE
     svg_pre += '<!-- {w} {h} -->\n'.format(w=size, h=size)    
-    for i in xrange(num_strokes):
-        svg_pre += SVG_LINE_START_TEMPLATE.format(id=i)
+    
+    if not use_label:
+        c_data = np.array(np.random.rand(num_strokes,3)*240, dtype=np.uint8)    
+        for i in xrange(num_strokes):
+            svg_pre += SVG_LINE_START_TEMPLATE.format(id=i)
 
-        min_x = 1e20
-        max_x = 0
-        min_y = 1e20
-        max_y = 0
+            min_x = 1e20
+            max_x = 0
+            min_y = 1e20
+            max_y = 0
 
-        for j in xrange(len(strokes[i])):
-            svg_pre += str(strokes[i][j][0]) + ' ' + str(strokes[i][j][1]) + ' '
-            min_x = min(min_x, strokes[i][j][0])
-            max_x = max(max_x, strokes[i][j][0])
-            min_y = min(min_y, strokes[i][j][1])
-            max_y = max(max_y, strokes[i][j][1])
+            for j in xrange(len(strokes[i])):
+                svg_pre += str(strokes[i][j][0]) + ' ' + str(strokes[i][j][1]) + ' '
+                min_x = min(min_x, strokes[i][j][0])
+                max_x = max(max_x, strokes[i][j][0])
+                min_y = min(min_y, strokes[i][j][1])
+                max_y = max(max_y, strokes[i][j][1])
 
-        # svg_pre += """\"/>\n"""
-        svg_pre += SVG_LINE_END_TEMPLATE.format(r=c_data[i][0], g=c_data[i][1], b=c_data[i][2])
-        # bounding box info
-        svg_pre += '<!-- {x1} {x2} {y1} {y2} -->\n'.format(
-            x1=min_x, x2=max_x,
-            y1=min_y, y2=max_y)
-    svg_pre += SVG_END_TEMPLATE
+            # svg_pre += """\"/>\n"""
+            svg_pre += SVG_LINE_END_TEMPLATE.format(r=c_data[i][0], g=c_data[i][1], b=c_data[i][2])
+            # bounding box info
+            svg_pre += '<!-- {x1} {x2} {y1} {y2} -->\n'.format(
+                x1=min_x, x2=max_x,
+                y1=min_y, y2=max_y)
+        svg_pre += SVG_END_TEMPLATE
+    else:
+        label_map = []
+        dir_path, file_name = os.path.split(file_path)
+        if file_name == 'lamp31.txt':
+            print(file_name)
+        for label in xrange(1,100):
+            label_path = os.path.join(dir_path, 'labels_%d.txt' % label)
+            if os.path.exists(label_path):
+                with open(label_path, 'r') as f:
+                    while True:
+                        line = f.readline()
+                        if line == '': break
+                        elif os.path.splitext(line)[0] == os.path.splitext(file_name)[0]:
+                            labels = []
+                            while True:
+                                line = f.readline()
+                                if line.endswith('png\n') or line == '':
+                                    break
+                                labels.append(int(line)-1)
+                            if labels: label_map.append(labels)
+                            break
+            else:
+                break
+
+        stroke_list = []
+        for i in xrange(num_strokes):
+            svg_stroke = SVG_LINE_START_TEMPLATE.format(id=i)
+
+            min_x = 1e20
+            max_x = 0
+            min_y = 1e20
+            max_y = 0
+
+            for j in xrange(len(strokes[i])):
+                svg_stroke += str(strokes[i][j][0]) + ' ' + str(strokes[i][j][1]) + ' '
+                min_x = min(min_x, strokes[i][j][0])
+                max_x = max(max_x, strokes[i][j][0])
+                min_y = min(min_y, strokes[i][j][1])
+                max_y = max(max_y, strokes[i][j][1])
+
+            # svg_stroke += SVG_LINE_END_TEMPLATE.format(r=c_data[i][0], g=c_data[i][1], b=c_data[i][2])
+            svg_stroke += '''"/>\n'''
+
+            # bounding box info
+            svg_stroke += '<!-- {x1} {x2} {y1} {y2} -->\n'.format(
+                x1=min_x, x2=max_x,
+                y1=min_y, y2=max_y)
+            stroke_list.append(svg_stroke)
+
+        num_labels = len(label_map)
+        c_data = np.array(np.random.rand(num_strokes,3)*240, dtype=np.uint8)
+        ns = 0
+        for i, label in enumerate(label_map):
+            svg_end_line = '<g id="{id}" style="stroke:rgb({r}, {g}, {b})">\n'
+            svg_pre += svg_end_line.format(id=i, r=c_data[i][0], g=c_data[i][1], b=c_data[i][2])
+            for l in label:
+                svg_pre += stroke_list[l]
+                ns = ns + 1
+            svg_pre += '</g>\n'
+        svg_pre += SVG_END_TEMPLATE
+
+        assert(ns == num_strokes)
 
     # # debug
     # # color
     # img = cairosvg.svg2png(bytestring=svg_pre.format(
     #     w=size, h=size, sw=1,
-    #     bx=0, by=0, bw=size, bh=size))
+    #     bx=0, by=0, bw=size, bh=size).encode('utf-8'))
     #     # w=scale_to, h=scale_to,
     #     # bx=100, by=0, bw=scale_to, bh=scale_to))
     # img = Image.open(io.BytesIO(img))
@@ -426,7 +490,7 @@ def preprocess(run_id):
         f_test = open(os.path.join(FLAGS.dst_dir,'test.txt'), 'w')
 
         for root, _, files in os.walk(data_dir):
-            if not root.lower().endswith('str'):
+            if not root.endswith('str') or 'wild' in root:
                 continue
 
             file_path_list = []
@@ -440,7 +504,7 @@ def preprocess(run_id):
             file_path_list.sort()
 
             for i, file_path in enumerate(file_path_list):
-                svg_pre = preprocess_sketch_schneider(file_path, size=800)
+                svg_pre = preprocess_sketch_schneider(file_path, size=800, use_label=False)
                 
                 # write preprocessed svg
                 file = os.path.basename(file_path)

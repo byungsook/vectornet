@@ -1,7 +1,24 @@
-# sketch2
-python vectorize.py --data_type=sketch2 --test_dir=log/no_overlap/sketch2  --num_test_files=100 --image_height=128 --image_width=128 --pathnet_ckpt=pathnet/model/no_trans_128/sketch2/pathnet.ckpt-50000   --ovnet_ckpt=ovnet/model/no_trans_128/sketch2/ovnet.ckpt-50000   --find_overlap=False --data_dir=data/sketch_schneider --batch_size=128
-python vectorize.py --data_type=sketch2 --test_dir=log/overlap_gco/sketch2 --num_test_files=100 --image_height=128 --image_width=128 --pathnet_ckpt=pathnet/model/no_trans_128/sketch2/pathnet.ckpt-50000   --ovnet_ckpt=ovnet/model/no_trans_128/sketch2/ovnet.ckpt-50000   --find_overlap=True  --data_dir=data/sketch_schneider --batch_size=128
+# sketch2_l
+python vectorize.py --data_type=sketch2 --test_dir=log/no_overlap/sketch2_l_train  --num_test_files=100 --image_height=128 --image_width=128 --pathnet_ckpt=pathnet/model/no_trans_128/sketch2_l/pathnet.ckpt-50000   --ovnet_ckpt=ovnet/model/no_trans_128/sketch2_l/ovnet.ckpt-50000   --find_overlap=False --data_dir=data/sketch_schneider_l --batch_size=128 --file_list=train.txt --max_num_labels=16
+python vectorize.py --data_type=sketch2 --test_dir=log/overlap_gco/sketch2_l_train --num_test_files=100 --image_height=128 --image_width=128 --pathnet_ckpt=pathnet/model/no_trans_128/sketch2_l/pathnet.ckpt-50000   --ovnet_ckpt=ovnet/model/no_trans_128/sketch2_l/ovnet.ckpt-50000   --find_overlap=True  --data_dir=data/sketch_schneider_l --batch_size=128 --file_list=train.txt --max_num_labels=16
+python postprocess_stat.py --stat_dir=log/no_overlap/sketch2_l_train
+python postprocess_stat.py --stat_dir=log/overlap_gco/sketch2_l_train
 
+python vectorize.py --data_type=sketch2 --test_dir=log/no_overlap/sketch2_l  --num_test_files=100 --image_height=128 --image_width=128 --pathnet_ckpt=pathnet/model/no_trans_128/sketch2_l/pathnet.ckpt-50000   --ovnet_ckpt=ovnet/model/no_trans_128/sketch2_l/ovnet.ckpt-50000   --find_overlap=False --data_dir=data/sketch_schneider_l --batch_size=128 --max_num_labels=16
+python vectorize.py --data_type=sketch2 --test_dir=log/overlap_gco/sketch2_l --num_test_files=100 --image_height=128 --image_width=128 --pathnet_ckpt=pathnet/model/no_trans_128/sketch2_l/pathnet.ckpt-50000   --ovnet_ckpt=ovnet/model/no_trans_128/sketch2_l/ovnet.ckpt-50000   --find_overlap=True  --data_dir=data/sketch_schneider_l --batch_size=128 --max_num_labels=16
+python postprocess_stat.py --stat_dir=log/no_overlap/sketch2_l
+python postprocess_stat.py --stat_dir=log/overlap_gco/sketch2_l
+
+# sketch2
+# python vectorize.py --data_type=sketch2 --test_dir=log/no_overlap/sketch2_train  --num_test_files=100 --image_height=128 --image_width=128 --pathnet_ckpt=pathnet/model/no_trans_128/sketch2/pathnet.ckpt-50000   --ovnet_ckpt=ovnet/model/no_trans_128/sketch2/ovnet.ckpt-50000   --find_overlap=False --data_dir=data/sketch_schneider --batch_size=128 --file_list=train.txt
+# python vectorize.py --data_type=sketch2 --test_dir=log/overlap_gco/sketch2_train --num_test_files=100 --image_height=128 --image_width=128 --pathnet_ckpt=pathnet/model/no_trans_128/sketch2/pathnet.ckpt-50000   --ovnet_ckpt=ovnet/model/no_trans_128/sketch2/ovnet.ckpt-50000   --find_overlap=True  --data_dir=data/sketch_schneider --batch_size=128 --file_list=train.txt
+# python postprocess_stat.py --stat_dir=log/no_overlap/sketch2_train
+# python postprocess_stat.py --stat_dir=log/overlap_gco/sketch2_train
+
+# python vectorize.py --data_type=sketch2 --test_dir=log/no_overlap/sketch2  --num_test_files=100 --image_height=128 --image_width=128 --pathnet_ckpt=pathnet/model/no_trans_128/sketch2/pathnet.ckpt-50000   --ovnet_ckpt=ovnet/model/no_trans_128/sketch2/ovnet.ckpt-50000   --find_overlap=False --data_dir=data/sketch_schneider --batch_size=128
+# python vectorize.py --data_type=sketch2 --test_dir=log/overlap_gco/sketch2 --num_test_files=100 --image_height=128 --image_width=128 --pathnet_ckpt=pathnet/model/no_trans_128/sketch2/pathnet.ckpt-50000   --ovnet_ckpt=ovnet/model/no_trans_128/sketch2/ovnet.ckpt-50000   --find_overlap=True  --data_dir=data/sketch_schneider --batch_size=128
+# python postprocess_stat.py --stat_dir=log/no_overlap/sketch2
+# python postprocess_stat.py --stat_dir=log/overlap_gco/sketch2
 
 # 24-03-17 Fri. max label test (default: 64, test: 23, 32, 128 on ch1) --> 128 is the best
 # python vectorize.py --data_type=chinese --test_dir=log/no_overlap_m23/ch1    --num_test_files=100 --image_height=64 --image_width=64 --pathnet_ckpt=pathnet/model/no_trans_64/ch1/pathnet.ckpt-50000    --ovnet_ckpt=ovnet/model/no_trans_64/ch1/ovnet.ckpt-50000   --find_overlap=False --max_num_labels=23  --data_dir=data/chinese1 --chinese1=True

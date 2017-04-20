@@ -1,4 +1,5 @@
-python ovnet_eval.py --train_on=sketch2 --eval_dir=eval/no_trans_128/sketch2 --data_dir=../data/sketch_schneider --checkpoint_dir=log/no_trans_128/sketch2 --image_width=128 --image_height=128 --batch_size=8 --max_images=8 --num_epoch=1 --transform=False
+python ovnet_eval.py --train_on=sketch2 --eval_dir=eval/no_trans_128/sketch2_l --data_dir=../data/sketch_schneider_l --checkpoint_dir=log/no_trans_128/sketch2_l --image_width=128 --image_height=128 --batch_size=8 --max_images=8 --num_epoch=1 --transform=False
+# python ovnet_eval.py --train_on=sketch2 --eval_dir=eval/no_trans_128/sketch2 --data_dir=../data/sketch_schneider --checkpoint_dir=log/no_trans_128/sketch2 --image_width=128 --image_height=128 --batch_size=8 --max_images=8 --num_epoch=1 --transform=False
 
 # # 21-03-17 Tue. After training on IoU metric
 # python ovnet_eval.py --train_on=chinese --eval_dir=eval/no_trans_64/ch1 --data_dir=../data/chinese1 --pretrained_model_checkpoint_path=log/no_trans_64/ch1/ovnet.ckpt-50000 --image_width=64 --image_height=64 --batch_size=8 --max_images=8 --num_epoch=1 --transform=False --chinese1=True

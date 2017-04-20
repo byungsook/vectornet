@@ -31,7 +31,7 @@ import tensorflow as tf
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_integer('batch_size', 8,
                             """Number of images to process in a batch.""")
-tf.app.flags.DEFINE_string('data_dir', '../data/sketch_schneider',
+tf.app.flags.DEFINE_string('data_dir', '../data/sketch_schneider_l',
                            """Path to the Sketch data directory.""")
 tf.app.flags.DEFINE_integer('image_width', 128,
                             """Image Width.""")
@@ -41,6 +41,8 @@ tf.app.flags.DEFINE_integer('num_processors', 8,
                             """# of processors for batch generation.""")
 tf.app.flags.DEFINE_boolean('use_two_channels', True,
                             """use two channels for input""")
+tf.app.flags.DEFINE_integer('stroke_width', 10,
+                            """stroke width""")
 
 class MPManager(multiprocessing.managers.SyncManager):
     pass
@@ -53,6 +55,7 @@ class Param(object):
         self.image_height = FLAGS.image_height
         self.use_two_channels = FLAGS.use_two_channels
         self.min_prop = FLAGS.min_prop
+        self.stroke_width = FLAGS.stroke_width
 
             
 class BatchManager(object):
@@ -139,7 +142,7 @@ class BatchManager(object):
 
 def train_set(i, svg_batch, s_batch, x_batch, y_batch, FLAGS):
     with open(svg_batch[i], 'r') as sf:
-        svg = sf.read().format(w=FLAGS.image_width, h=FLAGS.image_height, sw=10,
+        svg = sf.read().format(w=FLAGS.image_width, h=FLAGS.image_height, sw=FLAGS.stroke_width,
                                bx=0, by=0, bw=800, bh=800)
 
     s_png = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
@@ -218,6 +221,11 @@ if __name__ == '__main__':
     tf.app.flags.DEFINE_string('file_list', 'train.txt', """file_list""")
     FLAGS.num_processors = 1
     FLAGS.min_prop = 0.01
+
+    FLAGS.image_width = 800
+    FLAGS.image_height = 800
+    FLAGS.batch_size = 1
+    FLAGS.stroke_width = 1
 
     batch_manager = BatchManager()
     s_batch, x_batch, y_batch = batch_manager.batch()

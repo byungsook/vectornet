@@ -14,6 +14,7 @@ import os
 import os.path
 import time
 from subprocess import call
+import pprint
 
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import numpy as np
@@ -455,6 +456,11 @@ def save_label_img(labels, unique_labels, num_labels, diff_labels, acc_avg, pm):
 
 
 def test():
+    # print flags
+    flag_file_path = os.path.join(FLAGS.test_dir, 'flag.txt')
+    with open(flag_file_path, 'wt') as out:
+        pprint.PrettyPrinter(stream=out).pprint(FLAGS.__flags)
+        
     # create managers
     start_time = time.time()
     print('%s: pathnet manager loading...' % datetime.now())

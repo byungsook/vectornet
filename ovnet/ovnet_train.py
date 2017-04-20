@@ -11,6 +11,7 @@ from __future__ import print_function
 from datetime import datetime
 import os
 import time
+import pprint
 
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import numpy as np
@@ -89,6 +90,11 @@ def train():
         elif FLAGS.train_on == 'line':
             batch_manager = ovnet_data_line.BatchManager()
 
+        # print flags
+        flag_file_path = os.path.join(FLAGS.log_dir, 'flag.txt')
+        with open(flag_file_path, 'wt') as out:
+            pprint.PrettyPrinter(stream=out).pprint(FLAGS.__flags)
+
         is_train = True
         phase_train = tf.placeholder(tf.bool, name='phase_train')
 
@@ -149,8 +155,11 @@ def train():
 
         ####################################################################
         # Start running operations on the Graph. 
-        sess = tf.Session(config=tf.ConfigProto(
-            log_device_placement=FLAGS.log_device_placement))
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True
+        config.allow_soft_placement = True
+        config.log_device_placement = FLAGS.log_device_placement
+        sess = tf.Session(config=config)
 
         # Create a saver (restorer).
         saver = tf.train.Saver()

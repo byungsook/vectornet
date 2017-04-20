@@ -50,7 +50,7 @@ def get_stroke_list(pm):
                                 bx=0, by=0, bw=800, bh=800)
         
     stroke_list = []
-    svg_xml = et.fromstring(svg)
+    svg_xml = ET.fromstring(svg)
     num_paths = len(svg_xml[0])
 
     for i in xrange(num_paths):

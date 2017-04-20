@@ -41,6 +41,8 @@ tf.app.flags.DEFINE_integer('num_processors', 8,
                             """# of processors for batch generation.""")
 tf.app.flags.DEFINE_boolean('use_two_channels', True,
                             """use two channels for input""")
+tf.app.flags.DEFINE_integer('stroke_width', 10,
+                            """stroke width.""")
 
 class MPManager(multiprocessing.managers.SyncManager):
     pass
@@ -52,6 +54,7 @@ class Param(object):
         self.image_width = FLAGS.image_width
         self.image_height = FLAGS.image_height
         self.use_two_channels = FLAGS.use_two_channels
+        self.stroke_width = FLAGS.stroke_width
 
             
 class BatchManager(object):
@@ -133,7 +136,7 @@ class BatchManager(object):
 
 def train_set(batch_id, svg_batch, x_batch, y_batch, FLAGS):
     with open(svg_batch[batch_id], 'r') as sf:
-        svg = sf.read().format(w=FLAGS.image_width, h=FLAGS.image_height, sw=10,
+        svg = sf.read().format(w=FLAGS.image_width, h=FLAGS.image_height, sw=FLAGS.stroke_width,
                                bx=0, by=0, bw=800, bh=800)
 
     x_png = cairosvg.svg2png(bytestring=svg.encode('utf-8'))

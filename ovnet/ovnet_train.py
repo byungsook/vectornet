@@ -98,10 +98,8 @@ def train():
         is_train = True
         phase_train = tf.placeholder(tf.bool, name='phase_train')
 
-        x = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 1])
-        y = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 1])
-
         # Build a Graph that computes the logits predictions from the inference model.
+        x, y = batch_manager.batch()
         y_hat = ovnet_model.inference(x, phase_train)
 
         # Calculate loss.
@@ -185,28 +183,29 @@ def train():
         ####################################################################
         # Start to train.
         print('%s: start to train' % datetime.now())
+        batch_manager.start_thread(sess)
+        epoch_per_step = float(FLAGS.batch_size) / batch_manager.num_examples_per_epoch
         start_step = tf.train.global_step(sess, global_step)
         for step in xrange(start_step, FLAGS.max_steps):
             # Train one step.
             start_time = time.time()
-            x_batch, y_batch = batch_manager.batch()
-            _, loss_value = sess.run([train_op, loss], feed_dict={phase_train: is_train,
-                                                                  x: x_batch, y: y_batch})
+            sess.run(train_op, feed_dict={phase_train: is_train})
             duration = time.time() - start_time
-
-            assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
 
             # Print statistics periodically.
             if step % FLAGS.stat_steps == 0 or step < 100:
+                loss_value = sess.run(loss, feed_dict={phase_train: is_train})
+                assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
                 examples_per_sec = FLAGS.batch_size / float(duration)
-                print('%s: step %d, loss = %.2f (%.1f examples/sec; %.3f sec/batch)' % 
-                    (datetime.now(), step, loss_value, examples_per_sec, duration))
+                batch_manager.num_epoch = epoch_per_step*step
+                print('%s:[epoch %.2f][step %d/%d] loss = %.2f (%.3f sec/batch)' % 
+                    (datetime.now(), batch_manager.num_epoch, step, FLAGS.max_steps, loss_value, duration))
 
             # Write the summary periodically.
             if step % FLAGS.summary_steps == 0 or step < 100:
                 summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
                     [summary_op, x_summary, y_summary, y_hat_summary],
-                    feed_dict={phase_train: is_train, x: x_batch, y: y_batch})
+                    feed_dict={phase_train: is_train})
                 summary_writer.add_summary(summary_str, step)
                 
                 x_summary_tmp = tf.Summary()
@@ -231,6 +230,7 @@ def train():
                 saver.save(sess, checkpoint_path, global_step=global_step)
 
         # tf.gfile.DeleteRecursively(FLAGS.data_dir)
+        batch_manager.stop_thread()
         print('done')
 
 

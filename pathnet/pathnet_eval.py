@@ -75,11 +75,8 @@ def evaluate():
         is_train = False
         phase_train = tf.placeholder(tf.bool, name='phase_train')
 
-        d = 2 if FLAGS.use_two_channels else 1
-        x = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, d])
-        y = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 1])
-        
         # Build a Graph that computes the logits predictions from the inference model.
+        x, y = batch_manager.batch()
         y_hat = pathnet_model.inference(x, phase_train)
 
         # Calculate loss.
@@ -105,17 +102,14 @@ def evaluate():
         summary_y_writer = tf.summary.FileWriter(FLAGS.eval_dir + '/y', g)
         summary_y_hat_writer = tf.summary.FileWriter(FLAGS.eval_dir + '/y_hat', g)
         
-        s = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 1])
-        s_summary = tf.summary.image('s', s, max_outputs=FLAGS.batch_size)
         if FLAGS.use_two_channels:
             x_rgb = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 3])
-            x_summary = tf.summary.image('x', x_rgb, max_outputs=FLAGS.batch_size)
+            x_summary = tf.summary.image('x', x_rgb, max_outputs=FLAGS.max_images)
             b_channel = np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1]) # to make x RGB
-        else:
-            x_summary = tf.summary.image('x', x, max_outputs=FLAGS.batch_size)
-        y_summary = tf.summary.image('y', y, max_outputs=FLAGS.batch_size)
-        y_hat_ph = tf.placeholder(tf.float32)
-        y_hat_summary = tf.summary.image('y_hat_ph', y_hat_ph, max_outputs=FLAGS.batch_size)
+        y_img = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 1])
+        y_hat_img = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 1])
+        y_summary = tf.summary.image('y', y_img, max_outputs=FLAGS.max_images)
+        y_hat_summary = tf.summary.image('y_hat', y_hat_img, max_outputs=FLAGS.max_images)
         
         # Start evaluation
         with tf.Session() as sess:
@@ -126,6 +120,8 @@ def evaluate():
                 print('%s: Pre-trained model restored from %s' % 
                     (datetime.now(), ckpt_name))
             
+            batch_manager.start_thread(sess)
+            epoch_per_step = float(FLAGS.batch_size) / batch_manager.num_examples_per_epoch
             num_eval = batch_manager.num_examples_per_epoch * FLAGS.num_epoch
             num_iter = int(math.ceil(num_eval / FLAGS.batch_size))
             # num_iter = 1
@@ -133,48 +129,38 @@ def evaluate():
             total_loss = 0
             for step in range(num_iter):
                 start_time = time.time()
-                s_batch, x_batch, y_batch = batch_manager.batch()
-                y_hat_value, loss_value = sess.run([y_hat, loss], feed_dict={phase_train: is_train,
-                                                                             x: x_batch, y: y_batch})
+                x_batch, y_batch, y_hat_batch, loss_value = sess.run([x, y, y_hat, loss],
+                                                                     feed_dict={phase_train: is_train})
                 total_loss += loss_value
                 duration = time.time() - start_time
-                examples_per_sec = FLAGS.batch_size / float(duration)
-                print('%s: epoch %d, step %d, loss = %.2f (%.1f examples/sec; %.3f sec/batch)' % (
-                        datetime.now(), batch_manager.num_epoch, step, loss_value, examples_per_sec, duration))
+                batch_manager.num_epoch = epoch_per_step*step
+                print('%s:[epoch %.2f][step %d/%d] loss = %.2f (%.3f sec/batch)' % 
+                      (datetime.now(), batch_manager.num_epoch, step, num_iter, loss_value, duration))
 
                 if FLAGS.use_two_channels:
-                    loss_summary_str, s_summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
-                        [loss_summary, s_summary, x_summary, y_summary, y_hat_summary],
-                        feed_dict={loss_ph: loss_value,
-                                s: s_batch, x: x_batch, y: y_batch, y_hat_ph: y_hat_value,
-                                x_rgb: np.concatenate((x_batch, b_channel), axis=3)})
-                else:
-                    loss_summary_str, s_summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
-                        [loss_summary, s_summary, x_summary, y_summary, y_hat_summary],
-                        feed_dict={loss_ph: loss_value,
-                                s: s_batch, x: x_batch, y: y_batch, y_hat_ph: y_hat_value})
-
+                    loss_summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
+                        [loss_summary, x_summary, y_summary, y_hat_summary],
+                        feed_dict={phase_train: is_train, x_rgb: np.concatenate((x_batch, b_channel), axis=3),
+                                   y_img: y_batch, y_hat_img: y_hat_batch})
                 summary_writer.add_summary(loss_summary_str, step)
 
-                s_summary_tmp = tf.Summary()
                 x_summary_tmp = tf.Summary()
                 y_summary_tmp = tf.Summary()
                 y_hat_summary_tmp = tf.Summary()
-                s_summary_tmp.ParseFromString(s_summary_str)
                 x_summary_tmp.ParseFromString(x_summary_str)
                 y_summary_tmp.ParseFromString(y_summary_str)
                 y_hat_summary_tmp.ParseFromString(y_hat_summary_str)
                 for i in xrange(FLAGS.batch_size):
                     new_tag = '%06d/%03d' % (step, i)
-                    s_summary_tmp.value[i].tag = new_tag
                     x_summary_tmp.value[i].tag = new_tag
                     y_summary_tmp.value[i].tag = new_tag
                     y_hat_summary_tmp.value[i].tag = new_tag
 
-                summary_writer.add_summary(s_summary_tmp, step)
                 summary_x_writer.add_summary(x_summary_tmp, step)
                 summary_y_writer.add_summary(y_summary_tmp, step)
                 summary_y_hat_writer.add_summary(y_hat_summary_tmp, step)
+
+            batch_manager.stop_thread()
 
             # Compute precision
             loss_avg_ = total_loss / num_iter
@@ -182,8 +168,7 @@ def evaluate():
 
             loss_avg_summary_str = sess.run(loss_avg_summary, feed_dict={loss_avg: loss_avg_})
             g_step = tf.train.global_step(sess, global_step)
-            summary_writer.add_summary(loss_avg_summary_str, g_step)
-
+            summary_writer.add_summary(loss_avg_summary_str, g_step)    
     print('done')
 
 

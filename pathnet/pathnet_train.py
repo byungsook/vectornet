@@ -30,7 +30,7 @@ tf.app.flags.DEFINE_string('checkpoint_dir', '',
                            """If specified, restore this pretrained model """
                            """before beginning any training.
                            e.g. log/second_train""")
-tf.app.flags.DEFINE_integer('max_steps', 1,
+tf.app.flags.DEFINE_integer('max_steps', 5,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_integer('decay_steps', 30000,
                             """Decay steps""")
@@ -50,7 +50,7 @@ tf.app.flags.DEFINE_integer('summary_steps', 100,
                             """summary steps.""")
 tf.app.flags.DEFINE_integer('save_steps', 5000,
                             """save steps""")
-tf.app.flags.DEFINE_string('train_on', 'chinese',
+tf.app.flags.DEFINE_string('train_on', 'sketch',
                            """specify training data""")
 tf.app.flags.DEFINE_boolean('transform', False,
                             """Whether to transform character.""")
@@ -100,12 +100,9 @@ def train():
 
         is_train = True
         phase_train = tf.placeholder(tf.bool, name='phase_train')
-
-        d = 2 if FLAGS.use_two_channels else 1
-        x = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, d])
-        y = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 1])
-
+        
         # Build a Graph that computes the logits predictions from the inference model.
+        x, y = batch_manager.batch()
         y_hat = pathnet_model.inference(x, phase_train)
 
         # Calculate loss.
@@ -184,67 +181,61 @@ def train():
         summary_y_writer = tf.summary.FileWriter(FLAGS.log_dir + '/y', sess.graph)
         summary_y_hat_writer = tf.summary.FileWriter(FLAGS.log_dir + '/y_hat', sess.graph)
 
-        s = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 1])
-        s_summary = tf.summary.image('s', s, max_outputs=FLAGS.max_images)
         if FLAGS.use_two_channels:
             x_rgb = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 3])
             x_summary = tf.summary.image('x', x_rgb, max_outputs=FLAGS.max_images)
             b_channel = np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1]) # to make x RGB
         else:
             x_summary = tf.summary.image('x', x, max_outputs=FLAGS.max_images)
-        b_channel = np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1]) # to make x RGB
-        y_summary = tf.summary.image('y', y, max_outputs=FLAGS.max_images)
-        y_hat_summary = tf.summary.image('y_hat', y_hat, max_outputs=FLAGS.max_images)
+        y_img = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 1])
+        y_hat_img = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 1])
+        y_summary = tf.summary.image('y', y_img, max_outputs=FLAGS.max_images)
+        y_hat_summary = tf.summary.image('y_hat', y_hat_img, max_outputs=FLAGS.max_images)
 
         ####################################################################
         # Start to train.
         print('%s: start to train' % datetime.now())
+        batch_manager.start_thread(sess)
+        epoch_per_step = float(FLAGS.batch_size) / batch_manager.num_examples_per_epoch
         start_step = tf.train.global_step(sess, global_step)
         for step in xrange(start_step, FLAGS.max_steps):
             # Train one step.
             start_time = time.time()
-            s_batch, x_batch, y_batch = batch_manager.batch()
-            _, loss_value = sess.run([train_op, loss], feed_dict={phase_train: is_train,
-                                                                  x: x_batch, y: y_batch})
+            sess.run(train_op, feed_dict={phase_train: is_train})
             duration = time.time() - start_time
 
-            assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
+            batch_manager.num_epoch = epoch_per_step*step
+            if batch_manager.num_epoch % 10 == 0:
+                FLAGS.min_prop = max(0.001, FLAGS.min_prop*0.5)
 
             # Print statistics periodically.
             if step % FLAGS.stat_steps == 0 or step < 100:
-                examples_per_sec = FLAGS.batch_size / float(duration)
-                print('%s: epoch %d, step %d, loss = %.2f (%.1f examples/sec; %.3f sec/batch)' % 
-                    (datetime.now(), batch_manager.num_epoch, step, loss_value, examples_per_sec, duration))
+                loss_value = sess.run(loss, feed_dict={phase_train: is_train})
+                assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
+                print('%s:[epoch %.2f][step %d/%d] loss = %.2f (%.3f sec/batch)' % 
+                      (datetime.now(), batch_manager.num_epoch, step, FLAGS.max_steps, loss_value, duration))
 
             # Write the summary periodically.
             if step % FLAGS.summary_steps == 0 or step < 100:
-                if FLAGS.use_two_channels:
-                    summary_str, s_summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
-                        [summary_op, s_summary, x_summary, y_summary, y_hat_summary],
-                        feed_dict={phase_train: is_train, s: s_batch, x: x_batch, y: y_batch,
-                        x_rgb: np.concatenate((x_batch, b_channel), axis=3)})
-                else:
-                    summary_str, s_summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
-                        [summary_op, s_summary, x_summary, y_summary, y_hat_summary],
-                        feed_dict={phase_train: is_train, s: s_batch, x: x_batch, y: y_batch})
+                x_batch, y_batch, y_hat_batch = sess.run([x, y, y_hat], feed_dict={phase_train: is_train})
+                summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
+                    [summary_op, x_summary, y_summary, y_hat_summary],
+                    feed_dict={phase_train: is_train, x_rgb: np.concatenate((x_batch, b_channel), axis=3),
+                              y_img: y_batch, y_hat_img: y_hat_batch})
                 summary_writer.add_summary(summary_str, step)
                 
-                s_summary_tmp = tf.Summary()
                 x_summary_tmp = tf.Summary()
                 y_summary_tmp = tf.Summary()
                 y_hat_summary_tmp = tf.Summary()
-                s_summary_tmp.ParseFromString(s_summary_str)
                 x_summary_tmp.ParseFromString(x_summary_str)
                 y_summary_tmp.ParseFromString(y_summary_str)
                 y_hat_summary_tmp.ParseFromString(y_hat_summary_str)
                 for i in xrange(FLAGS.max_images):
                     new_tag = '%06d/%02d' % (step, i)
-                    s_summary_tmp.value[i].tag = new_tag
                     x_summary_tmp.value[i].tag = new_tag
                     y_summary_tmp.value[i].tag = new_tag
                     y_hat_summary_tmp.value[i].tag = new_tag
 
-                summary_writer.add_summary(s_summary_tmp, step)
                 summary_x_writer.add_summary(x_summary_tmp, step)
                 summary_y_writer.add_summary(y_summary_tmp, step)
                 summary_y_hat_writer.add_summary(y_hat_summary_tmp, step)
@@ -255,6 +246,7 @@ def train():
                 saver.save(sess, checkpoint_path, global_step=global_step)
 
         # tf.gfile.DeleteRecursively(FLAGS.data_dir)
+        batch_manager.stop_thread()
         print('done')
 
 

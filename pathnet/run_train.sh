@@ -1,4 +1,10 @@
-python pathnet_train.py --train_on=sketch2 --log_dir=log/no_trans_256/sketch2 --max_steps=50000 --transform=False --image_width=256 --image_height=256 --batch_size=2 --initial_learning_rate=0.005 --data_dir=../data/sketch_schneider --stroke_width=1
+# bicycle!
+python pathnet_train.py --train_on=sketch --log_dir=log/no_trans_128/bicycle_cont --checkpoint_dir=log/no_trans_128/bicycle --max_steps=50000 --transform=False --image_width=128 --image_height=96 --batch_size=8 --initial_learning_rate=0.005 --data_dir=../data/bicycle
+
+# python pathnet_train.py --train_on=sketch --log_dir=log/no_trans_128/bicycle --max_steps=50000 --transform=False --image_width=128 --image_height=96 --batch_size=8 --initial_learning_rate=0.005 --data_dir=../data/bicycle
+# python pathnet_train.py --train_on=sketch --log_dir=log/no_trans_256/bicycle --max_steps=50000 --transform=False --image_width=256 --image_height=256 --batch_size=8 --initial_learning_rate=0.005 --data_dir=../data/bicycle --min_prop=0.1
+
+# python pathnet_train.py --train_on=sketch2 --log_dir=log/no_trans_256/sketch2 --max_steps=50000 --transform=False --image_width=256 --image_height=256 --batch_size=4 --initial_learning_rate=0.001 --data_dir=../data/sketch_schneider --stroke_width=1
 
 # python pathnet_train.py --train_on=sketch2 --log_dir=log/no_trans_128/sketch2_l --max_steps=50000 --transform=False --image_width=128 --image_height=128 --batch_size=8 --initial_learning_rate=0.005 --data_dir=../data/sketch_schneider_l
 # python pathnet_train.py --train_on=sketch2 --log_dir=log/no_trans_256/sketch2 --max_steps=50000 --transform=False --image_width=256 --image_height=256 --batch_size=8 --initial_learning_rate=0.005 --data_dir=../data/sketch_schneider

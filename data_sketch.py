@@ -52,12 +52,12 @@ def get_stroke_list(pm):
                          r=r, sx=s[0], sy=s[1], tx=t[0], ty=t[1])
 
         svg_xml = ET.fromstring(svg)
-        num_paths = len(svg_xml[0]) - 1
+        num_paths = len(svg_xml[0])
 
-        for i in xrange(num_paths):
+        for i in xrange(1,num_paths):
             svg_xml = ET.fromstring(svg)
             stroke = svg_xml[0][i]
-            for c in reversed(xrange(num_paths)):
+            for c in reversed(xrange(1,num_paths)):
                 if svg_xml[0][c] != stroke:
                     svg_xml[0].remove(svg_xml[0][c])
             svg_one_stroke = ET.tostring(svg_xml, method='xml')

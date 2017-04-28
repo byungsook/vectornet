@@ -34,9 +34,9 @@ SVG_LINE_END_TEMPLATE = """\" style="stroke:rgb({r}, {g}, {b})"/>\n"""
 SVG_END_TEMPLATE = """</g></svg>"""
 
 
-def split_dataset():
+def split_dataset(dst_dir):
     file_list = []
-    for root, _, files in os.walk(FLAGS.dst_dir):
+    for root, _, files in os.walk(dst_dir):
         for file in files:
             if not file.lower().endswith('svg_pre'):
                 continue
@@ -46,10 +46,10 @@ def split_dataset():
     num_files = len(file_list)
     ids = np.random.permutation(num_files)
     train_id = int(num_files * 0.9)
-    with open(os.path.join(FLAGS.dst_dir,'train.txt'), 'w') as f: 
+    with open(os.path.join(dst_dir,'train.txt'), 'w') as f: 
         for id in ids[:train_id]:
             f.write(file_list[id] + '\n')
-    with open(os.path.join(FLAGS.dst_dir,'test.txt'), 'w') as f: 
+    with open(os.path.join(dst_dir,'test.txt'), 'w') as f: 
         for id in ids[train_id:]:
             f.write(file_list[id] + '\n')
 
@@ -145,12 +145,14 @@ def preprocess_makemeahanzi(file_path):
     return svg
 
 
-def preprocess_sketch(file_path):
+def preprocess_sketch(file_path, bbox):
     with open(file_path, 'r') as f:
         svg = f.readline()
         id_width = svg.find('width')
         id_xmlns = svg.find('xmlns', id_width)
-        svg_size = 'width="{w}" height="{h}" viewBox="0 0 640 480" '
+
+        svg_size = 'width="{w}" height="{h}" viewBox="' + '%.2f %.2f %.2f %.2f" ' % (bbox[0], bbox[1], bbox[2], bbox[3])
+        # svg_size = 'width="{w}" height="{h}" viewBox="0 0 640 480" '
         svg = svg[:id_width] + svg_size + svg[id_xmlns:]
         
         while True:
@@ -166,6 +168,9 @@ def preprocess_sketch(file_path):
             if not svg_line:
                 break
             elif svg_line.find('<g') >= 0:
+                # svg += '<g> <rect stroke="#f00" fill="none" stroke-width="3" height="{h}" width="{w}" y="{y}" x="{x}" id="bbox"/> </g>'.format(
+                #     x=bbox[0], y=bbox[1], w=bbox[2], h=bbox[3]
+                # )
                 svg = svg + '</svg>'
                 break
 
@@ -175,19 +180,21 @@ def preprocess_sketch(file_path):
                 svg = svg + svg_line
 
 
-    # # debug
+    # debug
     # img = cairosvg.svg2png(bytestring=svg.format(w=128, h=96, r=45, sx=0.8, sy=1.2, tx=10, ty=20))
-    # img = Image.open(io.BytesIO(img))                
-    # img = np.array(img)[:,:,3].astype(np.float) / 255.0
+    img = cairosvg.svg2png(bytestring=svg.format(w=256, h=192, r=0, sx=1, sy=1, tx=0, ty=0))
+    img = Image.open(io.BytesIO(img))                
+    img = np.array(img)[:,:,3].astype(np.float)
+    max_intensity = np.amax(img)
+    img /= max_intensity
     # # img = scipy.stats.threshold(img, threshmax=0.0001, newval=1.0)
-    # # img = 1.0 - img
+    img = 1.0 - img
     
     # plt.imshow(img, cmap=plt.cm.gray)
     # plt.show()
 
-    # save_path = os.path.join(FLAGS.dst_dir, os.path.splitext(os.path.basename(file_path))[0] + '_48.png')
-    # scipy.misc.imsave(save_path, img)
-
+    save_path = os.path.join(FLAGS.dst_dir, '_' + os.path.splitext(os.path.basename(file_path))[0] + '_256x192.png')
+    scipy.misc.imsave(save_path, img)
     return svg
 
 
@@ -433,44 +440,116 @@ def preprocess_sketch_schneider(file_path, size=800, use_label=False):
 
 def preprocess(run_id):
     if run_id == 0:
-        data_dir = 'linenet/data/sketches'
+        data_dir = 'data_tmp/sketches/car_'
     elif run_id == 1:
-        data_dir = 'linenet/data/chinese/makemeahanzi/svgs'
+        data_dir = 'data_tmp/chinese/makemeahanzi/svgs'
     elif run_id == 2:
-        data_dir = 'linenet/data/chinese/kanjivg-20160426-all/kanji'
+        data_dir = 'data_tmp/chinese/kanjivg-20160426-all/kanji'
     elif run_id == 3:
         data_dir = 'data_tmp/fidelity/output/svg'
     elif run_id == 4:
-        data_dir = 'linenet/data/lineStrokes'
+        data_dir = 'data_tmp/lineStrokes'
     elif run_id == 5:
         data_dir = 'data_tmp/schneider/Supplementary/Dataset/Strokes'
 
     if run_id == 0:
-        valid_file_list_name = 'checked.txt'
+        # valid_file_list_name = 'checked.txt'
+        # for root, _, files in os.walk(data_dir):
+        #     if not valid_file_list_name in files:
+        #         continue
+                        
+        #     valid_file_list_path = os.path.join(root, valid_file_list_name)
+        #     with open(valid_file_list_path, 'r') as f:
+        #         while True:
+        #             line = f.readline()
+        #             if not line: break
+        #             file = line.rstrip('\n') + '.svg'
+        #             file_path = os.path.join(root, file)
+
+        #             # check validity of svg file
+        #             with open(file_path, 'r') as sf:
+        #                 svg = sf.read()
+        #                 try:
+        #                     img = cairosvg.svg2png(bytestring=svg)
+        #                 except Exception as e:
+        #                     continue
+
+        #             from shutil import copyfile
+        #             if not os.path.exists(data_dir):
+        #                 os.makedirs(data_dir + '_')            
+        #             dst_file_path = os.path.join(data_dir + '_', file)
+        #             copyfile(file_path, dst_file_path)
+
+        #     def hasNum(str):
+        #         return any(char.isdigit() for char in str)
+
+        #     invalid_file_list_path = os.path.join(root, 'invalid.txt')
+        #     with open(invalid_file_list_path, 'r') as f:
+        #         while True:
+        #             line = f.readline()
+        #             if not line: break
+        #             elif not hasNum(line): continue
+
+        #             file = line.rstrip('\n') + '.svg'
+        #             file_path = os.path.join(data_dir + '_', file)
+
+        #             if os.path.exists(file_path):
+        #                 print(file_path)                    
+        #                 os.remove(file_path)
+
         for root, _, files in os.walk(data_dir):
-            if not valid_file_list_name in files:
-                continue
+            for file in files:
+                if not file.endswith('svg'): continue
+                
+                file_path = os.path.join(root, file)
 
-            valid_file_list_path = os.path.join(root, valid_file_list_name)
-            with open(valid_file_list_path, 'r') as f:
-                while True:
-                    line = f.readline()
-                    if not line: break
-                    file = line.rstrip('\n') + '.svg'
-                    file_path = os.path.join(root, file)
+                with open(file_path, 'r') as sf:
+                    svg = sf.read()
+                    img = cairosvg.svg2png(bytestring=svg)
 
-                    # check validity of svg file
-                    try:
-                        cairosvg.svg2png(url=file_path)
-                    except Exception as e:
-                        continue
+                img = Image.open(io.BytesIO(img))                
+                img = np.array(img)[:,:,3]
+                nz = np.nonzero(img)
+                margin = 5
+                w_min = nz[1].min() - margin
+                h_min = nz[0].min() - margin
+                w_max = nz[1].max() + margin
+                h_max = nz[0].max() + margin
+                bw = w_max - w_min
+                bh = h_max - h_min
+                cx = int((w_min + w_max)*0.5)
+                cy = int((h_min + h_max)*0.5)
+                ratio = bw/bh
+                r43 = 4/3.0
 
-                    svg_pre = preprocess_sketch(file_path)
+                if ratio >= r43:
+                    bh_half = float(bw)/4*3*0.5
+                    h_min = cy - bh_half
+                    h_max = cy + bh_half
+                else:
+                    bw_half = float(bh)/3*4*0.5
+                    w_min = cx - bw_half
+                    w_max = cx + bw_half
 
-                    # write preprocessed svg
-                    write_path = os.path.join(FLAGS.dst_dir, file[:-3] + 'svg_pre')
-                    with open(write_path, 'w') as wf:
-                        wf.write(svg_pre)
+                bbox = [w_min, h_min, w_max-w_min, h_max-h_min]
+                    
+                # score_start = svg.find('Worker Score: ') + 14
+                # score_end = svg.find('END ANNOTATION')
+                # score = float(svg[score_start:score_end])
+                # if score < 0.9:
+                #     continue
+                # else:
+                #     print(file_path, score)
+
+                svg_pre = preprocess_sketch(file_path, bbox)
+
+                # write preprocessed svg
+                write_path = os.path.join(FLAGS.dst_dir, file[:-3] + 'svg_pre')
+                with open(write_path, 'w') as wf:
+                    wf.write(svg_pre)
+
+        split_dataset(FLAGS.dst_dir)            
+
     elif run_id == 4:
         for root, _, files in os.walk(data_dir):
             for file in files:
@@ -565,15 +644,15 @@ def preprocess(run_id):
 def init_arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('process_num',
-                    default=5,
+                    default=0,
                     help='process number',
                     nargs='?') 
     parser.add_argument('dst_dir',
-                    default='data_tmp/sketch_schneider', # 'data_tmp/gc_test',
+                    default='data_tmp/car', # 'data_tmp/gc_test',
                     help='destination directory',
                     nargs='?') # optional arg.
     parser.add_argument('dst_tar',
-                    default='data_tmp/sketch_schneider.tar.gz', # 'data_tmp/gc_test',
+                    default='data_tmp/car.tar.gz', # 'data_tmp/gc_test',
                     help='destination tar file',
                     nargs='?') # optional arg.
     return parser.parse_args()

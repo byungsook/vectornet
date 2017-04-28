@@ -19,7 +19,7 @@ import scipy.misc
 
 parser = argparse.ArgumentParser(description='postprocess stat')
 parser.add_argument('--stat_dir', metavar='x', type=str, nargs='?',
-                    default='log/no_overlap/line')    
+                    default='result/no_overlap/bicycle_tr')    
 args = parser.parse_args()
 
 

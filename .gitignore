@@ -11,6 +11,9 @@ data/hand/
 data/sketch/
 data/sketch_schneider
 data/sketch_schneider_l
+data/bicycle
+data/car
+data/snail
 data_tmp/
 eval/
 test/

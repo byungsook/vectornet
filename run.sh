@@ -1,13 +1,25 @@
-# sketch2_l
-python vectorize.py --data_type=sketch2 --test_dir=log/no_overlap/sketch2_l_train  --num_test_files=100 --image_height=128 --image_width=128 --pathnet_ckpt=pathnet/model/no_trans_128/sketch2_l/pathnet.ckpt-50000   --ovnet_ckpt=ovnet/model/no_trans_128/sketch2_l/ovnet.ckpt-50000   --find_overlap=False --data_dir=data/sketch_schneider_l --batch_size=128 --file_list=train.txt --max_num_labels=16
-python vectorize.py --data_type=sketch2 --test_dir=log/overlap_gco/sketch2_l_train --num_test_files=100 --image_height=128 --image_width=128 --pathnet_ckpt=pathnet/model/no_trans_128/sketch2_l/pathnet.ckpt-50000   --ovnet_ckpt=ovnet/model/no_trans_128/sketch2_l/ovnet.ckpt-50000   --find_overlap=True  --data_dir=data/sketch_schneider_l --batch_size=128 --file_list=train.txt --max_num_labels=16
-python postprocess_stat.py --stat_dir=log/no_overlap/sketch2_l_train
-python postprocess_stat.py --stat_dir=log/overlap_gco/sketch2_l_train
+# sketch
+# python vectorize.py --data_type=sketch --test_dir=result/no_overlap/bicycle_tr  --num_test_files=100 --image_width=128 --image_height=96 --pathnet_ckpt=pathnet/model/no_trans_128/bicycle/pathnet.ckpt-50000  --find_overlap=False --data_dir=data/bicycle --batch_size=128 --file_list=train.txt
+# python vectorize.py --data_type=sketch --test_dir=result/overlap_gco/bicycle_tr --num_test_files=100 --image_width=128 --image_height=96 --pathnet_ckpt=pathnet/model/no_trans_128/bicycle/pathnet.ckpt-50000   --ovnet_ckpt=ovnet/model/no_trans_128/bicycle/ovnet.ckpt-50000   --find_overlap=True  --data_dir=data/bicycle --batch_size=128 --file_list=train.txt
+python postprocess_stat.py --stat_dir=result/no_overlap/bicycle_tr
+# python postprocess_stat.py --stat_dir=result/overlap_gco/bicycle_tr
 
-python vectorize.py --data_type=sketch2 --test_dir=log/no_overlap/sketch2_l  --num_test_files=100 --image_height=128 --image_width=128 --pathnet_ckpt=pathnet/model/no_trans_128/sketch2_l/pathnet.ckpt-50000   --ovnet_ckpt=ovnet/model/no_trans_128/sketch2_l/ovnet.ckpt-50000   --find_overlap=False --data_dir=data/sketch_schneider_l --batch_size=128 --max_num_labels=16
-python vectorize.py --data_type=sketch2 --test_dir=log/overlap_gco/sketch2_l --num_test_files=100 --image_height=128 --image_width=128 --pathnet_ckpt=pathnet/model/no_trans_128/sketch2_l/pathnet.ckpt-50000   --ovnet_ckpt=ovnet/model/no_trans_128/sketch2_l/ovnet.ckpt-50000   --find_overlap=True  --data_dir=data/sketch_schneider_l --batch_size=128 --max_num_labels=16
-python postprocess_stat.py --stat_dir=log/no_overlap/sketch2_l
-python postprocess_stat.py --stat_dir=log/overlap_gco/sketch2_l
+# python vectorize.py --data_type=sketch --test_dir=result/no_overlap/bicycle  --num_test_files=100 --image_width=128 --image_height=96 --pathnet_ckpt=pathnet/model/no_trans_128/bicycle/pathnet.ckpt-50000   --find_overlap=False --data_dir=data/bicycle --batch_size=128
+# python vectorize.py --data_type=sketch2 --test_dir=result/overlap_gco/bicycle --num_test_files=100 --image_width=128 --image_height=96 --pathnet_ckpt=pathnet/model/no_trans_128/bicycle/pathnet.ckpt-50000   --ovnet_ckpt=ovnet/model/no_trans_128/bibycle/ovnet.ckpt-50000   --find_overlap=True  --data_dir=data/bicycle --batch_size=128
+python postprocess_stat.py --stat_dir=result/no_overlap/bicycle
+# python postprocess_stat.py --stat_dir=result/overlap_gco/bicycle
+
+
+# # sketch2_l
+# python vectorize.py --data_type=sketch2 --test_dir=log/no_overlap/sketch2_l_train  --num_test_files=100 --image_height=128 --image_width=128 --pathnet_ckpt=pathnet/model/no_trans_128/sketch2_l/pathnet.ckpt-50000   --ovnet_ckpt=ovnet/model/no_trans_128/sketch2_l/ovnet.ckpt-50000   --find_overlap=False --data_dir=data/sketch_schneider_l --batch_size=128 --file_list=train.txt --max_num_labels=16
+# python vectorize.py --data_type=sketch2 --test_dir=log/overlap_gco/sketch2_l_train --num_test_files=100 --image_height=128 --image_width=128 --pathnet_ckpt=pathnet/model/no_trans_128/sketch2_l/pathnet.ckpt-50000   --ovnet_ckpt=ovnet/model/no_trans_128/sketch2_l/ovnet.ckpt-50000   --find_overlap=True  --data_dir=data/sketch_schneider_l --batch_size=128 --file_list=train.txt --max_num_labels=16
+# python postprocess_stat.py --stat_dir=log/no_overlap/sketch2_l_train
+# python postprocess_stat.py --stat_dir=log/overlap_gco/sketch2_l_train
+
+# python vectorize.py --data_type=sketch2 --test_dir=log/no_overlap/sketch2_l  --num_test_files=100 --image_height=128 --image_width=128 --pathnet_ckpt=pathnet/model/no_trans_128/sketch2_l/pathnet.ckpt-50000   --ovnet_ckpt=ovnet/model/no_trans_128/sketch2_l/ovnet.ckpt-50000   --find_overlap=False --data_dir=data/sketch_schneider_l --batch_size=128 --max_num_labels=16
+# python vectorize.py --data_type=sketch2 --test_dir=log/overlap_gco/sketch2_l --num_test_files=100 --image_height=128 --image_width=128 --pathnet_ckpt=pathnet/model/no_trans_128/sketch2_l/pathnet.ckpt-50000   --ovnet_ckpt=ovnet/model/no_trans_128/sketch2_l/ovnet.ckpt-50000   --find_overlap=True  --data_dir=data/sketch_schneider_l --batch_size=128 --max_num_labels=16
+# python postprocess_stat.py --stat_dir=log/no_overlap/sketch2_l
+# python postprocess_stat.py --stat_dir=log/overlap_gco/sketch2_l
 
 # sketch2
 # python vectorize.py --data_type=sketch2 --test_dir=log/no_overlap/sketch2_train  --num_test_files=100 --image_height=128 --image_width=128 --pathnet_ckpt=pathnet/model/no_trans_128/sketch2/pathnet.ckpt-50000   --ovnet_ckpt=ovnet/model/no_trans_128/sketch2/ovnet.ckpt-50000   --find_overlap=False --data_dir=data/sketch_schneider --batch_size=128 --file_list=train.txt

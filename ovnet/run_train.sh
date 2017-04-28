@@ -1,5 +1,10 @@
-python ovnet_train.py --train_on=sketch2 --log_dir=log/no_trans_128/sketch2_l --max_steps=50000 --transform=False --image_width=128 --image_height=128 --batch_size=8 --data_dir=../data/sketch_schneider_l
-./run_eval.sh
+python ovnet_train.py --train_on=sketch --log_dir=log/no_trans_128/bicycle --max_steps=50000 --transform=False --image_width=128 --image_height=96 --batch_size=8 --data_dir=../data/bicycle
+python ovnet_train.py --train_on=sketch --log_dir=log/no_trans_128/car     --max_steps=50000 --transform=False --image_width=128 --image_height=96 --batch_size=8 --data_dir=../data/car
+python ovnet_train.py --train_on=sketch --log_dir=log/no_trans_128/snail   --max_steps=50000 --transform=False --image_width=128 --image_height=96 --batch_size=8 --data_dir=../data/snail
+
+
+# python ovnet_train.py --train_on=sketch2 --log_dir=log/no_trans_128/sketch2_l --max_steps=50000 --transform=False --image_width=128 --image_height=128 --batch_size=8 --data_dir=../data/sketch_schneider_l
+# ./run_eval.sh
 
 # # sketch and others?
 # python ovnet_train.py --train_on=sketch2 --log_dir=log/no_trans_128/sketch2 --max_steps=50000 --transform=False --image_width=128 --image_height=128 --batch_size=8 --data_dir=../data/sketch_schneider

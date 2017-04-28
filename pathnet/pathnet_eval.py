@@ -38,6 +38,8 @@ tf.app.flags.DEFINE_integer('num_epoch', 10,
                             """# epoch""")
 tf.app.flags.DEFINE_float('min_prop', 0.0,
                           """min_prop""")
+tf.app.flags.DEFINE_integer('max_images', 1,
+                            """max # images to save.""")
 
 if FLAGS.train_on == 'chinese':
     import pathnet_data_chinese
@@ -124,7 +126,7 @@ def evaluate():
             epoch_per_step = float(FLAGS.batch_size) / batch_manager.num_examples_per_epoch
             num_eval = batch_manager.num_examples_per_epoch * FLAGS.num_epoch
             num_iter = int(math.ceil(num_eval / FLAGS.batch_size))
-            # num_iter = 1
+            num_iter = 1
             print('total iter: %d' % num_iter)
             total_loss = 0
             for step in range(num_iter):
@@ -140,7 +142,8 @@ def evaluate():
                 if FLAGS.use_two_channels:
                     loss_summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
                         [loss_summary, x_summary, y_summary, y_hat_summary],
-                        feed_dict={phase_train: is_train, x_rgb: np.concatenate((x_batch, b_channel), axis=3),
+                        feed_dict={phase_train: is_train, loss_ph: loss_value, 
+                                   x_rgb: np.concatenate((x_batch, b_channel), axis=3),
                                    y_img: y_batch, y_hat_img: y_hat_batch})
                 summary_writer.add_summary(loss_summary_str, step)
 

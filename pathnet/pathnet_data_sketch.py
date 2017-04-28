@@ -78,7 +78,7 @@ class BatchManager(object):
         self.num_examples_per_epoch = len(self._data_list)
         self.num_epoch = 1
 
-        FLAGS.num_threads = np.amin([multiprocessing.cpu_count(),, FLAGS.batch_size])
+        FLAGS.num_threads = np.amin([multiprocessing.cpu_count(), FLAGS.batch_size])
 
 
         image_shape = [FLAGS.image_height, FLAGS.image_width, 1]

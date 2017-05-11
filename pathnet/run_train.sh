@@ -1,5 +1,11 @@
+# fidelity
+python pathnet_train.py --train_on=fidelity --log_dir=log/no_trans_128/fidelity --max_steps=50000 --image_width=128 --image_height=128 --batch_size=16 --initial_learning_rate=0.005 --data_dir=../data/fidelity
+
+
+# python pathnet_train.py --train_on=line --log_dir=log/no_trans_128/line --max_steps=50000 --transform=False --image_width=128 --image_height=96 --batch_size=16 --initial_learning_rate=0.005
+
 # bicycle!
-python pathnet_train.py --train_on=sketch --log_dir=log/no_trans_128/bicycle_cont --checkpoint_dir=log/no_trans_128/bicycle --max_steps=50000 --transform=False --image_width=128 --image_height=96 --batch_size=8 --initial_learning_rate=0.005 --data_dir=../data/bicycle
+# python pathnet_train.py --train_on=sketch --log_dir=log/no_trans_128/bicycle_cont --checkpoint_dir=log/no_trans_128/bicycle --max_steps=50000 --transform=False --image_width=128 --image_height=96 --batch_size=8 --initial_learning_rate=0.005 --data_dir=../data/bicycle
 
 # python pathnet_train.py --train_on=sketch --log_dir=log/no_trans_128/bicycle --max_steps=50000 --transform=False --image_width=128 --image_height=96 --batch_size=8 --initial_learning_rate=0.005 --data_dir=../data/bicycle
 # python pathnet_train.py --train_on=sketch --log_dir=log/no_trans_256/bicycle --max_steps=50000 --transform=False --image_width=256 --image_height=256 --batch_size=8 --initial_learning_rate=0.005 --data_dir=../data/bicycle --min_prop=0.1

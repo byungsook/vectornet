@@ -9,6 +9,7 @@ from __future__ import division
 from __future__ import print_function
 
 from datetime import datetime
+from datetime import timedelta
 import os
 import time
 import pprint
@@ -30,7 +31,7 @@ tf.app.flags.DEFINE_string('checkpoint_dir', '',
                            """If specified, restore this pretrained model """
                            """before beginning any training.
                            e.g. log/second_train""")
-tf.app.flags.DEFINE_integer('max_steps', 5,
+tf.app.flags.DEFINE_integer('max_steps', 100,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_integer('decay_steps', 30000,
                             """Decay steps""")
@@ -50,7 +51,7 @@ tf.app.flags.DEFINE_integer('summary_steps', 100,
                             """summary steps.""")
 tf.app.flags.DEFINE_integer('save_steps', 5000,
                             """save steps""")
-tf.app.flags.DEFINE_string('train_on', 'sketch',
+tf.app.flags.DEFINE_string('train_on', 'fidelity',
                            """specify training data""")
 tf.app.flags.DEFINE_boolean('transform', False,
                             """Whether to transform character.""")
@@ -70,6 +71,8 @@ elif FLAGS.train_on == 'hand':
     import pathnet_data_hand
 elif FLAGS.train_on == 'line':
     import pathnet_data_line
+elif FLAGS.train_on == 'fidelity':
+    import pathnet_data_fidelity
 else:
     print('wrong training data set')
     assert(False)
@@ -92,6 +95,8 @@ def train():
             print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
         elif FLAGS.train_on == 'line':
             batch_manager = pathnet_data_line.BatchManager()
+        elif FLAGS.train_on == 'fidelity':
+            batch_manager = pathnet_data_fidelity.BatchManager()
 
         # print flags
         flag_file_path = os.path.join(FLAGS.log_dir, 'flag.txt')
@@ -192,12 +197,16 @@ def train():
         y_summary = tf.summary.image('y', y_img, max_outputs=FLAGS.max_images)
         y_hat_summary = tf.summary.image('y_hat', y_hat_img, max_outputs=FLAGS.max_images)
 
+        dt = tf.placeholder(dtype=tf.float32)
+        dt_summary = tf.summary.scalar('dt (h)', dt)
+
         ####################################################################
         # Start to train.
         print('%s: start to train' % datetime.now())
         batch_manager.start_thread(sess)
         epoch_per_step = float(FLAGS.batch_size) / batch_manager.num_examples_per_epoch
         start_step = tf.train.global_step(sess, global_step)
+        grand_start_time = time.time()
         for step in xrange(start_step, FLAGS.max_steps):
             # Train one step.
             start_time = time.time()
@@ -239,6 +248,18 @@ def train():
                 summary_x_writer.add_summary(x_summary_tmp, step)
                 summary_y_writer.add_summary(y_summary_tmp, step)
                 summary_y_hat_writer.add_summary(y_hat_summary_tmp, step)
+
+                if step >= 100:
+                    duration_per_summary_steps = time.time() - grand_start_time
+                    grand_start_time = time.time()
+                    end_summary_steps = float(FLAGS.max_steps-step-1) / FLAGS.summary_steps
+                    estimated_duration = duration_per_summary_steps*end_summary_steps
+                    dt_ = timedelta(seconds=estimated_duration)
+                    estimated_time = datetime.now() + dt_
+                    
+                    print('%s: %s left (%s)' % (datetime.now(), dt_, estimated_time))
+                    dt_summary_str = sess.run(dt_summary, feed_dict={dt:estimated_duration/3600})
+                    summary_writer.add_summary(dt_summary_str, step)
 
             # Save the model checkpoint periodically.
             if (step + 1) % FLAGS.save_steps == 0 or (step + 1) == FLAGS.max_steps:

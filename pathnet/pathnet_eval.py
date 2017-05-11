@@ -28,6 +28,8 @@ tf.app.flags.DEFINE_string('checkpoint_dir', 'model/ch1',
                            """If specified, restore this pretrained model.""")
 tf.app.flags.DEFINE_float('moving_avg_decay', 0.9999,
                           """The decay to use for the moving average.""")
+tf.app.flags.DEFINE_integer('max_images', 8,
+                            """max # images to save.""")
 tf.app.flags.DEFINE_string('train_on', 'sketch',
                            """specify training data""")
 tf.app.flags.DEFINE_boolean('transform', False,
@@ -49,6 +51,8 @@ elif FLAGS.train_on == 'hand':
     import pathnet_data_hand
 elif FLAGS.train_on == 'line':
     import pathnet_data_line
+elif FLAGS.train_on == 'fidelity':
+    import pathnet_data_fidelity
 else:
     print('wrong training data set')
     assert(False)
@@ -70,6 +74,8 @@ def evaluate():
             print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
         elif FLAGS.train_on == 'line':
             batch_manager = pathnet_data_line.BatchManager()
+        elif FLAGS.train_on == 'fidelity':
+            batch_manager = pathnet_data_fidelity.BatchManager()
 
         global_step = tf.Variable(0, name='global_step', trainable=False)
         is_train = False
@@ -140,7 +146,8 @@ def evaluate():
                 if FLAGS.use_two_channels:
                     loss_summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
                         [loss_summary, x_summary, y_summary, y_hat_summary],
-                        feed_dict={phase_train: is_train, x_rgb: np.concatenate((x_batch, b_channel), axis=3),
+                        feed_dict={phase_train: is_train, loss_ph: loss_value,
+                                   x_rgb: np.concatenate((x_batch, b_channel), axis=3),
                                    y_img: y_batch, y_hat_img: y_hat_batch})
                 summary_writer.add_summary(loss_summary_str, step)
 

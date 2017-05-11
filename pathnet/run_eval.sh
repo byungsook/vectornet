@@ -1,4 +1,10 @@
-python pathnet_eval.py --train_on=sketch2 --eval_dir=eval/no_trans_128/sketch2_l  --checkpoint_dir=log/no_trans_128/sketch2_l --transform=False --image_width=128 --image_height=128 --batch_size=8 --max_images=8 --num_epoch=3 --data_dir=../data/sketch_schneider_l
+python pathnet_eval.py --train_on=fidelity --eval_dir=log/no_trans_128/fidelity --checkpoint_dir=log/no_trans_128/fidelity --image_width=128 --image_height=128 --batch_size=8 --image_size=8 --num_epoch=3 --data_dir=../data/fidelity
+
+# python pathnet_eval.py --train_on=sketch --eval_dir=eval/no_trans_128/bicycle   --checkpoint_dir=model/no_trans_128/bicycle --transform=False --image_width=128 --image_height=96 --batch_size=8 --max_images=8 --num_epoch=3 --data_dir=../data/bicycle
+# python pathnet_eval.py --train_on=sketch --eval_dir=eval/no_trans_128/car       --checkpoint_dir=model/no_trans_128/car     --transform=False --image_width=128 --image_height=96 --batch_size=8 --max_images=8 --num_epoch=3 --data_dir=../data/car
+# python pathnet_eval.py --train_on=sketch --eval_dir=eval/no_trans_128/snail     --checkpoint_dir=model/no_trans_128/snail   --transform=False --image_width=128 --image_height=96 --batch_size=8 --max_images=8 --num_epoch=3 --data_dir=../data/snail
+
+# python pathnet_eval.py --train_on=sketch2 --eval_dir=eval/no_trans_128/sketch2_l  --checkpoint_dir=log/no_trans_128/sketch2_l --transform=False --image_width=128 --image_height=128 --batch_size=8 --max_images=8 --num_epoch=3 --data_dir=../data/sketch_schneider_l
 # python pathnet_eval.py --train_on=sketch2 --eval_dir=eval/no_trans_128/sketch2  --checkpoint_dir=log/no_trans_128/sketch2 --transform=False --image_width=128 --image_height=128 --batch_size=8 --max_images=8 --num_epoch=3 --data_dir=../data/sketch_schneider
 
 # # 21-03-17 Tue., after training on 64^2, 50000 steps, without transform

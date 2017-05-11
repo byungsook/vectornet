@@ -40,7 +40,7 @@ flags.DEFINE_integer('image_width', 128,
                      """Image Width.""")
 flags.DEFINE_integer('image_height', 128,
                      """Image Height.""")
-flags.DEFINE_integer('num_threads', multiprocessing.cpu_count(),
+flags.DEFINE_integer('num_threads', 16,
                      """# of threads for batch generation.""")
 flags.DEFINE_boolean('use_two_channels', True,
                      """use two channels for input""")
@@ -52,6 +52,8 @@ class BatchManager(object):
         # read all svg files
         self._next_svg_id = 0
         self._data_list = []
+        self.svg_list = []
+        
         if FLAGS.file_list:
             file_list_path = os.path.join(FLAGS.data_dir, FLAGS.file_list)
             with open(file_list_path, 'r') as f:
@@ -61,10 +63,43 @@ class BatchManager(object):
 
                     file_path = os.path.join(FLAGS.data_dir, line.rstrip())
                     self._data_list.append(file_path)
-                    # with open(file_path, 'r') as sf:
-                    #     svg = sf.read()
-                    #     self._data_list.append(svg)
 
+                    # preprocessing
+                    print(file_path)
+                    with open(file_path, 'r') as sf:
+                        svg = sf.read().format(w=1024, h=1024)
+
+                    s_png = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
+                    s_img = Image.open(io.BytesIO(s_png))
+                    s = np.array(s_img)[:,:,3].astype(np.float)
+                    
+                    # # debug
+                    # plt.imshow(s, cmap=plt.cm.gray)
+                    # plt.show()
+
+                    num_paths = svg.count('<path')
+                    path_list = []
+                    end = 0
+                    for i in xrange(num_paths):
+                        start = svg.find('<path', end)
+                        end = svg.find('/>', start) + 2
+                        path_list.append([start,end])
+
+                    y_list = []
+                    for path_id in xrange(num_paths):
+                        y_svg = svg[:path_list[0][0]] + svg[path_list[path_id][0]:path_list[path_id][1]] + svg[path_list[-1][1]:]
+                        y_png = cairosvg.svg2png(bytestring=y_svg.encode('utf-8'))
+                        y_img = Image.open(io.BytesIO(y_png))
+                        y = np.array(y_img)[:,:,3].astype(np.float)
+                        y[y<0.001] = 0.0 # threshold..
+
+                        y_list.append(y)
+                        # # debug
+                        # plt.imshow(y, cmap=plt.cm.gray)
+                        # plt.show()
+
+                    print('# paths: %d' % len(y_list))
+                    self.svg_list.append([s, y_list])
         else:
             for root, _, files in os.walk(FLAGS.data_dir):
                 for file in files:
@@ -79,7 +114,7 @@ class BatchManager(object):
         self.num_examples_per_epoch = len(self._data_list)
         self.num_epoch = 1
 
-        FLAGS.num_threads = np.amin([FLAGS.num_threads, FLAGS.batch_size])
+        FLAGS.num_threads = np.amin([FLAGS.num_threads, multiprocessing.cpu_count()*2])
 
 
         image_shape = [FLAGS.image_height, FLAGS.image_width, 1]
@@ -103,23 +138,25 @@ class BatchManager(object):
 
     def start_thread(self, sess):
         # Main thread: create a coordinator.
+        self._sess = sess
         self._coord = tf.train.Coordinator()
 
         # Create a method for loading and enqueuing
-        def load_n_enqueue(sess, enqueue, coord, x, y, data_list, FLAGS):
-            while not coord.should_stop():
-                file_path = random.choice(data_list)
-                x_, y_ = preprocess(file_path, FLAGS)
-                sess.run(enqueue, feed_dict={x: x_, y: y_})
+        def load_n_enqueue(sess, enqueue, coord, x, y, svg_list, FLAGS):
+            with coord.stop_on_exception():
+                while not coord.should_stop():
+                    s, y_list = random.choice(svg_list)
+                    x_, y_ = preprocess(s, y_list, FLAGS)
+                    sess.run(enqueue, feed_dict={x: x_, y: y_})
 
         # Create threads that enqueue
         self._threads = [threading.Thread(target=load_n_enqueue, 
-                                          args=(sess, 
+                                          args=(self._sess, 
                                                 self._enqueue,
                                                 self._coord,
                                                 self._x,
                                                 self._y,
-                                                self._data_list,
+                                                self.svg_list,
                                                 FLAGS)
                                           ) for i in xrange(FLAGS.num_threads)]
 
@@ -127,8 +164,9 @@ class BatchManager(object):
         def signal_handler(signum,frame):
             #print "stop training, save checkpoint..."
             #saver.save(sess, "./checkpoints/VDSR_norm_clip_epoch_%03d.ckpt" % epoch ,global_step=global_step)
-            sess.run(self._q.close(cancel_pending_enqueues=True))
+            print('%s: canceled by SIGINT' % datetime.now())
             self._coord.request_stop()
+            self._sess.run(self._q.close(cancel_pending_enqueues=True))
             self._coord.join(self._threads)
             sys.exit(1)
         signal.signal(signal.SIGINT, signal_handler)
@@ -139,78 +177,78 @@ class BatchManager(object):
 
     def stop_thread(self):
         self._coord.request_stop()
+        self._sess.run(self._q.close(cancel_pending_enqueues=True))
         self._coord.join(self._threads)
 
 
-def preprocess(file_path, FLAGS):
-    with open(file_path, 'r') as sf:
-        svg = sf.read().format(w=1024, h=1024)
+# def preprocess(file_path, FLAGS):
+#     with open(file_path, 'r') as sf:
+#         svg = sf.read().format(w=1024, h=1024)
 
-    s_png = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
-    s_img = Image.open(io.BytesIO(s_png))
-    s = np.array(s_img)[:,:,3].astype(np.float)
+#     s_png = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
+#     s_img = Image.open(io.BytesIO(s_png))
+#     s = np.array(s_img)[:,:,3].astype(np.float)
 
-    # # debug
-    # plt.imshow(s, cmap=plt.cm.gray)
-    # plt.show()
+#     # # debug
+#     # plt.imshow(s, cmap=plt.cm.gray)
+#     # plt.show()
 
-    num_paths = svg.count('<path')
-    path_list = []
-    end = 0
-    for i in xrange(num_paths):
-        start = svg.find('<path', end)
-        end = svg.find('/>', start) + 2
-        path_list.append([start,end])
-    
-    path_id = np.random.randint(num_paths)
+#     num_paths = svg.count('<path')
+#     path_list = []
+#     end = 0
+#     for i in xrange(num_paths):
+#         start = svg.find('<path', end)
+#         end = svg.find('/>', start) + 2
+#         path_list.append([start,end])
 
-    y_svg = svg[:path_list[0][0]] + svg[path_list[path_id][0]:path_list[path_id][1]] + svg[path_list[-1][1]:]
-    y_png = cairosvg.svg2png(bytestring=y_svg.encode('utf-8'))
-    y_img = Image.open(io.BytesIO(y_png))
-    y = np.array(y_img)[:,:,3].astype(np.float)
+#     path_id = np.random.randint(num_paths)
+#     y_svg = svg[:path_list[0][0]] + svg[path_list[path_id][0]:path_list[path_id][1]] + svg[path_list[-1][1]:]
+#     y_png = cairosvg.svg2png(bytestring=y_svg.encode('utf-8'))
+#     y_img = Image.open(io.BytesIO(y_png))
+#     y = np.array(y_img)[:,:,3].astype(np.float)
 
-    # # debug
-    # plt.imshow(y, cmap=plt.cm.gray)
-    # plt.show()
-
-    # random flip and rotate
-    flip = (np.random.rand() > 0.5)
-    if flip:
-        y_rotate = np.fliplr(y)
-        s_rotate = np.fliplr(s)
-    else:
-        y_rotate = y
-        s_rotate = s
-    r = np.random.rand() * 360.0
-    y_rotate = transform.rotate(y_rotate, r, order=3, mode='symmetric')
-    y = y_rotate
+#     # # debug
+#     # plt.imshow(y, cmap=plt.cm.gray)
+#     # plt.show()
         
-    s_rotate = transform.rotate(s_rotate, r, order=3, mode='symmetric')
-    s = s_rotate
-
-    # bbox
-    y_nz = np.nonzero(y)
-    y_h = [np.amin(y_nz[0]), np.amax(y_nz[0])+1]
-    y_w = [np.amin(y_nz[1]), np.amax(y_nz[1]+1)]
-
-    # # debug
-    # plt.imshow(y[y_h[0]:y_h[1], y_w[0]:y_w[1]], cmap=plt.cm.gray)
-    # plt.show()
-
+def preprocess(s_, y_list, FLAGS):
+    num_paths = len(y_list)
     while True:
-        try:
-            if y_h[1] - y_h[0] < FLAGS.image_height:
-                h = np.random.randint(low=max(0, y_h[1]-FLAGS.image_height), high=y_h[0]+1)
-            else:
-                h = np.random.randint(low=y_h[0], high=y_h[1]-FLAGS.image_height)
-            if y_w[1] - y_w[0] < FLAGS.image_width:
-                w = np.random.randint(low=max(0, y_w[1]-FLAGS.image_height), high=y_w[0]+1)
-            else:
-                w = np.random.randint(low=y_w[0], high=y_w[1]-FLAGS.image_height)
-        except:
+        path_id = np.random.randint(num_paths)
+        y_ = y_list[path_id]
+
+        # random flip and rotate
+        flip = (np.random.rand() > 0.5)
+        if flip:
+            y_rotate = np.fliplr(y_)
+            s_rotate = np.fliplr(s_)
+        else:
+            y_rotate = y_
+            s_rotate = s_
+        r = np.random.rand() * 360.0
+        y_rotate = transform.rotate(y_rotate, r, order=3, mode='symmetric')
+        s_rotate = transform.rotate(s_rotate, r, order=3, mode='symmetric')
+
+        # bbox
+        y_nz = np.nonzero(y_rotate)
+        if len(y_nz[0]) == 0:
             continue
 
-        y_crop = y[h:h+FLAGS.image_height, w:w+FLAGS.image_width]
+        y_h = [np.amin(y_nz[0]), np.amax(y_nz[0])+1]
+        y_w = [np.amin(y_nz[1]), np.amax(y_nz[1])+1]
+
+        if y_h[1] - y_h[0] < FLAGS.image_height:
+            h = np.random.randint(low=max(0, y_h[1]-FLAGS.image_height), 
+                                  high=min(y_rotate.shape[0]-FLAGS.image_height, y_h[0])+1)
+        else:
+            h = np.random.randint(low=y_h[0], high=y_h[1]-FLAGS.image_height+1)
+        if y_w[1] - y_w[0] < FLAGS.image_width:
+            w = np.random.randint(low=max(0, y_w[1]-FLAGS.image_height),
+                                  high=min(y_rotate.shape[0]-FLAGS.image_width, y_w[0])+1)
+        else:
+            w = np.random.randint(low=y_w[0], high=y_w[1]-FLAGS.image_height+1)
+
+        y_crop = y_rotate[h:h+FLAGS.image_height, w:w+FLAGS.image_width]
 
         hs = int(FLAGS.image_height*0.1)
         ws = int(FLAGS.image_width*0.1)
@@ -219,22 +257,27 @@ def preprocess(file_path, FLAGS):
 
         line_ids = np.nonzero(y_crop[hs:he,ws:we])
         num_line_pixels = len(line_ids[0])
-
         if num_line_pixels > 0:
             break
 
-    s = s[h:h+FLAGS.image_height, w:w+FLAGS.image_width]
-    max_intensity = np.amax(s)
-    s = s / max_intensity
+    s_crop = s_rotate[h:h+FLAGS.image_height, w:w+FLAGS.image_width]
+    max_intensity = np.amax(s_crop)
+    s = s_crop / max_intensity
+    s[s<0.05] = 0.0 # threshold..
 
     y = y_crop / max_intensity
+    y[y<0.05] = 0.0 # threshold..
 
     line_ids = np.nonzero(y)
     num_line_pixels = len(line_ids[0])
     point_id = np.random.randint(num_line_pixels)
     ph, pw = line_ids[0][point_id], line_ids[1][point_id]
 
-    y = np.reshape(y, [FLAGS.image_height, FLAGS.image_width, 1])
+    try:
+        y = np.reshape(y, [FLAGS.image_height, FLAGS.image_width, 1])
+    except:
+        print(h, w, y_h, y_w)
+        
     x = np.zeros([FLAGS.image_height, FLAGS.image_width, 2])
     x[:,:,0] = s
     x[ph,pw,1] = 1.0
@@ -261,15 +304,15 @@ if __name__ == '__main__':
 
     # parameters 
     flags.DEFINE_string('file_list', 'train.txt', """file_list""")
-    FLAGS.num_threads = 8
-    FLAGS.min_prop = 0.01
-
-    # test
-    # for _ in xrange(10):
-    x_, y_ = preprocess(os.path.join(FLAGS.data_dir, 'archi.svg_pre'), FLAGS)
-
+    FLAGS.num_threads = 16
 
     batch_manager = BatchManager()
+    # test
+    while True:
+        s, y_list = random.choice(batch_manager.svg_list)
+        preprocess(s, y_list, FLAGS)
+        # preprocess(os.path.join(FLAGS.data_dir, 'archi.svg_pre'), FLAGS)
+
     x, y = batch_manager.batch()
 
     sess = tf.Session()

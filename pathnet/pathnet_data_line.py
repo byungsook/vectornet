@@ -8,17 +8,16 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import sys
 import os
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import io
-from random import shuffle
-import xml.etree.ElementTree as ET
-import copy
-import multiprocessing.managers
-import multiprocessing.pool
-from functools import partial
-import scipy.misc
+import xml.etree.ElementTree as et
+import threading
+import multiprocessing
+import signal
+import sys
+from datetime import datetime
+import time
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -30,25 +29,26 @@ import tensorflow as tf
 
 
 # parameters
-FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_integer('batch_size', 8,
-                            """Number of images to process in a batch.""")
-tf.app.flags.DEFINE_integer('image_width', 64,
-                            """Image Width.""")
-tf.app.flags.DEFINE_integer('image_height', 64,
-                            """Image Height.""")
-tf.app.flags.DEFINE_integer('num_processors', 8,
-                            """# of processors for batch generation.""")
-tf.app.flags.DEFINE_integer('min_length', 10,
-                            """minimum length of a line.""")
-tf.app.flags.DEFINE_integer('num_paths', 4,
-                            """# paths for batch generation""")
-tf.app.flags.DEFINE_integer('path_type', 2,
-                            """path type 0:line, 1:curve, 2:both""")
-tf.app.flags.DEFINE_integer('max_stroke_width', 2,
-                          """max stroke width""")
-tf.app.flags.DEFINE_boolean('use_two_channels', True,
-                            """use two channels for input""")
+flags = tf.app.flags
+flags.DEFINE_integer('batch_size', 16,
+                     """Number of images to process in a batch.""")
+flags.DEFINE_integer('image_width', 128,
+                     """Image Width.""")
+flags.DEFINE_integer('image_height', 96,
+                     """Image Height.""")
+flags.DEFINE_integer('num_threads', 8,
+                     """# of threads for batch generation.""")
+flags.DEFINE_integer('min_length', 10,
+                     """minimum length of a line.""")
+flags.DEFINE_integer('num_paths', 10,
+                     """# paths for batch generation""")
+flags.DEFINE_integer('path_type', 2,
+                     """path type 0:line, 1:curve, 2:all""")
+flags.DEFINE_integer('max_stroke_width', 2,
+                     """max stroke width""")
+flags.DEFINE_boolean('use_two_channels', True,
+                     """use two channels for input""")
+FLAGS = flags.FLAGS
 
 
 SVG_START_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
@@ -110,81 +110,94 @@ def _create_a_path(path_type, id, FLAGS):
     return path_selector[path_type](id, FLAGS.image_height, FLAGS.image_width, 
                                     FLAGS.min_length, FLAGS.max_stroke_width)
 
-
-class MPManager(multiprocessing.managers.SyncManager):
-    pass
-MPManager.register('np_empty', np.empty, multiprocessing.managers.ArrayProxy)
-
-
-class Param(object):
-    def __init__(self):
-        self.image_width = FLAGS.image_width
-        self.image_height = FLAGS.image_height
-        self.min_length = FLAGS.min_length
-        self.num_paths = FLAGS.num_paths
-        self.path_type = FLAGS.path_type
-        self.max_stroke_width = FLAGS.max_stroke_width
-
-
 class BatchManager(object):
     def __init__(self):
         self.num_examples_per_epoch = 1000
         self.num_epoch = 1
 
-        if FLAGS.num_processors > FLAGS.batch_size:
-            FLAGS.num_processors = FLAGS.batch_size
+        FLAGS.num_threads = np.amin([FLAGS.num_threads, multiprocessing.cpu_count(), FLAGS.batch_size])
 
-        if FLAGS.num_processors == 1:
-            self.s_batch = np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1], dtype=np.float)
-            self.x_batch = np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 2], dtype=np.float)
-            self.y_batch = np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1], dtype=np.float)
-        else:
-            self._mpmanager = MPManager()
-            self._mpmanager.start()
-            self._pool = multiprocessing.pool.Pool(processes=FLAGS.num_processors)
-            self._FLAGS = FLAGS
-            self.s_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1], dtype=np.float)
-            self.x_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 2], dtype=np.float)
-            self.y_batch = self._mpmanager.np_empty([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1], dtype=np.float)
-            self._func = partial(train_set, s_batch=self.s_batch, x_batch=self.x_batch, y_batch=self.y_batch, FLAGS=Param())
+        image_shape = [FLAGS.image_height, FLAGS.image_width, 1]
+        input_shape = [FLAGS.image_height, FLAGS.image_width, 2]
 
+        self._q = tf.FIFOQueue(FLAGS.batch_size*10, [tf.float32, tf.float32], 
+                               shapes=[input_shape, image_shape])
+
+        self._x = tf.placeholder(dtype=tf.float32, shape=input_shape)
+        self._y = tf.placeholder(dtype=tf.float32, shape=image_shape)
+        self._enqueue = self._q.enqueue([self._x, self._y])
 
     def __del__(self):
-        if FLAGS.num_processors > 1:
-            self._pool.terminate() # or close
-            self._pool.join()
-
+        try:
+            self.stop_thread()
+        except AttributeError:
+            pass
 
     def batch(self):
-        if FLAGS.num_processors == 1:
-            for i in xrange(FLAGS.batch_size):
-                train_set(i, self.s_batch, self.x_batch, self.y_batch, FLAGS)
-        else:
-            self._pool.map(self._func, range(FLAGS.batch_size))
+        return self._q.dequeue_many(FLAGS.batch_size)
 
-        return self.s_batch, self.x_batch, self.y_batch
+    def start_thread(self, sess):
+        print('%s: start to enque with %d threads' % (datetime.now(), FLAGS.num_threads))
+
+        # Main thread: create a coordinator.
+        self._sess = sess
+        self._coord = tf.train.Coordinator()
+
+        # Create a method for loading and enqueuing
+        def load_n_enqueue(sess, enqueue, coord, x, y, FLAGS):
+            with coord.stop_on_exception():
+                while not coord.should_stop():
+                    x_, y_ = preprocess(FLAGS)
+                    sess.run(enqueue, feed_dict={x: x_, y: y_})
+
+        # Create threads that enqueue
+        self._threads = [threading.Thread(target=load_n_enqueue, 
+                                          args=(self._sess, 
+                                                self._enqueue,
+                                                self._coord,
+                                                self._x,
+                                                self._y,
+                                                FLAGS)
+                                          ) for i in xrange(FLAGS.num_threads)]
+
+        # define signal handler
+        def signal_handler(signum,frame):
+            #print "stop training, save checkpoint..."
+            #saver.save(sess, "./checkpoints/VDSR_norm_clip_epoch_%03d.ckpt" % epoch ,global_step=global_step)
+            print('%s: canceled by SIGINT' % datetime.now())
+            self._coord.request_stop()
+            self._sess.run(self._q.close(cancel_pending_enqueues=True))
+            self._coord.join(self._threads)
+            sys.exit(1)
+        signal.signal(signal.SIGINT, signal_handler)
+
+        # Start the threads and wait for all of them to stop.
+        for t in self._threads:
+            t.start()
+
+    def stop_thread(self):
+        self._coord.request_stop()
+        self._sess.run(self._q.close(cancel_pending_enqueues=True))
+        self._coord.join(self._threads)
 
 
-
-def train_set(batch_id, s_batch, x_batch, y_batch, FLAGS):
-    np.random.seed()
-    
+def preprocess(FLAGS):
     while True:
         svg = SVG_START_TEMPLATE.format(
                     width=FLAGS.image_width,
                     height=FLAGS.image_height
                 )
-        y = np.zeros([FLAGS.image_height, FLAGS.image_width], dtype=np.int)
 
-        path_id = np.random.randint(FLAGS.num_paths)
-        for i in xrange(FLAGS.num_paths):
-            LINE1 = _create_a_path(FLAGS.path_type, i, FLAGS)
-            svg += LINE1
+        num_paths = np.random.randint(FLAGS.num_paths) + 1
+        path_id = np.random.randint(num_paths)
+        for i in xrange(num_paths):
+            LINE = _create_a_path(FLAGS.path_type, i, FLAGS)
+            svg += LINE
 
             svg_one_stroke = SVG_START_TEMPLATE.format(
                     width=FLAGS.image_width,
                     height=FLAGS.image_height
-                ) + LINE1 + SVG_END_TEMPLATE
+                ) + LINE + SVG_END_TEMPLATE
             
             if i == path_id:
                 y_png = cairosvg.svg2png(bytestring=svg_one_stroke.encode('utf-8'))
@@ -223,13 +236,12 @@ def train_set(batch_id, s_batch, x_batch, y_batch, FLAGS):
     point_id = np.random.randint(len(line_ids[0]))
     px, py = line_ids[0][point_id], line_ids[1][point_id]
 
-    s_batch[batch_id,:,:,0] = s
-    y_batch[batch_id,:,:,0] = y
-    
-    x_batch[batch_id,:,:,0] = s
-    x_point = np.zeros(s.shape)
-    x_point[px, py] = 1.0
-    x_batch[batch_id,:,:,1] = x_point
+    y = np.reshape(y, [FLAGS.image_height, FLAGS.image_width, 1])
+    x = np.zeros([FLAGS.image_height, FLAGS.image_width, 2])
+    x[:,:,0] = s
+    x[px,py,1] = 1.0
+
+    return x, y
 
 
 if __name__ == '__main__':
@@ -240,18 +252,36 @@ if __name__ == '__main__':
         os.chdir(working_path)
 
     # parameters 
-    # FLAGS.num_processors = 1
+    FLAGS.num_threads = 8
+
+    # # test
+    # x_, y_ = preprocess(FLAGS)
+
 
     batch_manager = BatchManager()
-    s_batch, x_batch, y_batch = batch_manager.batch()
-    
+    x, y = batch_manager.batch()
+
+    sess = tf.Session()
+    batch_manager.start_thread(sess)
+
+    test_iter = 1
+    start_time = time.time()
+    for _ in xrange(test_iter):
+        x_batch, y_batch = sess.run([x, y])
+    duration = time.time() - start_time
+    duration = duration / test_iter
+    batch_manager.stop_thread()
+    print ('%s: %.3f sec/batch' % (datetime.now(), duration))
+
+    x_batch = np.concatenate((x_batch, np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1])), axis=3)        
+    plt.figure()
     for i in xrange(FLAGS.batch_size):
-        plt.imshow(np.reshape(s_batch[i,:], [FLAGS.image_height, FLAGS.image_width]), cmap=plt.cm.gray)
-        plt.show()
-        t = np.concatenate((x_batch, np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1])), axis=3)
-        plt.imshow(t[i,:,:,:], cmap=plt.cm.gray)
-        plt.show()
-        plt.imshow(np.reshape(y_batch[i,:], [FLAGS.image_height, FLAGS.image_width]), cmap=plt.cm.gray)
+        x = np.reshape(x_batch[i,:], [FLAGS.image_height, FLAGS.image_width, 3])
+        y = np.reshape(y_batch[i,:], [FLAGS.image_height, FLAGS.image_width])
+        plt.subplot(121)
+        plt.imshow(x)
+        plt.subplot(122)
+        plt.imshow(y, cmap=plt.cm.gray)
         plt.show()
 
     print('Done')

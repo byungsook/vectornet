@@ -1,6 +1,14 @@
-python ovnet_eval.py --train_on=sketch --eval_dir=eval/no_trans_128/bicycle   --checkpoint_dir=model/no_trans_128/bicycle --transform=False --image_width=128 --image_height=96 --batch_size=8 --max_images=8 --num_epoch=1 --data_dir=../data/bicycle
-python ovnet_eval.py --train_on=sketch --eval_dir=eval/no_trans_128/car       --checkpoint_dir=model/no_trans_128/car     --transform=False --image_width=128 --image_height=96 --batch_size=8 --max_images=8 --num_epoch=1 --data_dir=../data/car
-python ovnet_eval.py --train_on=sketch --eval_dir=eval/no_trans_128/snail     --checkpoint_dir=model/no_trans_128/snail   --transform=False --image_width=128 --image_height=96 --batch_size=8 --max_images=8 --num_epoch=1 --data_dir=../data/snail
+# # new
+# python ovnet_eval.py --train_on=chinese --chinese1=True   --eval_dir=eval/iou_64/ch1   --data_dir=../data/chinese1 --pretrained_model_checkpoint_path=model/no_trans_64/ch1/ovnet.ckpt-50000 --batch_size=8 --max_images=8 --num_epoch=1 --transform=False  --threshold=0.5 --image_width=64 --image_height=64
+
+# # old
+# python ovnet_eval_old.py --train_on=chinese --chinese1=True   --eval_dir=eval/l2_64/ch1   --data_dir=../data/chinese1 --pretrained_model_checkpoint_path=model/l2_64/ch1/ovnet.ckpt --batch_size=8 --max_images=8 --num_epoch=1 --transform=False  --threshold=0.5 --image_width=64 --image_height=64
+# python ovnet_eval_old.py --train_on=chinese --chinese1=False  --eval_dir=eval/l2_64/ch2   --data_dir=../data/chinese2 --pretrained_model_checkpoint_path=model/l2_64/ch2/ovnet.ckpt --batch_size=8 --max_images=8 --num_epoch=1 --transform=False  --threshold=0.5 --image_width=64 --image_height=64
+# python ovnet_eval_old.py --train_on=line --eval_dir=eval/l2_64/line --pretrained_model_checkpoint_path=model/l2_64/line/ovnet.ckpt --batch_size=8 --max_images=8 --num_epoch=1 --threshold=0.5 --image_width=64 --image_height=64
+
+# python ovnet_eval.py --train_on=sketch --eval_dir=eval/no_trans_128/bicycle   --checkpoint_dir=model/no_trans_128/bicycle --transform=False --image_width=128 --image_height=96 --batch_size=8 --max_images=8 --num_epoch=1 --data_dir=../data/bicycle
+# python ovnet_eval.py --train_on=sketch --eval_dir=eval/no_trans_128/car       --checkpoint_dir=model/no_trans_128/car     --transform=False --image_width=128 --image_height=96 --batch_size=8 --max_images=8 --num_epoch=1 --data_dir=../data/car
+# python ovnet_eval.py --train_on=sketch --eval_dir=eval/no_trans_128/snail     --checkpoint_dir=model/no_trans_128/snail   --transform=False --image_width=128 --image_height=96 --batch_size=8 --max_images=8 --num_epoch=1 --data_dir=../data/snail
 
 # python ovnet_eval.py --train_on=sketch2 --eval_dir=eval/no_trans_128/sketch2_l --data_dir=../data/sketch_schneider_l --checkpoint_dir=log/no_trans_128/sketch2_l --image_width=128 --image_height=128 --batch_size=8 --max_images=8 --num_epoch=1 --transform=False
 # python ovnet_eval.py --train_on=sketch2 --eval_dir=eval/no_trans_128/sketch2 --data_dir=../data/sketch_schneider --checkpoint_dir=log/no_trans_128/sketch2 --image_width=128 --image_height=128 --batch_size=8 --max_images=8 --num_epoch=1 --transform=False

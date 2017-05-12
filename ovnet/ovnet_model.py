@@ -195,16 +195,17 @@ def inference(x, phase_train, model=1):
     return model_selector[model](x, phase_train)
 
 
-def loss(y_hat, y):
-    # y_hat: estimate, y: training set
-    # l2_loss = tf.multiply(tf.nn.l2_loss(y_hat - y), 1e-6, name='l2_loss')
-    # return l2_loss
-    logits = tf.reshape(y_hat, [-1])
-    labels = tf.reshape(y, [-1])
+def loss(y_hat, y, use_iou=True):
+    if use_iou:
+        logits = tf.reshape(y_hat, [-1])
+        labels = tf.reshape(y, [-1])
 
-    inter = tf.reduce_sum(tf.multiply(logits, labels))
-    union = tf.reduce_sum(tf.subtract(tf.add(logits, labels), tf.multiply(logits, labels)))
+        inter = tf.reduce_sum(tf.multiply(logits, labels))
+        union = tf.reduce_sum(tf.subtract(tf.add(logits, labels), tf.multiply(logits, labels)))
 
-    iou = tf.where(tf.equal(union, 0.), 1., tf.div(inter, union))
-    loss = tf.subtract(tf.constant(1.0, dtype=tf.float32), iou)
+        iou = tf.where(tf.equal(union, 0.), 1., tf.div(inter, union))
+        loss = tf.subtract(tf.constant(1.0, dtype=tf.float32), iou)
+    else:
+        # y_hat: estimate, y: training set
+        loss = tf.nn.l2_loss(y_hat - y)
     return loss

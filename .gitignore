@@ -15,6 +15,7 @@ data/bicycle
 data/car
 data/snail
 data/fidelity
+data/line_ov
 data_tmp/
 eval/
 test/

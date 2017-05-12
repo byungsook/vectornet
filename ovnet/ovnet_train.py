@@ -11,7 +11,6 @@ from __future__ import print_function
 from datetime import datetime
 import os
 import time
-import pprint
 
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import numpy as np
@@ -26,10 +25,10 @@ tf.app.flags.DEFINE_string('log_dir', 'log/test',
                            """and checkpoint.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
-tf.app.flags.DEFINE_string('checkpoint_dir', '',
+tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', '',
                            """If specified, restore this pretrained model """
                            """before beginning any training.
-                           e.g. log/second_train """)
+                           e.g. log/second_train/ovnet.ckpt """)
 tf.app.flags.DEFINE_integer('max_steps', 1, # 20000
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_integer('decay_steps', 30000,
@@ -56,13 +55,14 @@ tf.app.flags.DEFINE_boolean('transform', False,
                             """Whether to transform character.""")
 tf.app.flags.DEFINE_string('file_list', 'train.txt',
                            """file_list""")
+tf.app.flags.DEFINE_boolean('use_iou', True,
+                            """use iou loss.""")
+
 
 if FLAGS.train_on == 'chinese':
     import ovnet_data_chinese
 elif FLAGS.train_on == 'sketch':
     import ovnet_data_sketch
-elif FLAGS.train_on == 'sketch2':
-    import ovnet_data_sketch2
 elif FLAGS.train_on == 'hand':
     import ovnet_data_hand
 elif FLAGS.train_on == 'line':
@@ -81,29 +81,23 @@ def train():
         elif FLAGS.train_on == 'sketch':
             batch_manager = ovnet_data_sketch.BatchManager()
             print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
-        elif FLAGS.train_on == 'sketch2':
-            batch_manager = ovnet_data_sketch2.BatchManager()
-            print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
         elif FLAGS.train_on == 'hand':
             batch_manager = ovnet_data_hand.BatchManager()
             print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
         elif FLAGS.train_on == 'line':
             batch_manager = ovnet_data_line.BatchManager()
 
-        # print flags
-        flag_file_path = os.path.join(FLAGS.log_dir, 'flag.txt')
-        with open(flag_file_path, 'wt') as out:
-            pprint.PrettyPrinter(stream=out).pprint(FLAGS.__flags)
-
         is_train = True
         phase_train = tf.placeholder(tf.bool, name='phase_train')
 
+        x = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 1])
+        y = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 1])
+
         # Build a Graph that computes the logits predictions from the inference model.
-        x, y = batch_manager.batch()
         y_hat = ovnet_model.inference(x, phase_train)
 
         # Calculate loss.
-        loss = ovnet_model.loss(y_hat, y)
+        loss = ovnet_model.loss(y_hat, y, use_iou=FLAGS.use_iou)
 
         ###############################################################################
         # Build a Graph that trains the model with one batch of examples and
@@ -153,20 +147,16 @@ def train():
 
         ####################################################################
         # Start running operations on the Graph. 
-        config = tf.ConfigProto()
-        config.gpu_options.allow_growth = True
-        config.allow_soft_placement = True
-        config.log_device_placement = FLAGS.log_device_placement
-        sess = tf.Session(config=config)
+        sess = tf.Session(config=tf.ConfigProto(
+            log_device_placement=FLAGS.log_device_placement))
 
         # Create a saver (restorer).
         saver = tf.train.Saver()
-        ckpt = tf.train.get_checkpoint_state(FLAGS.checkpoint_dir)
-        if ckpt and FLAGS.checkpoint_dir:
-            ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
-            saver.restore(sess, os.path.join(FLAGS.checkpoint_dir, ckpt_name))
-            print('%s: Pre-trained model restored from %s' % 
-                (datetime.now(), ckpt_name))
+        if FLAGS.pretrained_model_checkpoint_path:
+            # assert tf.gfile.Exists(FLAGS.pretrained_model_checkpoint_path)
+            saver.restore(sess, FLAGS.pretrained_model_checkpoint_path)
+            print('%s: Pre-trained model restored from %s' %
+                (datetime.now(), FLAGS.pretrained_model_checkpoint_path))
         else:
             sess.run(tf.global_variables_initializer(), feed_dict={phase_train: is_train})
 
@@ -183,29 +173,28 @@ def train():
         ####################################################################
         # Start to train.
         print('%s: start to train' % datetime.now())
-        batch_manager.start_thread(sess)
-        epoch_per_step = float(FLAGS.batch_size) / batch_manager.num_examples_per_epoch
         start_step = tf.train.global_step(sess, global_step)
         for step in xrange(start_step, FLAGS.max_steps):
             # Train one step.
             start_time = time.time()
-            sess.run(train_op, feed_dict={phase_train: is_train})
+            x_batch, y_batch = batch_manager.batch()
+            _, loss_value = sess.run([train_op, loss], feed_dict={phase_train: is_train,
+                                                                  x: x_batch, y: y_batch})
             duration = time.time() - start_time
+
+            assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
 
             # Print statistics periodically.
             if step % FLAGS.stat_steps == 0 or step < 100:
-                loss_value = sess.run(loss, feed_dict={phase_train: is_train})
-                assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
                 examples_per_sec = FLAGS.batch_size / float(duration)
-                batch_manager.num_epoch = epoch_per_step*step
-                print('%s:[epoch %.2f][step %d/%d] loss = %.2f (%.3f sec/batch)' % 
-                    (datetime.now(), batch_manager.num_epoch, step, FLAGS.max_steps, loss_value, duration))
+                print('%s: step %d, loss = %.2f (%.1f examples/sec; %.3f sec/batch)' % 
+                    (datetime.now(), step, loss_value, examples_per_sec, duration))
 
             # Write the summary periodically.
             if step % FLAGS.summary_steps == 0 or step < 100:
                 summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
                     [summary_op, x_summary, y_summary, y_hat_summary],
-                    feed_dict={phase_train: is_train})
+                    feed_dict={phase_train: is_train, x: x_batch, y: y_batch})
                 summary_writer.add_summary(summary_str, step)
                 
                 x_summary_tmp = tf.Summary()
@@ -230,7 +219,6 @@ def train():
                 saver.save(sess, checkpoint_path, global_step=global_step)
 
         # tf.gfile.DeleteRecursively(FLAGS.data_dir)
-        batch_manager.stop_thread()
         print('done')
 
 

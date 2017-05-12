@@ -27,6 +27,8 @@ FLAGS = None
 def compare_potrace():
     num_files = 0
     file_path_list = []
+    # ########
+    # #### ch1, ch2
     # file_list_path = os.path.join(FLAGS.data_dir, FLAGS.file_list)
     # with open(file_list_path, 'r') as f:
     #     while True:
@@ -36,6 +38,9 @@ def compare_potrace():
     #         file = line.rstrip()
     #         file_path = os.path.join(FLAGS.data_dir, file)
     #         file_path_list.append(file_path)
+    # #### ch1, ch2
+    # ########
+    
     for root, _, files in os.walk(FLAGS.data_dir):
         for file in files:
             if not file.lower().endswith('svg'):
@@ -74,6 +79,8 @@ def compare_potrace():
 def svgpre2bmp(file_path):
     with open(file_path, 'r') as f:
         svg = f.read()
+        # ########
+        # #### ch1, ch2
         # num_path = svg.count('path d')
         # if num_path == 0:
         #     # c2
@@ -89,9 +96,11 @@ def svgpre2bmp(file_path):
         # svg = svg.format(
         #         w=FLAGS.image_width, h=FLAGS.image_height,
         #         r=r, sx=s[0], sy=s[1], tx=t[0], ty=t[1])
+        # #### ch1, ch2
+        # ########
         s_png = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
-        s_img = Image.open(io.BytesIO(s_png)).convert('L')
-        s = np.array(s_img).astype(np.float) # / 255.0
+        s_img = Image.open(io.BytesIO(s_png))
+        s = np.array(s_img)[:,:,3].astype(np.float) # / 255.0
         max_intensity = np.amax(s)
         s = s / max_intensity
         s = 1.0 - s
@@ -144,7 +153,7 @@ def compute_accuracy(file_path, svg_file_path):
 
     path_starts = []
     with open(svg_file_path, 'r') as f:
-        svg = f.read()        
+        svg = f.read()
         num_paths = svg.count('path')
 
     for i in xrange(num_paths):
@@ -213,6 +222,8 @@ def get_stroke_list(file_path):
     # line end
     ####
 
+    # ###
+    # ### ch1, ch2
     # chinese1 = False
     # if chinese1:
     #     r = 0
@@ -244,8 +255,7 @@ def get_stroke_list(file_path):
     #         y = (np.array(y_img)[:,:,3] > 0)
 
     #         # # debug
-    #         # y_img = np.array(y_img)[:,:,3].astype(np.float) / 255.0
-    #         # plt.imshow(y_img, cmap=plt.cm.gray)
+    #         # plt.imshow(y, cmap=plt.cm.gray)
     #         # plt.show()
 
     #         stroke_list.append(y)
@@ -272,12 +282,13 @@ def get_stroke_list(file_path):
     #         y = (np.array(y_img)[:,:,3] > 0)
 
     #         # # debug
-    #         # y_img = np.array(y_img)[:,:,3].astype(np.float) / 255.0
-    #         # plt.imshow(y_img, cmap=plt.cm.gray)
+    #         # plt.imshow(y, cmap=plt.cm.gray)
     #         # plt.show()
 
     #         stroke_list.append(y)
-
+    # ### ch1, ch2
+    # ###
+    
     return stroke_list
 
 

@@ -1,12 +1,46 @@
-# sketch
+# ch1 test again
+python vectorize.py --data_type=chinese --test_dir=result/overlap_gco/ch1_    --num_test_files=100 --image_height=64 --image_width=64 --pathnet_ckpt=pathnet/model/no_trans_64/ch1/pathnet.ckpt-50000    --ovnet_ckpt=ovnet/model/no_trans_64/ch1/ovnet.ckpt-50000   --find_overlap=True --data_dir=data/chinese1 --chinese1=True
+python postprocess_stat.py --stat_dir=result/overlap_gco/ch1_
+
+# # sketch
+# python vectorize.py --data_type=sketch --test_dir=result/no_overlap/bicycle_rl128  --pathnet_ckpt=pathnet/model/no_trans_128/line/pathnet.ckpt-50000 --data_dir=data/bicycle --num_test_files=100 --image_width=128 --image_height=96 --batch_size=128 --find_overlap=False
+# python postprocess_stat.py --stat_dir=result/no_overlap/bicycle_rl128
+
+# python vectorize.py --data_type=sketch --test_dir=result/no_overlap/bicycle_rl  --pathnet_ckpt=pathnet/model/no_trans_64/line/pathnet.ckpt-50000 --data_dir=data/bicycle --num_test_files=100 --image_width=128 --image_height=96 --batch_size=128 --find_overlap=False
+# python postprocess_stat.py --stat_dir=result/no_overlap/bicycle_rl
+# python vectorize.py --data_type=sketch --test_dir=result/overlap_gco/bicycle_rl --pathnet_ckpt=pathnet/model/no_trans_64/line/pathnet.ckpt-50000 --data_dir=data/bicycle --num_test_files=100 --image_width=128 --image_height=96 --batch_size=128 --find_overlap=True  --ovnet_ckpt=ovnet/model/no_trans_64/line/ovnet.ckpt-50000
+# python postprocess_stat.py --stat_dir=result/overlap_gco/bicycle_rl
+
+# python vectorize.py --data_type=sketch --test_dir=result/no_overlap/snail_rl  --pathnet_ckpt=pathnet/model/no_trans_64/line/pathnet.ckpt-50000 --data_dir=data/snail --num_test_files=100 --image_width=128 --image_height=96 --batch_size=128 --find_overlap=False
+# python postprocess_stat.py --stat_dir=result/no_overlap/snail_rl
+# python vectorize.py --data_type=sketch --test_dir=result/overlap_gco/snail_rl --pathnet_ckpt=pathnet/model/no_trans_64/line/pathnet.ckpt-50000 --data_dir=data/snail --num_test_files=100 --image_width=128 --image_height=96 --batch_size=128 --find_overlap=True  --ovnet_ckpt=ovnet/model/no_trans_64/line/ovnet.ckpt-50000
+# python postprocess_stat.py --stat_dir=result/overlap_gco/snail_rl
+
+
+# python vectorize.py --data_type=sketch --test_dir=result/no_overlap/bicycle  --pathnet_ckpt=pathnet/model/no_trans_128/bicycle/pathnet.ckpt-50000 --data_dir=data/bicycle --num_test_files=100 --image_width=128 --image_height=96 --batch_size=128 --find_overlap=False
+# python postprocess_stat.py --stat_dir=result/no_overlap/bicycle
+# python vectorize.py --data_type=sketch --test_dir=result/overlap_gco/bicycle --pathnet_ckpt=pathnet/model/no_trans_128/bicycle/pathnet.ckpt-50000 --data_dir=data/bicycle --num_test_files=100 --image_width=128 --image_height=96 --batch_size=128 --find_overlap=True  --ovnet_ckpt=ovnet/model/no_trans_128/bicycle/ovnet.ckpt-50000
+# python postprocess_stat.py --stat_dir=result/overlap_gco/bicycle
+
+# python vectorize.py --data_type=sketch --test_dir=result/no_overlap/car  --pathnet_ckpt=pathnet/model/no_trans_128/car/pathnet.ckpt-45000 --data_dir=data/car --num_test_files=100 --image_width=128 --image_height=96 --batch_size=128 --find_overlap=False
+# python postprocess_stat.py --stat_dir=result/no_overlap/car
+# python vectorize.py --data_type=sketch --test_dir=result/overlap_gco/car --pathnet_ckpt=pathnet/model/no_trans_128/car/pathnet.ckpt-45000 --data_dir=data/car --num_test_files=100 --image_width=128 --image_height=96 --batch_size=128 --find_overlap=True  --ovnet_ckpt=ovnet/model/no_trans_128/car/ovnet.ckpt-50000
+# python postprocess_stat.py --stat_dir=result/overlap_gco/car
+
+# python vectorize.py --data_type=sketch --test_dir=result/no_overlap/snail  --pathnet_ckpt=pathnet/model/no_trans_128/snail/pathnet.ckpt-50000 --data_dir=data/snail --num_test_files=100 --image_width=128 --image_height=96 --batch_size=128 --find_overlap=False
+# python postprocess_stat.py --stat_dir=result/no_overlap/snail
+# python vectorize.py --data_type=sketch --test_dir=result/overlap_gco/snail --pathnet_ckpt=pathnet/model/no_trans_128/snail/pathnet.ckpt-50000 --data_dir=data/snail --num_test_files=100 --image_width=128 --image_height=96 --batch_size=128 --find_overlap=True  --ovnet_ckpt=ovnet/model/no_trans_128/snail/ovnet.ckpt-50000
+# python postprocess_stat.py --stat_dir=result/overlap_gco/snail
+
+
 # python vectorize.py --data_type=sketch --test_dir=result/no_overlap/bicycle_tr  --num_test_files=100 --image_width=128 --image_height=96 --pathnet_ckpt=pathnet/model/no_trans_128/bicycle/pathnet.ckpt-50000  --find_overlap=False --data_dir=data/bicycle --batch_size=128 --file_list=train.txt
 # python vectorize.py --data_type=sketch --test_dir=result/overlap_gco/bicycle_tr --num_test_files=100 --image_width=128 --image_height=96 --pathnet_ckpt=pathnet/model/no_trans_128/bicycle/pathnet.ckpt-50000   --ovnet_ckpt=ovnet/model/no_trans_128/bicycle/ovnet.ckpt-50000   --find_overlap=True  --data_dir=data/bicycle --batch_size=128 --file_list=train.txt
-python postprocess_stat.py --stat_dir=result/no_overlap/bicycle_tr
+# python postprocess_stat.py --stat_dir=result/no_overlap/bicycle_tr
 # python postprocess_stat.py --stat_dir=result/overlap_gco/bicycle_tr
 
 # python vectorize.py --data_type=sketch --test_dir=result/no_overlap/bicycle  --num_test_files=100 --image_width=128 --image_height=96 --pathnet_ckpt=pathnet/model/no_trans_128/bicycle/pathnet.ckpt-50000   --find_overlap=False --data_dir=data/bicycle --batch_size=128
 # python vectorize.py --data_type=sketch2 --test_dir=result/overlap_gco/bicycle --num_test_files=100 --image_width=128 --image_height=96 --pathnet_ckpt=pathnet/model/no_trans_128/bicycle/pathnet.ckpt-50000   --ovnet_ckpt=ovnet/model/no_trans_128/bibycle/ovnet.ckpt-50000   --find_overlap=True  --data_dir=data/bicycle --batch_size=128
-python postprocess_stat.py --stat_dir=result/no_overlap/bicycle
+# python postprocess_stat.py --stat_dir=result/no_overlap/bicycle
 # python postprocess_stat.py --stat_dir=result/overlap_gco/bicycle
 
 

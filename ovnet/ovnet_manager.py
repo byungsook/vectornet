@@ -10,6 +10,7 @@ from __future__ import print_function
 
 from datetime import datetime
 
+from six.moves import xrange  # pylint: disable=redefined-builtin
 import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
@@ -34,11 +35,14 @@ class OvnetManager(object):
     def __init__(self, img_shape, crop_size=-1):
         self._h = img_shape[0]
         self._w = img_shape[1]
-        self._crop_size = crop_size
+        self.crop_size = crop_size
         self._graph = tf.Graph()
         with self._graph.as_default():
             self._phase_train = tf.placeholder(tf.bool, name='phase_train')
-            self._x = tf.placeholder(dtype=tf.float32, shape=[None, self._h, self._w, 1])
+            if self.crop_size == -1:
+                self._x = tf.placeholder(dtype=tf.float32, shape=[None, self._h, self._w, 1])
+            else:
+                self._x = tf.placeholder(dtype=tf.float32, shape=[None, self.crop_size, self.crop_size, 1])
             self._y_hat = ovnet.ovnet_model.inference(self._x, self._phase_train)
             
             config = tf.ConfigProto()
@@ -75,3 +79,75 @@ class OvnetManager(object):
             y = np.reshape(y_hat_batch[0,:,:,0], [img.shape[0], img.shape[1]])
             y = (scipy.stats.threshold(y, threshmin=FLAGS.threshold, newval=0) > 0)
             return y
+
+    def overlap_crop(self, img, batch_size):
+        """extract by cropping"""
+
+        dist = center = int((self.crop_size - 1) / 2)
+
+        path_pixels = np.nonzero(img)
+        num_path_pixels = len(path_pixels[0]) 
+        assert(num_path_pixels > 0)
+
+        id_start = 0
+        id_end = min(batch_size, num_path_pixels)
+
+        y = np.zeros([self._h, self._w])
+        while True:
+            bs = min(batch_size, id_end - id_start)
+
+            x_batch = np.zeros([batch_size, self.crop_size, self.crop_size, 1])
+            for i in xrange(bs):
+                px, py = path_pixels[0][id_start+i], path_pixels[1][id_start+i]
+                cx_start = px - dist
+                cx_end = px + dist + 1
+                dx1 = dist
+                dx2 = dist + 1
+                if cx_start < 0:
+                    cx_start = 0
+                    dx1 = px - cx_start
+                elif cx_end >= self._h:
+                    cx_end = self._h
+                    dx2 = cx_end - px
+                
+                cy_start = py - dist
+                cy_end = py + dist + 1
+                dy1 = dist
+                dy2 = dist + 1
+                if cy_start < 0:
+                    cy_start = 0
+                    dy1 = py - cy_start
+                elif cy_end >= self._w:
+                    cy_end = self._w
+                    dy2 = cy_end - py
+                
+                bx_start = center - dx1
+                bx_end = center + dx2
+                by_start = center - dy1
+                by_end = center + dy2
+                try:
+                    x_batch[i,bx_start:bx_end,by_start:by_end,0] = img[cx_start:cx_end, cy_start:cy_end]
+                except:
+                    print(bx_start,bx_end,by_start,by_end)
+                    print(cx_start,cx_end,cy_start,cy_end)
+                    
+            with self._graph.as_default():
+                y_batch_ = self._sess.run(self._y_hat, feed_dict={self._phase_train: False, self._x: x_batch})
+            
+                # # debug
+                # y_vis = np.reshape(y_batch[0,:,:,:], [self.crop_size, self.crop_size])
+                # plt.imshow(y_vis, cmap=plt.cm.gray)
+                # plt.show()
+
+                y_center = y_batch_[:,center,center,0]
+                y_overlap = np.where(y_center > FLAGS.threshold)[0]
+                if len(y_overlap) > 0:
+                    y[path_pixels[0][y_overlap+id_start], path_pixels[1][y_overlap+id_start]] = 1
+
+            if id_end == num_path_pixels:
+                break
+            else:
+                id_start = id_end
+                id_end = min(id_end + batch_size, num_path_pixels)
+
+        return y

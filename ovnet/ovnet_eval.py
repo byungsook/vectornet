@@ -125,7 +125,7 @@ def evaluate():
             total_acc = 0
             for step in range(num_iter):
                 start_time = time.time()
-                loss_value = sess.run([loss, y_hat], feed_dict={phase_train: is_train})
+                loss_value = sess.run(loss, feed_dict={phase_train: is_train})
                 acc = 1.0 - loss_value                
                 total_acc += acc
                 duration = time.time() - start_time
@@ -136,7 +136,7 @@ def evaluate():
 
                 acc_summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
                     [acc_summary, x_summary, y_summary, y_hat_summary],
-                    feed_dict={acc_ph: acc})
+                    feed_dict={phase_train: is_train, acc_ph: acc})
                 summary_writer.add_summary(acc_summary_str, step)
 
                 x_summary_tmp = tf.Summary()
@@ -156,7 +156,7 @@ def evaluate():
                 summary_y_hat_writer.add_summary(y_hat_summary_tmp, step)
 
             batch_manager.stop_thread()
-            
+
             # Compute precision
             acc_avg = total_acc / num_iter
             print('%s: IoU accuracy avg %.3f' % (datetime.now(), acc_avg))

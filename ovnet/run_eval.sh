@@ -1,4 +1,8 @@
-python ovnet_eval.py --train_on=sketch2 --eval_dir=eval/no_trans_128/sketch2_l --data_dir=../data/sketch_schneider_l --checkpoint_dir=log/no_trans_128/sketch2_l --image_width=128 --image_height=128 --batch_size=8 --max_images=8 --num_epoch=1 --transform=False
+python ovnet_eval.py --train_on=sketch --eval_dir=eval/no_trans_128/bicycle   --checkpoint_dir=model/no_trans_128/bicycle --transform=False --image_width=128 --image_height=96 --batch_size=8 --max_images=8 --num_epoch=1 --data_dir=../data/bicycle
+python ovnet_eval.py --train_on=sketch --eval_dir=eval/no_trans_128/car       --checkpoint_dir=model/no_trans_128/car     --transform=False --image_width=128 --image_height=96 --batch_size=8 --max_images=8 --num_epoch=1 --data_dir=../data/car
+python ovnet_eval.py --train_on=sketch --eval_dir=eval/no_trans_128/snail     --checkpoint_dir=model/no_trans_128/snail   --transform=False --image_width=128 --image_height=96 --batch_size=8 --max_images=8 --num_epoch=1 --data_dir=../data/snail
+
+# python ovnet_eval.py --train_on=sketch2 --eval_dir=eval/no_trans_128/sketch2_l --data_dir=../data/sketch_schneider_l --checkpoint_dir=log/no_trans_128/sketch2_l --image_width=128 --image_height=128 --batch_size=8 --max_images=8 --num_epoch=1 --transform=False
 # python ovnet_eval.py --train_on=sketch2 --eval_dir=eval/no_trans_128/sketch2 --data_dir=../data/sketch_schneider --checkpoint_dir=log/no_trans_128/sketch2 --image_width=128 --image_height=128 --batch_size=8 --max_images=8 --num_epoch=1 --transform=False
 
 # # 21-03-17 Tue. After training on IoU metric

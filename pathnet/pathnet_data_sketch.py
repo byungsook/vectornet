@@ -39,7 +39,7 @@ flags.DEFINE_integer('image_width', 128,
                      """Image Width.""")
 flags.DEFINE_integer('image_height', 96,
                      """Image Height.""")
-flags.DEFINE_integer('num_threads', multiprocessing.cpu_count(),
+flags.DEFINE_integer('num_threads', 8,
                      """# of threads for batch generation.""")
 flags.DEFINE_boolean('use_two_channels', True,
                      """use two channels for input""")
@@ -78,7 +78,7 @@ class BatchManager(object):
         self.num_examples_per_epoch = len(self._data_list)
         self.num_epoch = 1
 
-        FLAGS.num_threads = np.amin([FLAGS.num_threads, FLAGS.batch_size])
+        FLAGS.num_threads = np.amin([multiprocessing.cpu_count(), FLAGS.batch_size])
 
 
         image_shape = [FLAGS.image_height, FLAGS.image_width, 1]

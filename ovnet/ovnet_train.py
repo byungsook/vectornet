@@ -98,6 +98,7 @@ def train():
 
         # Calculate loss.
         loss = ovnet_model.loss(y_hat, y, use_iou=FLAGS.use_iou)
+        iou_loss = ovnet_model.loss(y_hat, y, use_iou=True)
 
         ###############################################################################
         # Build a Graph that trains the model with one batch of examples and
@@ -178,8 +179,8 @@ def train():
             # Train one step.
             start_time = time.time()
             x_batch, y_batch = batch_manager.batch()
-            _, loss_value = sess.run([train_op, loss], feed_dict={phase_train: is_train,
-                                                                  x: x_batch, y: y_batch})
+            _, loss_value, iou_loss_ = sess.run([train_op, loss, iou_loss], feed_dict={phase_train: is_train,
+                                                                                       x: x_batch, y: y_batch})
             duration = time.time() - start_time
 
             assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
@@ -187,8 +188,8 @@ def train():
             # Print statistics periodically.
             if step % FLAGS.stat_steps == 0 or step < 100:
                 examples_per_sec = FLAGS.batch_size / float(duration)
-                print('%s: step %d, loss = %.2f (%.1f examples/sec; %.3f sec/batch)' % 
-                    (datetime.now(), step, loss_value, examples_per_sec, duration))
+                print('%s: step %d, loss = %.2f, acc_iou = %.2f (%.1f examples/sec; %.3f sec/batch)' % 
+                    (datetime.now(), step, loss_value, 1.0-iou_loss_, examples_per_sec, duration))
 
             # Write the summary periodically.
             if step % FLAGS.summary_steps == 0 or step < 100:

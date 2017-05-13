@@ -18,7 +18,7 @@ import numpy as np
 from scipy.stats import threshold
 import tensorflow as tf
 
-import ovnet_model
+import ovnet_model_old
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
@@ -41,6 +41,8 @@ tf.app.flags.DEFINE_integer('num_epoch', 10,
                             """# epoch""")
 tf.app.flags.DEFINE_float('min_prop', 0.0,
                           """min_prop""")
+tf.app.flags.DEFINE_float('threshold', 0.5,
+                          """threshold""")
 
 if FLAGS.train_on == 'chinese':
     import ovnet_data_chinese
@@ -70,19 +72,16 @@ def evaluate():
             batch_manager = ovnet_data_line.BatchManager()
 
         global_step = tf.Variable(0, name='global_step', trainable=False)
-        is_train = False
+        is_train = True
         phase_train = tf.placeholder(tf.bool, name='phase_train')
 
         x = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 1])
         y = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.image_height, FLAGS.image_width, 1])
         
         # Build a Graph that computes the logits predictions from the inference model.
-        y_hat = ovnet_model.inference(x, phase_train)
+        y_hat = ovnet_model_old.inference(x, phase_train)
 
-        # Calculate loss.
-        loss = ovnet_model.loss(y_hat, y)
-
-        # Restore the moving average version of the learned variables for eval.
+        # # Restore the moving average version of the learned variables for eval.
         # variable_averages = tf.train.ExponentialMovingAverage(FLAGS.moving_avg_decay)
         # variables_to_restore = variable_averages.variables_to_restore()
         # saver = tf.train.Saver(variables_to_restore)
@@ -121,8 +120,21 @@ def evaluate():
             for step in range(num_iter):
                 start_time = time.time()
                 x_batch, y_batch = batch_manager.batch()
-                y_hat_value, loss_value = sess.run([y_hat, loss], feed_dict={phase_train: is_train, x: x_batch, y: y_batch})
-                acc = 1.0 - loss_value                
+                y_hat_value = sess.run(y_hat, feed_dict={phase_train: is_train, x: x_batch, y: y_batch})
+
+                # threshold with prob 0.9, compute IoU
+                y_hat_value = threshold(y_hat_value, threshmin=FLAGS.threshold*1000, newval=0)
+                y_I = np.logical_and(y_batch, y_hat_value)
+                y_I_sum = np.sum(y_I, axis=(1, 2, 3))
+                y_U = np.logical_or(y_batch, y_hat_value)
+                y_U_sum = np.sum(y_U, axis=(1, 2, 3))
+                # print(y_I_sum, y_U_sum)
+                nonzero_id = np.where(y_U_sum != 0)[0]
+                if nonzero_id.shape[0] == 0:
+                    acc = 1.0
+                else:
+                    acc = np.average(y_I_sum[nonzero_id] / y_U_sum[nonzero_id])
+
                 total_acc += acc
                 duration = time.time() - start_time
                 examples_per_sec = FLAGS.batch_size / float(duration)

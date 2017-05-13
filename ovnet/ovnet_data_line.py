@@ -75,8 +75,8 @@ class Param(object):
 
 def _create_a_line(id, image_height, image_width, min_length, max_stroke_width):
     stroke_color = np.random.randint(240, size=3)
-    # stroke_width = np.random.rand() * max_stroke_width + 2
-    stroke_width = max_stroke_width
+    stroke_width = np.random.rand() * max_stroke_width + 2 # min: 2
+    # stroke_width = max_stroke_width
     while True:
         x = np.random.randint(low=0, high=image_width, size=2)
         y = np.random.randint(low=0, high=image_height, size=2)
@@ -97,8 +97,8 @@ def _create_a_cubic_bezier_curve(id, image_height, image_width, min_length, max_
     x = np.random.randint(low=0, high=image_width, size=4)
     y = np.random.randint(low=0, high=image_height, size=4)
     stroke_color = np.random.randint(240, size=3)
-    # stroke_width = np.random.rand() * max_stroke_width + 2
-    stroke_width = max_stroke_width
+    stroke_width = np.random.rand() * max_stroke_width + 2 # min: 2
+    # stroke_width = max_stroke_width
 
     return SVG_CUBIC_BEZIER_TEMPLATE.format(
         id=id,

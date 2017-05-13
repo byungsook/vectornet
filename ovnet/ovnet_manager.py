@@ -52,10 +52,10 @@ class OvnetManager(object):
             self._sess = tf.Session(config=config)
             
             global_step = tf.Variable(0, name='global_step', trainable=False)
-            # saver = tf.train.Saver()
-            variable_averages = tf.train.ExponentialMovingAverage(FLAGS.moving_avg_decay)
-            variables_to_restore = variable_averages.variables_to_restore()
-            saver = tf.train.Saver(variables_to_restore)
+            saver = tf.train.Saver()
+            # variable_averages = tf.train.ExponentialMovingAverage(FLAGS.moving_avg_decay)
+            # variables_to_restore = variable_averages.variables_to_restore()
+            # saver = tf.train.Saver(variables_to_restore)
             saver.restore(self._sess, FLAGS.ovnet_ckpt)
             print('%s: Pre-trained model restored from %s' % (datetime.now(), FLAGS.ovnet_ckpt))
 
@@ -96,7 +96,7 @@ class OvnetManager(object):
         while True:
             bs = min(batch_size, id_end - id_start)
 
-            x_batch = np.zeros([batch_size, self.crop_size, self.crop_size, 1])
+            x_batch = np.zeros([bs, self.crop_size, self.crop_size, 1])
             for i in xrange(bs):
                 px, py = path_pixels[0][id_start+i], path_pixels[1][id_start+i]
                 cx_start = px - dist

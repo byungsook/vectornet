@@ -167,7 +167,7 @@ class PathnetManager(object):
         while True:
             bs = min(batch_size, id_end - id_start)
 
-            x_batch = np.zeros([batch_size, self.crop_size, self.crop_size, 2])
+            x_batch = np.zeros([bs, self.crop_size, self.crop_size, 2])
             x_batch[:,center,center,1] = 1.0
             for i in xrange(bs):
                 px, py = path_pixels[0][id_start+i], path_pixels[1][id_start+i]

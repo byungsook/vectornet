@@ -1,9 +1,9 @@
 # python ovnet_train.py --train_on=line    --log_dir=log/iou_64/line --max_steps=50000 --transform=False --image_width=64 --image_height=64 --batch_size=8 --use_iou=True --path_type=0 --num_paths=4 --max_stroke_width=5
 # ./run_eval.sh
 # ../run_png.sh
-python ovnet_train.py --train_on=chinese --log_dir=log/l2_64/ch1  --max_steps=10 --transform=False --image_width=64 --image_height=64 --batch_size=8 --use_iou=False --data_dir=../data/chinese1 --chinese1=True
-python ovnet_train.py --train_on=chinese --log_dir=log/l2_64/ch2  --max_steps=10 --transform=False --image_width=64 --image_height=64 --batch_size=8 --use_iou=False --data_dir=../data/chinese2 --chinese1=False
-python ovnet_train.py --train_on=line    --log_dir=log/l2_64/line --max_steps=10 --transform=False --image_width=64 --image_height=64 --batch_size=8 --use_iou=False
+# python ovnet_train.py --train_on=chinese --log_dir=log/l2_64/ch1  --max_steps=50000 --transform=False --image_width=64 --image_height=64 --batch_size=8 --use_iou=False --data_dir=../data/chinese1 --chinese1=True
+# python ovnet_train.py --train_on=chinese --log_dir=log/l2_64/ch2  --max_steps=50000 --transform=False --image_width=64 --image_height=64 --batch_size=8 --use_iou=False --data_dir=../data/chinese2 --chinese1=False
+python ovnet_train.py --train_on=line    --log_dir=log/l2_64/line --max_steps=50000 --transform=False --image_width=64 --image_height=64 --batch_size=8 --use_iou=False
 
 
 # python ovnet_train.py --train_on=sketch2 --log_dir=log/no_trans_128/sketch2_l --max_steps=50000 --transform=False --image_width=128 --image_height=128 --batch_size=8 --data_dir=../data/sketch_schneider_l

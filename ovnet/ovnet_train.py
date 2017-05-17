@@ -97,8 +97,8 @@ def train():
         y_hat = ovnet_model.inference(x, phase_train)
 
         # Calculate loss.
-        loss = ovnet_model.loss(y_hat, y, use_iou=FLAGS.use_iou)
         iou_loss = ovnet_model.loss(y_hat, y, use_iou=True)
+        l2_loss = ovnet_model.loss(y_hat, y, use_iou=False)
 
         ###############################################################################
         # Build a Graph that trains the model with one batch of examples and
@@ -107,12 +107,19 @@ def train():
 
         # Compute the moving average of all individual losses and the total loss.
         loss_averages = tf.train.ExponentialMovingAverage(0.9, name='avg')
-        loss_averages_op = loss_averages.apply([loss])
+        if FLAGS.use_iou:
+            loss_averages_op = loss_averages.apply([iou_loss])
+        else:
+            loss_averages_op = loss_averages.apply([l2_loss])
 
         # Name each loss as '(raw)' and name the moving average version of the loss
         # as the original loss name.
-        tf.summary.scalar(loss.op.name + ' (raw)', loss)
-        tf.summary.scalar(loss.op.name, loss_averages.average(loss))
+        tf.summary.scalar(iou_loss.op.name + ' (raw)', iou_loss)
+        tf.summary.scalar(l2_loss.op.name + ' (raw)', l2_loss)
+        if FLAGS.use_iou:
+            tf.summary.scalar(iou_loss.op.name, loss_averages.average(iou_loss))
+        else:
+            tf.summary.scalar(l2_loss.op.name, loss_averages.average(l2_loss))
 
         # Decay the learning rate exponentially based on the number of steps.
         learning_rate = tf.train.exponential_decay(FLAGS.initial_learning_rate,
@@ -127,7 +134,10 @@ def train():
         # Compute gradients.
         with tf.control_dependencies([loss_averages_op]):
             opt = tf.train.AdamOptimizer(learning_rate)
-            grads = opt.compute_gradients(loss)
+            if FLAGS.use_iou:
+                grads = opt.compute_gradients(iou_loss)
+            else:
+                grads = opt.compute_gradients(l2_loss)
             max_grad = FLAGS.clip_gradients / learning_rate
             grads = [(tf.clip_by_value(grad, -max_grad, max_grad), var) for grad, var in grads]
 
@@ -179,17 +189,17 @@ def train():
             # Train one step.
             start_time = time.time()
             x_batch, y_batch = batch_manager.batch()
-            _, loss_value, iou_loss_ = sess.run([train_op, loss, iou_loss], feed_dict={phase_train: is_train,
-                                                                                       x: x_batch, y: y_batch})
+            _, iou_loss_, l2_loss_ = sess.run([train_op, iou_loss, l2_loss], 
+                                           feed_dict={phase_train: is_train, x: x_batch, y: y_batch})
             duration = time.time() - start_time
 
-            assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
+            assert not np.isnan(iou_loss_) and not np.isnan(l2_loss_), 'Model diverged with loss = NaN'
 
             # Print statistics periodically.
             if step % FLAGS.stat_steps == 0 or step < 100:
                 examples_per_sec = FLAGS.batch_size / float(duration)
-                print('%s: step %d, loss = %.2f, acc_iou = %.2f (%.1f examples/sec; %.3f sec/batch)' % 
-                    (datetime.now(), step, loss_value, 1.0-iou_loss_, examples_per_sec, duration))
+                print('%s: step %d, acc_iou = %.2f, l2 = %.2f (%.1f examples/sec; %.3f sec/batch)' % 
+                    (datetime.now(), step, 1.0-iou_loss_, l2_loss_, examples_per_sec, duration))
 
             # Write the summary periodically.
             if step % FLAGS.summary_steps == 0 or step < 100:

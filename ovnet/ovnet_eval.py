@@ -80,7 +80,9 @@ def evaluate():
         y_hat = ovnet_model.inference(x, phase_train)
 
         # Calculate loss.
-        loss = ovnet_model.loss(y_hat, y)
+        loss = ovnet_model.loss(y_hat, y, use_iou=True)
+        l2_loss = ovnet_model.loss(y_hat, y, use_iou=False)
+
 
         # Restore the moving average version of the learned variables for eval.
         # variable_averages = tf.train.ExponentialMovingAverage(FLAGS.moving_avg_decay)
@@ -97,6 +99,12 @@ def evaluate():
 
         acc_avg_ph = tf.placeholder(tf.float32)
         acc_avg_summary = tf.summary.scalar('IoU accuracy (avg)', acc_avg_ph)
+
+        l2_ph = tf.placeholder(tf.float32)
+        l2_summary = tf.summary.scalar('L2 loss (raw)', l2_ph)
+
+        l2_avg_ph = tf.placeholder(tf.float32)
+        l2_avg_summary = tf.summary.scalar('L2 loss (avg)', l2_avg_ph)
 
         summary_y_writer = tf.summary.FileWriter(FLAGS.eval_dir + '/y', g)
         summary_y_hat_writer = tf.summary.FileWriter(FLAGS.eval_dir + '/y_hat', g)
@@ -118,21 +126,24 @@ def evaluate():
             num_iter = int(math.ceil(num_eval / FLAGS.batch_size))
             print('total iter: %d' % num_iter)
             total_acc = 0
+            total_l2 = 0
             for step in range(num_iter):
                 start_time = time.time()
                 x_batch, y_batch = batch_manager.batch()
-                y_hat_value, loss_value = sess.run([y_hat, loss], feed_dict={phase_train: is_train, x: x_batch, y: y_batch})
-                acc = 1.0 - loss_value                
+                y_hat_, loss_, l2_loss_ = sess.run([y_hat, loss, l2_loss], feed_dict={phase_train: is_train, x: x_batch, y: y_batch})
+                acc = 1.0 - loss_
                 total_acc += acc
+                total_l2 += l2_loss_
                 duration = time.time() - start_time
                 examples_per_sec = FLAGS.batch_size / float(duration)
-                print('%s: epoch %d, process %.2f%%, acc %.2f (%.1f ex./sec; %.3f sec/batch)' % (
-                        datetime.now(), batch_manager.num_epoch, step/float(num_iter)*100, acc, examples_per_sec, duration))
+                print('%s: epoch %d, process %.2f%%, acc %.2f l2 %.3f (%.1f ex./sec; %.3f sec/batch)' % (
+                        datetime.now(), batch_manager.num_epoch, step/float(num_iter)*100, acc, l2_loss_, examples_per_sec, duration))
 
-                acc_summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
-                    [acc_summary, x_summary, y_summary, y_hat_summary],
-                    feed_dict={acc_ph: acc, x: x_batch, y: y_batch, y_hat_ph: y_hat_value})
+                acc_summary_str, l2_summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
+                    [acc_summary, l2_summary, x_summary, y_summary, y_hat_summary],
+                    feed_dict={acc_ph: acc, l2_ph: l2_loss_, x: x_batch, y: y_batch, y_hat_ph: y_hat_})
                 summary_writer.add_summary(acc_summary_str, step)
+                summary_writer.add_summary(l2_summary_str, step)
 
                 x_summary_tmp = tf.Summary()
                 y_summary_tmp = tf.Summary()
@@ -157,6 +168,12 @@ def evaluate():
             acc_avg_summary_str = sess.run(acc_avg_summary, feed_dict={acc_avg_ph: acc_avg})
             g_step = tf.train.global_step(sess, global_step)
             summary_writer.add_summary(acc_avg_summary_str, g_step)
+
+            l2_avg = total_l2 / num_iter
+            print('%s: L2 loss avg %.3f' % (datetime.now(), l2_avg))
+
+            l2_avg_summary_str = sess.run(l2_avg_summary, feed_dict={l2_avg_ph: l2_avg})
+            summary_writer.add_summary(l2_avg_summary_str, g_step)
 
     print('done')
 

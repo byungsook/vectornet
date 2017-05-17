@@ -1,4 +1,13 @@
-python ovnet_eval.py --train_on=line --eval_dir=eval/iou_64/line  --pretrained_model_checkpoint_path=model/no_trans_64/line2/ovnet.ckpt-50000 --batch_size=8 --max_images=8 --num_epoch=1 --transform=False --image_width=64 --image_height=64  --path_type=0 --num_paths=4 --max_stroke_width=5
+# python ovnet_eval.py --train_on=chinese --chinese1=True   --eval_dir=eval/l2_64/ch1   --data_dir=../data/chinese1 --pretrained_model_checkpoint_path=model/l2_64/ch1/ovnet.ckpt-50000 --batch_size=8 --max_images=8 --num_epoch=1 --transform=False  --threshold=0.5 --image_width=64 --image_height=64
+# python ovnet_eval.py --train_on=chinese --chinese1=False  --eval_dir=eval/l2_64/ch2   --data_dir=../data/chinese2 --pretrained_model_checkpoint_path=model/l2_64/ch2/ovnet.ckpt-50000 --batch_size=8 --max_images=8 --num_epoch=1 --transform=False  --threshold=0.5 --image_width=64 --image_height=64
+python ovnet_eval.py --train_on=line --eval_dir=eval/l2_64/line --pretrained_model_checkpoint_path=model/l2_64/line/ovnet.ckpt-50000 --batch_size=8 --max_images=8 --num_epoch=1 --threshold=0.5 --image_width=64 --image_height=64
+
+# python ovnet_eval.py --train_on=chinese --chinese1=True   --eval_dir=eval/iou_64/ch1   --data_dir=../data/chinese1 --pretrained_model_checkpoint_path=model/no_trans_64/ch1/ovnet.ckpt-50000 --batch_size=8 --max_images=8 --num_epoch=1 --transform=False  --threshold=0.5 --image_width=64 --image_height=64
+# python ovnet_eval.py --train_on=chinese --chinese1=False  --eval_dir=eval/iou_64/ch2   --data_dir=../data/chinese2 --pretrained_model_checkpoint_path=model/no_trans_64/ch2/ovnet.ckpt-50000 --batch_size=8 --max_images=8 --num_epoch=1 --transform=False  --threshold=0.5 --image_width=64 --image_height=64
+python ovnet_eval.py --train_on=line --eval_dir=eval/iou_64/line --pretrained_model_checkpoint_path=model/no_trans_64/line/ovnet.ckpt-50000 --batch_size=8 --max_images=8 --num_epoch=1 --threshold=0.5 --image_width=64 --image_height=64
+
+
+# python ovnet_eval.py --train_on=line --eval_dir=eval/iou_64/line  --pretrained_model_checkpoint_path=model/no_trans_64/line2/ovnet.ckpt-50000 --batch_size=8 --max_images=8 --num_epoch=1 --transform=False --image_width=64 --image_height=64  --path_type=0 --num_paths=4 --max_stroke_width=5
 
 # # new
 # python ovnet_eval.py --train_on=chinese --chinese1=True   --eval_dir=eval/iou_64/ch1   --data_dir=../data/chinese1 --pretrained_model_checkpoint_path=model/no_trans_64/ch1/ovnet.ckpt-50000 --batch_size=8 --max_images=8 --num_epoch=1 --transform=False  --threshold=0.5 --image_width=64 --image_height=64

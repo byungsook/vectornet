@@ -382,7 +382,7 @@ def label_cc(labels, pm):
 def compute_accuracy(labels, pm):
     stroke_list = get_stroke_list(pm)
     
-    unique_label = np.unique(labels)
+    unique_labels = np.unique(labels)
     num_path_pixels = len(pm.path_pixels[0])
 
     acc_id_list = []

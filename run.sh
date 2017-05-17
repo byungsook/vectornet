@@ -1,6 +1,15 @@
-# ch1 test again
-python vectorize.py --data_type=chinese --test_dir=result/overlap_gco/ch1_    --num_test_files=100 --image_height=64 --image_width=64 --pathnet_ckpt=pathnet/model/no_trans_64/ch1/pathnet.ckpt-50000    --ovnet_ckpt=ovnet/model/no_trans_64/ch1/ovnet.ckpt-50000   --find_overlap=True --data_dir=data/chinese1 --chinese1=True
-python postprocess_stat.py --stat_dir=result/overlap_gco/ch1_
+# ovnet: l2 loss
+python vectorize.py --data_type=chinese --test_dir=result/overlap/ch1  --num_test_files=100 --image_height=64 --image_width=64 --pathnet_ckpt=pathnet/model/no_trans_64/ch1/pathnet.ckpt-50000  --ovnet_ckpt=ovnet/model/l2_64/ch1/ovnet.ckpt-50000  --find_overlap=True --data_dir=data/chinese1 --chinese1=True
+python postprocess_stat.py --stat_dir=result/overlap/ch1
+python vectorize.py --data_type=chinese --test_dir=result/overlap/ch2  --num_test_files=100 --image_height=64 --image_width=64 --pathnet_ckpt=pathnet/model/no_trans_64/ch2/pathnet.ckpt-50000  --ovnet_ckpt=ovnet/model/l2_64/ch2/ovnet.ckpt-50000  --find_overlap=True --data_dir=data/chinese2 --chinese1=False
+python postprocess_stat.py --stat_dir=result/overlap/ch2
+# python vectorize.py --data_type=chinese --test_dir=result/overlap/line --num_test_files=100 --image_height=64 --image_width=64 --pathnet_ckpt=pathnet/model/no_trans_64/line/pathnet.ckpt-50000 --ovnet_ckpt=ovnet/model/l2_64/line/ovnet.ckpt-50000 --find_overlap=True --max_stroke_width=2 --num_paths=4 --num_test_files=1 
+# python postprocess_stat.py --stat_dir=result/overlap/line
+
+
+# # ch1 test again
+# python vectorize.py --data_type=chinese --test_dir=result/overlap_gco/ch1_    --num_test_files=100 --image_height=64 --image_width=64 --pathnet_ckpt=pathnet/model/no_trans_64/ch1/pathnet.ckpt-50000    --ovnet_ckpt=ovnet/model/no_trans_64/ch1/ovnet.ckpt-50000   --find_overlap=True --data_dir=data/chinese1 --chinese1=True
+# python postprocess_stat.py --stat_dir=result/overlap_gco/ch1_
 
 # # sketch
 # python vectorize.py --data_type=sketch --test_dir=result/no_overlap/bicycle_rl128  --pathnet_ckpt=pathnet/model/no_trans_128/line/pathnet.ckpt-50000 --data_dir=data/bicycle --num_test_files=100 --image_width=128 --image_height=96 --batch_size=128 --find_overlap=False

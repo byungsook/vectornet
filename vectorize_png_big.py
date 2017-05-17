@@ -59,7 +59,13 @@ tf.app.flags.DEFINE_boolean('compile', False,
                             """whether compile gco or not""")
 tf.app.flags.DEFINE_boolean('find_overlap', True,
                             """whether to find overlap or not""")
-tf.app.flags.DEFINE_integer('batch_size', 5,
+tf.app.flags.DEFINE_integer('pathnet_crop_radius', 32,
+                           """pathnet_crop_radius""")
+tf.app.flags.DEFINE_integer('pathnet_batch_size', 512,
+                           """batch size""")
+tf.app.flags.DEFINE_integer('ovnet_crop_radius', 32,
+                           """ovnet_crop_radius""")
+tf.app.flags.DEFINE_integer('ovnet_batch_size', 512,
                            """batch size""")
 
 
@@ -84,7 +90,7 @@ def predict(pathnet_manager, ovnet_manager, file_path):
     print('%s: %s, start vectorization' % (datetime.now(), file_name))
 
     # convert svg to raster image
-    img = scipy.misc.imread(file_path)
+    img = scipy.misc.imread(file_path, flatten=True)
     s = np.array(img).astype(np.float)
     max_intensity = 255.0 # np.amax(s)
     img = s / max_intensity
@@ -96,7 +102,7 @@ def predict(pathnet_manager, ovnet_manager, file_path):
 
     # predict paths through pathnet
     start_time = time.time()
-    y_batch, path_pixels, center = pathnet_manager.extract_crop(img, batch_size=FLAGS.batch_size)
+    y_batch, path_pixels, center = pathnet_manager.extract_crop(img, batch_size=int(FLAGS.pathnet_batch_size))
     crop_size = pathnet_manager.crop_size
     # # debug
     # plt.imshow(y_batch[0,:,:,0], cmap=plt.cm.gray)
@@ -114,7 +120,7 @@ def predict(pathnet_manager, ovnet_manager, file_path):
     if FLAGS.find_overlap:
         # predict overlap using overlap net
         start_time = time.time()
-        overlap = ovnet_manager.overlap_crop(img, batch_size=FLAGS.batch_size)
+        overlap = ovnet_manager.overlap_crop(img, batch_size=FLAGS.ovnet_batch_size)
 
         overlap_img_path = os.path.join(FLAGS.test_dir, '%s_overlap.png' % file_name)
         scipy.misc.imsave(overlap_img_path, 1 - overlap)
@@ -151,7 +157,7 @@ def predict(pathnet_manager, ovnet_manager, file_path):
     f.write('%d\n' % dup_id)
 
     # support only symmetric edge weight
-    radius = FLAGS.neighbor_sigma*2
+    radius = (crop_size-1)*0.5 # 129 -> 64
     nb = sklearn.neighbors.NearestNeighbors(radius=radius)
     nb.fit(np.array(path_pixels).transpose())
 
@@ -165,7 +171,7 @@ def predict(pathnet_manager, ovnet_manager, file_path):
         for rj, j in enumerate(rng[1][0]): # ids
             if j <= i:
                 continue                
-            p2 = np.array([path_pixels[0][j], path_pixels[1][j]])            
+            p2 = np.array([path_pixels[0][j], path_pixels[1][j]])
             d12 = rng[0][0][rj]
 
             pred_p2 = np.reshape(y_batch[j,:,:,:], [crop_size, crop_size])
@@ -205,7 +211,7 @@ def predict(pathnet_manager, ovnet_manager, file_path):
     return pm
 
 
-def vectorize_mp(queue):    
+def vectorize_mp(queue):
     while True:
         pm = queue.get()
         if pm is None:
@@ -452,14 +458,14 @@ def test():
     start_time = time.time()
     print('%s: pathnet manager loading...' % datetime.now())
 
-    dist = int(FLAGS.neighbor_sigma*2 + 0.5)
-    crop_size = 2*dist+1 # n_sig:8 -> crop_size:33
+    crop_size = 2*FLAGS.pathnet_crop_radius+1 # training:128 -> radius:64, crop_size=129 (should odd)
     pathnet_manager = PathnetManager([FLAGS.image_height, FLAGS.image_width], crop_size=crop_size)
     duration = time.time() - start_time
     print('%s: pathnet manager loaded (%.3f sec)' % (datetime.now(), duration))
 
     start_time = time.time()
     print('%s: ovnet manager loading...' % datetime.now())
+    crop_size = 2*FLAGS.ovnet_crop_radius+1 # training:64 -> radius:32, crop_size=65 (should odd)
     ovnet_manager = OvnetManager([FLAGS.image_height, FLAGS.image_width], crop_size=crop_size)
     duration = time.time() - start_time
     print('%s: ovnet manager loaded (%.3f sec)' % (datetime.now(), duration))

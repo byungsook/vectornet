@@ -15,11 +15,19 @@ import scipy.misc
 
 
 def svgpre2png(data_dir, dst_dir):
-     for root, _, files in os.walk(data_dir):
-        for file in files:
-            if not file.endswith('svg_pre'): continue
+    #  for root, _, files in os.walk(data_dir):
+    #     for file in files:
+    #         if not file.endswith('svg_pre'): continue
             
-            file_path = os.path.join(root, file)
+    #         file_path = os.path.join(root, file)
+    file_list_path = os.path.join(FLAGS.data_dir, 'test.txt')
+    with open(file_list_path, 'r') as f:
+        while True:
+            line = f.readline()
+            if not line: break
+
+            file = line.rstrip()
+            file_path = os.path.join(FLAGS.data_dir, file)
             dst_path = os.path.join(dst_dir, file)
             dst_path = dst_path.replace('svg_pre', 'png')
 
@@ -28,7 +36,7 @@ def svgpre2png(data_dir, dst_dir):
                 svg = sf.read()
                 # cairosvg.svg2png(bytestring=svg.format(w=640, h=480, r=0, sx=1, sy=1, tx=0, ty=0),
                 #                  write_to=dst_path)
-                img = cairosvg.svg2png(bytestring=svg.format(w=640, h=480, r=0, sx=1, sy=1, tx=0, ty=0))
+                img = cairosvg.svg2png(bytestring=svg.format(w=64, h=64, r=0, sx=1, sy=-1, tx=0, ty=-900))
                 img = Image.open(io.BytesIO(img))
                 img = 1.0 - np.array(img)[:,:,3] / 255.0
                 scipy.misc.imsave(dst_path, img)
@@ -37,12 +45,12 @@ def svgpre2png(data_dir, dst_dir):
 def init_arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('data_dir',
-                default='data/bicycle', # 'data_tmp/gc_test',
+                default='../FCIS/data/ch/ch1', # 'data_tmp/gc_test',
                 help='data directory',
                 nargs='?') # optional arg.
 
     parser.add_argument('dst_dir',
-                    default='data_tmp/bicycle_png', # 'data_tmp/gc_test',
+                    default='../FCIS/data/ch/ch1_test_64', # 'data_tmp/gc_test',
                     help='destination directory',
                     nargs='?') # optional arg.
     return parser.parse_args()

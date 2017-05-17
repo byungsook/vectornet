@@ -200,8 +200,8 @@ class PathnetManager(object):
                 try:
                     x_batch[i,bx_start:bx_end,by_start:by_end,0] = img[cx_start:cx_end, cy_start:cy_end]
                 except:
-                    print(bx_start,bx_end,by_start,by_end)
-                    print(cx_start,cx_end,cy_start,cy_end)
+                    print(x_batch.shape, center,bx_start,bx_end,by_start,by_end)
+                    print(img.shape, px,py,cx_start,cx_end,cy_start,cy_end)
                     
             with self._graph.as_default():
                 y_batch_ = self._sess.run(self._y_hat, feed_dict={self._phase_train: False, self._x: x_batch})

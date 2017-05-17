@@ -1,3 +1,5 @@
+# python pathnet_train.py --train_on=line --log_dir=log/no_trans_128/line --max_steps=50000 --image_width=128 --image_height=128 --batch_size=16 --initial_learning_rate=0.005 --num_paths=4 --path_type=2 --max_stroke_width=5
+
 # fidelity
 python pathnet_train.py --train_on=fidelity --log_dir=log/no_trans_128/fidelity --max_steps=50000 --image_width=128 --image_height=128 --batch_size=16 --initial_learning_rate=0.005 --data_dir=../data/fidelity
 

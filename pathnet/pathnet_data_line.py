@@ -34,17 +34,17 @@ flags.DEFINE_integer('batch_size', 16,
                      """Number of images to process in a batch.""")
 flags.DEFINE_integer('image_width', 128,
                      """Image Width.""")
-flags.DEFINE_integer('image_height', 96,
+flags.DEFINE_integer('image_height', 128,
                      """Image Height.""")
-flags.DEFINE_integer('num_threads', 8,
+flags.DEFINE_integer('num_threads', 16,
                      """# of threads for batch generation.""")
 flags.DEFINE_integer('min_length', 10,
                      """minimum length of a line.""")
-flags.DEFINE_integer('num_paths', 10,
+flags.DEFINE_integer('num_paths', 4,
                      """# paths for batch generation""")
 flags.DEFINE_integer('path_type', 2,
                      """path type 0:line, 1:curve, 2:all""")
-flags.DEFINE_integer('max_stroke_width', 2,
+flags.DEFINE_integer('max_stroke_width', 5,
                      """max stroke width""")
 flags.DEFINE_boolean('use_two_channels', True,
                      """use two channels for input""")
@@ -62,8 +62,8 @@ SVG_END_TEMPLATE = """</g></svg>"""
 
 def _create_a_line(id, image_height, image_width, min_length, max_stroke_width):
     stroke_color = np.random.randint(240, size=3)
-    # stroke_width = np.random.rand() * max_stroke_width + 2
-    stroke_width = max_stroke_width
+    stroke_width = np.random.rand() * max_stroke_width + 1
+    # stroke_width = max_stroke_width
     while True:
         x = np.random.randint(low=0, high=image_width, size=2)
         y = np.random.randint(low=0, high=image_height, size=2)
@@ -84,8 +84,8 @@ def _create_a_cubic_bezier_curve(id, image_height, image_width, min_length, max_
     x = np.random.randint(low=0, high=image_width, size=4)
     y = np.random.randint(low=0, high=image_height, size=4)
     stroke_color = np.random.randint(240, size=3)
-    # stroke_width = np.random.rand() * max_stroke_width + 2
-    stroke_width = max_stroke_width
+    stroke_width = np.random.rand() * max_stroke_width + 1
+    # stroke_width = max_stroke_width
 
     return SVG_CUBIC_BEZIER_TEMPLATE.format(
         id=id,
@@ -115,7 +115,7 @@ class BatchManager(object):
         self.num_examples_per_epoch = 1000
         self.num_epoch = 1
 
-        FLAGS.num_threads = np.amin([FLAGS.num_threads, multiprocessing.cpu_count(), FLAGS.batch_size])
+        FLAGS.num_threads = np.amin([FLAGS.num_threads, multiprocessing.cpu_count()*2])
 
         image_shape = [FLAGS.image_height, FLAGS.image_width, 1]
         input_shape = [FLAGS.image_height, FLAGS.image_width, 2]
@@ -147,6 +147,7 @@ class BatchManager(object):
         def load_n_enqueue(sess, enqueue, coord, x, y, FLAGS):
             with coord.stop_on_exception():
                 while not coord.should_stop():
+                    np.random.seed()
                     x_, y_ = preprocess(FLAGS)
                     sess.run(enqueue, feed_dict={x: x_, y: y_})
 

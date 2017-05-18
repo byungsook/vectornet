@@ -1,10 +1,17 @@
 # ovnet: l2 loss
-python vectorize.py --data_type=chinese --test_dir=result/overlap/ch1  --num_test_files=100 --image_height=64 --image_width=64 --pathnet_ckpt=pathnet/model/no_trans_64/ch1/pathnet.ckpt-50000  --ovnet_ckpt=ovnet/model/l2_64/ch1/ovnet.ckpt-50000  --find_overlap=True --data_dir=data/chinese1 --chinese1=True
-python postprocess_stat.py --stat_dir=result/overlap/ch1
-python vectorize.py --data_type=chinese --test_dir=result/overlap/ch2  --num_test_files=100 --image_height=64 --image_width=64 --pathnet_ckpt=pathnet/model/no_trans_64/ch2/pathnet.ckpt-50000  --ovnet_ckpt=ovnet/model/l2_64/ch2/ovnet.ckpt-50000  --find_overlap=True --data_dir=data/chinese2 --chinese1=False
-python postprocess_stat.py --stat_dir=result/overlap/ch2
-# python vectorize.py --data_type=chinese --test_dir=result/overlap/line --num_test_files=100 --image_height=64 --image_width=64 --pathnet_ckpt=pathnet/model/no_trans_64/line/pathnet.ckpt-50000 --ovnet_ckpt=ovnet/model/l2_64/line/ovnet.ckpt-50000 --find_overlap=True --max_stroke_width=2 --num_paths=4 --num_test_files=1 
-# python postprocess_stat.py --stat_dir=result/overlap/line
+# python vectorize.py --data_type=chinese --test_dir=result/overlap/ch1_l2  --num_test_files=100 --image_height=64 --image_width=64 --pathnet_ckpt=pathnet/model/no_trans_64/ch1/pathnet.ckpt-50000  --ovnet_ckpt=ovnet/model/l2_64/ch1/ovnet.ckpt-50000  --find_overlap=True --data_dir=data/chinese1 --chinese1=True --file_list=test.txt
+# python postprocess_stat.py --stat_dir=result/overlap/ch1_l2
+# python vectorize.py --data_type=chinese --test_dir=result/overlap/ch2_l2  --num_test_files=100 --image_height=64 --image_width=64 --pathnet_ckpt=pathnet/model/no_trans_64/ch2/pathnet.ckpt-50000  --ovnet_ckpt=ovnet/model/l2_64/ch2/ovnet.ckpt-50000  --find_overlap=True --data_dir=data/chinese2 --chinese1=False --file_list=test.txt
+# python postprocess_stat.py --stat_dir=result/overlap/ch2_l2
+# python vectorize.py --data_type=line --test_dir=result/overlap/line_l2 --num_test_files=100 --image_height=64 --image_width=64 --pathnet_ckpt=pathnet/model/no_trans_64/line/pathnet.ckpt-50000 --ovnet_ckpt=ovnet/model/l2_64/line/ovnet.ckpt-50000 --find_overlap=True --data_dir=data/line_ov --file_list=
+# python postprocess_stat.py --stat_dir=result/overlap/line_l2
+
+# python vectorize.py --data_type=chinese --test_dir=result/no_overlap/ch1  --num_test_files=100 --image_height=64 --image_width=64 --pathnet_ckpt=pathnet/model/no_trans_64/ch1/pathnet.ckpt-50000  --find_overlap=False --data_dir=data/chinese1 --chinese1=True --file_list=test.txt
+# python postprocess_stat.py --stat_dir=result/no_overlap/ch1
+# python vectorize.py --data_type=chinese --test_dir=result/no_overlap/ch2  --num_test_files=100 --image_height=64 --image_width=64 --pathnet_ckpt=pathnet/model/no_trans_64/ch2/pathnet.ckpt-50000  --find_overlap=False --data_dir=data/chinese2 --chinese1=False --file_list=test.txt
+# python postprocess_stat.py --stat_dir=result/no_overlap/ch2
+# python vectorize.py --data_type=line --test_dir=result/no_overlap/line  --num_test_files=100 --image_height=64 --image_width=64 --pathnet_ckpt=pathnet/model/no_trans_64/line/pathnet.ckpt-50000  --find_overlap=False --data_dir=data/line_ov --file_list=
+# python postprocess_stat.py --stat_dir=result/no_overlap/line
 
 
 # # ch1 test again

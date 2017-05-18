@@ -91,41 +91,51 @@ def _create_a_path(path_type, id, FLAGS):
                                     FLAGS.min_length, FLAGS.max_stroke_width)
 
 
+# def read_svg(file_path):
+#     np.random.seed()
+    
+#     while True:
+#         svg = SVG_START_TEMPLATE.format(
+#                     width=FLAGS.image_width,
+#                     height=FLAGS.image_height
+#                 )
+        
+#         path_id = np.random.randint(FLAGS.num_paths)
+#         for i in xrange(FLAGS.num_paths):
+#             LINE1 = _create_a_path(FLAGS.path_type, i, FLAGS)
+#             svg += LINE1
+
+#             svg_one_stroke = SVG_START_TEMPLATE.format(
+#                     width=FLAGS.image_width,
+#                     height=FLAGS.image_height
+#                 ) + LINE1 + SVG_END_TEMPLATE            
+
+#         svg += SVG_END_TEMPLATE
+#         s_png = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
+#         s_img = Image.open(io.BytesIO(s_png))
+#         s = np.array(s_img)[:,:,3].astype(np.float) # / 255.0
+#         max_intensity = np.amax(s)
+        
+#         if max_intensity == 0:
+#             continue
+#         else:
+#             s = s / max_intensity
+#         break
+
+    
+#     with open(file_path, 'w') as f:
+#         f.write(svg)
+
+#     return s, FLAGS.num_paths
+
 def read_svg(file_path):
-    np.random.seed()
-    
-    while True:
-        svg = SVG_START_TEMPLATE.format(
-                    width=FLAGS.image_width,
-                    height=FLAGS.image_height
-                )
-        
-        path_id = np.random.randint(FLAGS.num_paths)
-        for i in xrange(FLAGS.num_paths):
-            LINE1 = _create_a_path(FLAGS.path_type, i, FLAGS)
-            svg += LINE1
-
-            svg_one_stroke = SVG_START_TEMPLATE.format(
-                    width=FLAGS.image_width,
-                    height=FLAGS.image_height
-                ) + LINE1 + SVG_END_TEMPLATE            
-
-        svg += SVG_END_TEMPLATE
-        s_png = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
-        s_img = Image.open(io.BytesIO(s_png))
-        s = np.array(s_img)[:,:,3].astype(np.float) # / 255.0
+    with open(file_path, 'r') as sf:
+        svg = sf.read()
+        img = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
+        img = Image.open(io.BytesIO(img))
+        s = np.array(img)[:,:,3].astype(np.float) # / 255.0
         max_intensity = np.amax(s)
-        
-        if max_intensity == 0:
-            continue
-        else:
-            s = s / max_intensity
-        break
-
-    
-    with open(file_path, 'w') as f:
-        f.write(svg)
-
+        s = s / max_intensity
     return s, FLAGS.num_paths
 
 
@@ -153,5 +163,5 @@ def get_stroke_list(pm):
 
             stroke_list.append(y)
 
-    # call(['rm', pm.file_path])    
+    # call(['rm', pm.file_path])
     return stroke_list

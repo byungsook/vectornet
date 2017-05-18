@@ -37,7 +37,7 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('test_dir', 'log/test',
                            """Directory where to write event logs """
                            """and checkpoint.""")
-tf.app.flags.DEFINE_string('data_dir', 'data/chinese1',
+tf.app.flags.DEFINE_string('data_dir', 'data/line_ov',
                            """Data directory""")
 tf.app.flags.DEFINE_string('file_list', 'test.txt',
                            """file_list""")
@@ -59,7 +59,7 @@ tf.app.flags.DEFINE_boolean('compile', False,
                             """whether compile gco or not""")
 tf.app.flags.DEFINE_boolean('find_overlap', True,
                             """whether to find overlap or not""")
-tf.app.flags.DEFINE_string('data_type', 'chinese',
+tf.app.flags.DEFINE_string('data_type', 'line',
                            """specify data""")
 tf.app.flags.DEFINE_integer('batch_size', 512,
                            """batch size""")
@@ -241,7 +241,7 @@ def vectorize(pm):
     labels = merge_small_component(labels, pm)
     
     # 2-2. assign one label per one connected component
-    labels = label_cc(labels, pm)
+    # labels = label_cc(labels, pm)
 
     # 3. compute accuracy
     accuracy_list = compute_accuracy(labels, pm)
@@ -575,7 +575,7 @@ def test():
         grand_start_time = time.time()
         for svg_id in xrange(FLAGS.num_test_files):
             start_time = time.time()
-            file_path = os.path.join(FLAGS.test_dir, '%d.svg' % svg_id)
+            file_path = os.path.join(FLAGS.data_dir, '%d.svg' % svg_id)
             # only prediction done by single process because of large network
             pm = predict(pathnet_manager, ovnet_manager, file_path)
             duration = time.time() - start_time

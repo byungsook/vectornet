@@ -189,6 +189,11 @@ def svgpre2png(file_path):
                 r=r, sx=s[0], sy=s[1], tx=t[0], ty=t[1])
         #### ch1, ch2
         ########
+    else:
+        start = svg.find('width')
+        end = svg.find('xmlns', start) - 1
+        svg = svg[:start] + 'width="%d" height="%d" viewBox="0 0 64 64"' % (
+                FLAGS.image_width, FLAGS.image_height) + svg[end:]
 
     s_png = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
     s_img = Image.open(io.BytesIO(s_png))
@@ -261,14 +266,18 @@ def run_fidelity(img_file_path):
             svg = f.read()
             start = svg.find('height')
             end = svg.find('>', start)
-            svg = svg[:start] + 'height="%d" width="%d" viewBox="0 0 128 128"' % (FLAGS.image_height, FLAGS.image_width) + svg[end:]
+            svg = svg[:start] + 'height="%d" width="%d" viewBox="0 0 %d %d"' % (
+                FLAGS.image_height, FLAGS.image_width,
+                FLAGS.image_height*2, FLAGS.image_width*2) + svg[end:]
 
             num_paths = svg.count('path')
+            end = 0
             for i in xrange(num_paths):
-                start = svg.find('<path')
+                start = svg.find('<path', end)
                 end = svg.find('>', start)+2
                 if 'nan' in svg[start:end]:
                     svg = svg[:start] + svg[end:]
+                    end = start
 
         with open(svg_file_path, 'w') as f:
             f.write(svg)
@@ -291,6 +300,18 @@ def compute_accuracy(file_path, svg_file_path):
     num_paths = svg.count('path')
     if num_paths == 0:
         return 0
+
+    # end = 0
+    # for i in xrange(num_paths):
+    #     start = svg.find('<path', end)
+    #     end = svg.find('>', start)+2
+    #     if 'nan' in svg[start:end]:
+    #         svg = svg[:start] + svg[end:]
+    #         end = start
+
+    # num_paths = svg.count('path')
+    # if num_paths == 0:
+    #     return 0
 
     for i in xrange(num_paths):
         svg_xml = et.fromstring(svg)
@@ -411,6 +432,11 @@ def get_stroke_list(file_path):
     else:
         ####
         # line start
+        start = svg.find('width')
+        end = svg.find('xmlns', start) - 1
+        svg = svg[:start] + 'width="%d" height="%d" viewBox="0 0 64 64"' % (
+                FLAGS.image_width, FLAGS.image_height) + svg[end:]
+                
         svg_xml = et.fromstring(svg)
         num_paths = len(svg_xml[0])
 

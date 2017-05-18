@@ -232,8 +232,8 @@ def vectorize(pm):
     # 2. merge small components
     labels = merge_small_component(labels, pm)
     
-    # 2-2. assign one label per one connected component
-    labels = label_cc(labels, pm)
+    # # 2-2. assign one label per one connected component
+    # labels = label_cc(labels, pm)
 
     unique_labels = np.unique(labels)
     num_labels = unique_labels.size
@@ -463,12 +463,15 @@ def test():
     duration = time.time() - start_time
     print('%s: pathnet manager loaded (%.3f sec)' % (datetime.now(), duration))
 
-    start_time = time.time()
-    print('%s: ovnet manager loading...' % datetime.now())
-    crop_size = 2*FLAGS.ovnet_crop_radius+1 # training:64 -> radius:32, crop_size=65 (should odd)
-    ovnet_manager = OvnetManager([FLAGS.image_height, FLAGS.image_width], crop_size=crop_size)
-    duration = time.time() - start_time
-    print('%s: ovnet manager loaded (%.3f sec)' % (datetime.now(), duration))
+    if FLAGS.find_overlap:
+        start_time = time.time()
+        print('%s: ovnet manager loading...' % datetime.now())
+        crop_size = 2*FLAGS.ovnet_crop_radius+1 # training:64 -> radius:32, crop_size=65 (should odd)
+        ovnet_manager = OvnetManager([FLAGS.image_height, FLAGS.image_width], crop_size=crop_size)
+        duration = time.time() - start_time
+        print('%s: ovnet manager loaded (%.3f sec)' % (datetime.now(), duration))
+    else:
+        ovnet_manager = None
     
     # run with multiprocessing
     queue = multiprocessing.JoinableQueue()

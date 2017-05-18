@@ -56,7 +56,9 @@ tf.app.flags.DEFINE_boolean('transform', False,
                             """Whether to transform character.""")
 tf.app.flags.DEFINE_string('file_list', 'train.txt',
                            """file_list""")
-
+tf.app.flags.DEFINE_boolean('use_iou', False,
+                            """use iou loss.""")
+                            
 if FLAGS.train_on == 'chinese':
     import ovnet_data_chinese
 elif FLAGS.train_on == 'sketch':
@@ -67,6 +69,8 @@ elif FLAGS.train_on == 'hand':
     import ovnet_data_hand
 elif FLAGS.train_on == 'line':
     import ovnet_data_line
+elif FLAGS.train_on == 'fidelity':
+    import ovnet_data_fidelity
 else:
     print('wrong training data set')
     assert(False)
@@ -89,6 +93,8 @@ def train():
             print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
         elif FLAGS.train_on == 'line':
             batch_manager = ovnet_data_line.BatchManager()
+        elif FLAGS.train_on == 'fidelity':
+            batch_manager = ovnet_data_fidelity.BatchManager()
 
         # print flags
         flag_file_path = os.path.join(FLAGS.log_dir, 'flag.txt')
@@ -103,7 +109,8 @@ def train():
         y_hat = ovnet_model.inference(x, phase_train)
 
         # Calculate loss.
-        loss = ovnet_model.loss(y_hat, y)
+        iou_loss = ovnet_model.loss(y_hat, y, use_iou=True)
+        l2_loss = ovnet_model.loss(y_hat, y, use_iou=False)
 
         ###############################################################################
         # Build a Graph that trains the model with one batch of examples and
@@ -112,12 +119,19 @@ def train():
 
         # Compute the moving average of all individual losses and the total loss.
         loss_averages = tf.train.ExponentialMovingAverage(0.9, name='avg')
-        loss_averages_op = loss_averages.apply([loss])
+        if FLAGS.use_iou:
+            loss_averages_op = loss_averages.apply([iou_loss])
+        else:
+            loss_averages_op = loss_averages.apply([l2_loss])
 
         # Name each loss as '(raw)' and name the moving average version of the loss
         # as the original loss name.
-        tf.summary.scalar(loss.op.name + ' (raw)', loss)
-        tf.summary.scalar(loss.op.name, loss_averages.average(loss))
+        tf.summary.scalar('IoU Loss (raw)', iou_loss)
+        tf.summary.scalar('L2 Loss (raw)', l2_loss)
+        if FLAGS.use_iou:
+            tf.summary.scalar('IoU Loss', loss_averages.average(iou_loss))
+        else:
+            tf.summary.scalar('L2 Loss', loss_averages.average(l2_loss))
 
         # Decay the learning rate exponentially based on the number of steps.
         learning_rate = tf.train.exponential_decay(FLAGS.initial_learning_rate,
@@ -132,7 +146,10 @@ def train():
         # Compute gradients.
         with tf.control_dependencies([loss_averages_op]):
             opt = tf.train.AdamOptimizer(learning_rate)
-            grads = opt.compute_gradients(loss)
+            if FLAGS.use_iou:
+                grads = opt.compute_gradients(iou_loss)
+            else:
+                grads = opt.compute_gradients(l2_loss)
             max_grad = FLAGS.clip_gradients / learning_rate
             grads = [(tf.clip_by_value(grad, -max_grad, max_grad), var) for grad, var in grads]
 
@@ -194,12 +211,13 @@ def train():
 
             # Print statistics periodically.
             if step % FLAGS.stat_steps == 0 or step < 100:
-                loss_value = sess.run(loss, feed_dict={phase_train: is_train})
-                assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
+                iou_loss_, l2_loss_ = sess.run([iou_loss, l2_loss], feed_dict={phase_train: is_train})
+                assert not np.isnan(iou_loss_) and not np.isnan(l2_loss_), 'Model diverged with loss = NaN'
                 examples_per_sec = FLAGS.batch_size / float(duration)
                 batch_manager.num_epoch = epoch_per_step*step
-                print('%s:[epoch %.2f][step %d/%d] loss = %.2f (%.3f sec/batch)' % 
-                    (datetime.now(), batch_manager.num_epoch, step, FLAGS.max_steps, loss_value, duration))
+                print('%s:[epoch %.2f][step %d/%d] acc_iou = %.2f, l2 = %.2f (%.3f sec/batch)' % 
+                    (datetime.now(), batch_manager.num_epoch, step, FLAGS.max_steps, 
+                     1.0-iou_loss_, l2_loss_, duration))
 
             # Write the summary periodically.
             if step % FLAGS.summary_steps == 0 or step < 100:

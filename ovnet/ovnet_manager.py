@@ -126,7 +126,11 @@ class OvnetManager(object):
                 by_start = center - dy1
                 by_end = center + dy2
                 try:
-                    x_batch[i,bx_start:bx_end,by_start:by_end,0] = img[cx_start:cx_end, cy_start:cy_end]
+                    img_crop = img[cx_start:cx_end, cy_start:cy_end]
+                    max_intensity = np.amax(img_crop)
+                    img_crop /= max_intensity
+                    img_crop = 1.0 - img_crop
+                    x_batch[i,bx_start:bx_end,by_start:by_end,0] = img_crop
                 except:
                     print(bx_start,bx_end,by_start,by_end)
                     print(cx_start,cx_end,cy_start,cy_end)

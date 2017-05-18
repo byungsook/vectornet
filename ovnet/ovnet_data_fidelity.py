@@ -69,12 +69,12 @@ class BatchManager(object):
                     with open(file_path, 'r') as sf:
                         svg = sf.read().format(w=1024, h=1024)
 
-                    s_png = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
-                    s_img = Image.open(io.BytesIO(s_png))
-                    s = np.array(s_img)[:,:,3].astype(np.float)
+                    x_png = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
+                    x_img = Image.open(io.BytesIO(x_png))
+                    x_whole = np.array(x_img)[:,:,3].astype(np.float)
                     
                     # # debug
-                    # plt.imshow(s, cmap=plt.cm.gray)
+                    # plt.imshow(x, cmap=plt.cm.gray)
                     # plt.show()
 
                     num_paths = svg.count('<path')
@@ -85,21 +85,31 @@ class BatchManager(object):
                         end = svg.find('/>', start) + 2
                         path_list.append([start,end])
 
-                    y_list = []
+                    pathmap_list = []
                     for path_id in xrange(num_paths):
-                        y_svg = svg[:path_list[0][0]] + svg[path_list[path_id][0]:path_list[path_id][1]] + svg[path_list[-1][1]:]
-                        y_png = cairosvg.svg2png(bytestring=y_svg.encode('utf-8'))
-                        y_img = Image.open(io.BytesIO(y_png))
-                        y = np.array(y_img)[:,:,3].astype(np.float)
-                        y[y<0.001] = 0.0 # threshold..
+                        path_svg = svg[:path_list[0][0]] + svg[path_list[path_id][0]:path_list[path_id][1]] + svg[path_list[-1][1]:]
+                        path_png = cairosvg.svg2png(bytestring=path_svg.encode('utf-8'))
+                        path_img = Image.open(io.BytesIO(path_png))
+                        pathmap = np.array(path_img)[:,:,3].astype(np.float)
+                        pathmap_list.append(pathmap)
 
-                        y_list.append(y)
                         # # debug
-                        # plt.imshow(y, cmap=plt.cm.gray)
+                        # plt.imshow(pathmap, cmap=plt.cm.gray)
                         # plt.show()
 
-                    print('# paths: %d' % len(y_list))
-                    self.svg_list.append([s, y_list])
+                    print('# paths: %d' % len(pathmap_list))
+
+                    y_whole = np.zeros([1024, 1024], dtype=np.bool)
+                    for i in xrange(num_paths-1):
+                        for j in xrange(i+1, num_paths):
+                            intersect = np.logical_and(pathmap_list[i], pathmap_list[j])
+                            y_whole = np.logical_or(intersect, y_whole)
+
+                    # # debug
+                    # plt.imshow(y_whole, cmap=plt.cm.gray)
+                    # plt.show()
+
+                    self.svg_list.append([x_whole, y_whole])
         else:
             for root, _, files in os.walk(FLAGS.data_dir):
                 for file in files:
@@ -118,12 +128,11 @@ class BatchManager(object):
 
 
         image_shape = [FLAGS.image_height, FLAGS.image_width, 1]
-        input_shape = [FLAGS.image_height, FLAGS.image_width, 2]
 
         self._q = tf.FIFOQueue(FLAGS.batch_size*10, [tf.float32, tf.float32], 
-                               shapes=[input_shape, image_shape])
+                               shapes=[image_shape, image_shape])
 
-        self._x = tf.placeholder(dtype=tf.float32, shape=input_shape)
+        self._x = tf.placeholder(dtype=tf.float32, shape=image_shape)
         self._y = tf.placeholder(dtype=tf.float32, shape=image_shape)
         self._enqueue = self._q.enqueue([self._x, self._y])
 
@@ -145,8 +154,8 @@ class BatchManager(object):
         def load_n_enqueue(sess, enqueue, coord, x, y, svg_list, FLAGS):
             with coord.stop_on_exception():
                 while not coord.should_stop():
-                    s, y_list = random.choice(svg_list)
-                    x_, y_ = preprocess(s, y_list, FLAGS)
+                    x_whole, y_whole = random.choice(svg_list)
+                    x_, y_ = preprocess(x_whole, y_whole, FLAGS)
                     sess.run(enqueue, feed_dict={x: x_, y: y_})
 
         # Create threads that enqueue
@@ -185,12 +194,12 @@ class BatchManager(object):
 #     with open(file_path, 'r') as sf:
 #         svg = sf.read().format(w=1024, h=1024)
 
-#     s_png = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
-#     s_img = Image.open(io.BytesIO(s_png))
-#     s = np.array(s_img)[:,:,3].astype(np.float)
-
+#     x_png = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
+#     x_img = Image.open(io.BytesIO(x_png))
+#     x_whole = np.array(x_img)[:,:,3].astype(np.float)
+    
 #     # # debug
-#     # plt.imshow(s, cmap=plt.cm.gray)
+#     # plt.imshow(x, cmap=plt.cm.gray)
 #     # plt.show()
 
 #     num_paths = svg.count('<path')
@@ -201,39 +210,39 @@ class BatchManager(object):
 #         end = svg.find('/>', start) + 2
 #         path_list.append([start,end])
 
-#     path_id = np.random.randint(num_paths)
-#     y_svg = svg[:path_list[0][0]] + svg[path_list[path_id][0]:path_list[path_id][1]] + svg[path_list[-1][1]:]
-#     y_png = cairosvg.svg2png(bytestring=y_svg.encode('utf-8'))
-#     y_img = Image.open(io.BytesIO(y_png))
-#     y = np.array(y_img)[:,:,3].astype(np.float)
+#     pathmap_list = []
+#     for path_id in xrange(num_paths):
+#         path_svg = svg[:path_list[0][0]] + svg[path_list[path_id][0]:path_list[path_id][1]] + svg[path_list[-1][1]:]
+#         path_png = cairosvg.svg2png(bytestring=path_svg.encode('utf-8'))
+#         path_img = Image.open(io.BytesIO(path_png))
+#         pathmap = np.array(path_img)[:,:,3].astype(np.float)
+#         pathmap_list.append(pathmap)
 
-#     # # debug
-#     # plt.imshow(y, cmap=plt.cm.gray)
-#     # plt.show()
+#         # # debug
+#         # plt.imshow(pathmap, cmap=plt.cm.gray)
+#         # plt.show()
+
+#     print('# paths: %d' % len(pathmap_list))
+
+#     y_whole = np.zeros([1024, 1024], dtype=np.bool)
+#     for i in xrange(num_paths-1):
+#         for j in xrange(i+1, num_paths):
+#             intersect = np.logical_and(pathmap_list[i], pathmap_list[j])
+#             y_whole = np.logical_or(intersect, y_whole)
         
-def preprocess(s_, y_list, FLAGS):
-    num_paths = len(y_list)
+def preprocess(x_whole, y_whole, FLAGS):
     while True:
-        path_id = np.random.randint(num_paths)
-        y_ = y_list[path_id]
-
         # random flip and rotate
         flip = (np.random.rand() > 0.5)
         if flip:
-            y_rotate = np.fliplr(y_)
-            s_rotate = np.fliplr(s_)
+            y_rotate = np.fliplr(y_whole)
         else:
-            y_rotate = np.copy(y_)
-            s_rotate = np.copy(s_)
+            y_rotate = np.copy(y_whole)
         r = np.random.rand() * 360.0
         y_rotate = transform.rotate(y_rotate, r, order=3, mode='symmetric')
-        s_rotate = transform.rotate(s_rotate, r, order=3, mode='symmetric')
 
         # bbox
         y_nz = np.nonzero(y_rotate)
-        if len(y_nz[0]) == 0:
-            continue
-
         y_h = [np.amin(y_nz[0]), np.amax(y_nz[0])+1]
         y_w = [np.amin(y_nz[1]), np.amax(y_nz[1])+1]
 
@@ -260,59 +269,56 @@ def preprocess(s_, y_list, FLAGS):
         if num_line_pixels > 0:
             break
 
-    s_crop = s_rotate[h:h+FLAGS.image_height, w:w+FLAGS.image_width]
-    max_intensity = np.amax(s_crop)
-    s = s_crop / max_intensity
-    s[s<0.05] = 0.0 # threshold..
+    if flip:
+        x_rotate = np.fliplr(x_whole)
+    else:
+        x_rotate = np.copy(x_whole)
+    x_rotate = transform.rotate(x_rotate, r, order=3, mode='symmetric')
+    x = (x_rotate[h:h+FLAGS.image_height, w:w+FLAGS.image_width])
+    max_intensity = np.amax(x)
+    x = x / max_intensity
+    
+    y = y_crop.astype(np.bool)
+    y[x<0.05] = False    
+    x[x<0.05] = 0.0 # threshold..
 
-    y = y_crop / max_intensity
-    y[y<0.05] = 0.0 # threshold..
-
-    line_ids = np.nonzero(y)
-    num_line_pixels = len(line_ids[0])
-    point_id = np.random.randint(num_line_pixels)
-    ph, pw = line_ids[0][point_id], line_ids[1][point_id]
-
-    try:
-        y = np.reshape(y, [FLAGS.image_height, FLAGS.image_width, 1])
-    except:
-        print(h, w, y_h, y_w)
-        
-    x = np.zeros([FLAGS.image_height, FLAGS.image_width, 2])
-    x[:,:,0] = s
-    x[ph,pw,1] = 1.0
-
+    x = np.reshape(x, [FLAGS.image_height, FLAGS.image_width, 1])
+    y = np.reshape(y, [FLAGS.image_height, FLAGS.image_width, 1])
+    
     # # debug
-    # plt.subplot(131)
-    # plt.imshow(s, cmap=plt.cm.gray)
-    # plt.subplot(132)
-    # x_ = np.concatenate((x, np.zeros([FLAGS.image_height, FLAGS.image_width, 1])), axis=2)
-    # plt.imshow(x_)
-    # plt.subplot(133)
-    # plt.imshow(y[:,:,0], cmap=plt.cm.gray)
+    # plt.figure()
+    # plt.subplot(121)
+    # plt.imshow(x, cmap=plt.cm.gray)
+    # plt.subplot(122)
+    # plt.imshow(y, cmap=plt.cm.gray)
+    # mng = plt.get_current_fig_manager()
+    # mng.full_screen_toggle()
     # plt.show()
-
+    
     return x, y
 
 
 if __name__ == '__main__':
     # if release mode, change current path
     current_path = os.getcwd()
-    if not current_path.endswith('pathnet'):
-        working_path = os.path.join(current_path, 'vectornet/pathnet')
+    if not current_path.endswith('ovnet'):
+        working_path = os.path.join(current_path, 'vectornet/ovnet')
         os.chdir(working_path)
 
     # parameters 
     flags.DEFINE_string('file_list', 'train.txt', """file_list""")
-    FLAGS.num_threads = 16
+    FLAGS.num_threads = 1
+
+    # # test
+    # while True:
+    #     preprocess(os.path.join(FLAGS.data_dir, 'cat.svg_pre'), FLAGS)
+    # or
+    # batch_manager = BatchManager()
+    # while True:
+    #     x_whole, y_whole = random.choice(batch_manager.svg_list)
+    #     preprocess(x_whole, y_whole, FLAGS)
 
     batch_manager = BatchManager()
-    # test
-    while True:
-        s, y_list = random.choice(batch_manager.svg_list)
-        preprocess(s, y_list, FLAGS)
-        # preprocess(os.path.join(FLAGS.data_dir, 'archi.svg_pre'), FLAGS)
-
     x, y = batch_manager.batch()
 
     sess = tf.Session()
@@ -327,13 +333,12 @@ if __name__ == '__main__':
     batch_manager.stop_thread()
     print ('%s: %.3f sec/batch' % (datetime.now(), duration))
 
-    x_batch = np.concatenate((x_batch, np.zeros([FLAGS.batch_size, FLAGS.image_height, FLAGS.image_width, 1])), axis=3)        
     plt.figure()
     for i in xrange(FLAGS.batch_size):
-        x = np.reshape(x_batch[i,:], [FLAGS.image_height, FLAGS.image_width, 3])
+        x = np.reshape(x_batch[i,:], [FLAGS.image_height, FLAGS.image_width])
         y = np.reshape(y_batch[i,:], [FLAGS.image_height, FLAGS.image_width])
         plt.subplot(121)
-        plt.imshow(x)
+        plt.imshow(x, cmap=plt.cm.gray)
         plt.subplot(122)
         plt.imshow(y, cmap=plt.cm.gray)
         plt.show()

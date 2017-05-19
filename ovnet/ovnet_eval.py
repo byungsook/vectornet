@@ -25,19 +25,19 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('eval_dir', 'eval/test',
                            """Directory where to write event logs """
                            """and checkpoint.""")
-tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', 'log/ch1/ovnet.ckpt',
+tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', 'model/l2_64/line/ovnet.ckpt-50000',
                            """If specified, restore this pretrained model.""")
 tf.app.flags.DEFINE_float('moving_avg_decay', 0.9999,
                           """The decay to use for the moving average.""")
 tf.app.flags.DEFINE_integer('max_images', 8,
                             """max # images to save.""")
-tf.app.flags.DEFINE_string('train_on', 'chinese',
+tf.app.flags.DEFINE_string('train_on', 'line',
                            """specify training data""")
 tf.app.flags.DEFINE_boolean('transform', False,
                             """Whether to transform character.""")
 tf.app.flags.DEFINE_string('file_list', 'test.txt',
                            """file_list""")
-tf.app.flags.DEFINE_integer('num_epoch', 10,
+tf.app.flags.DEFINE_integer('num_epoch', 1,
                             """# epoch""")
 tf.app.flags.DEFINE_float('min_prop', 0.0,
                           """min_prop""")

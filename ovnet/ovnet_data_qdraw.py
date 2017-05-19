@@ -149,6 +149,10 @@ def preprocess(file_path, FLAGS):
     x = np.array(x_img)[:,:,3].astype(np.float)
     max_intensity = np.amax(x)
     x /= max_intensity
+    if max_intensity == 0:
+        y = np.zeros([FLAGS.image_height, FLAGS.image_width, 1])
+        x = np.zeros([FLAGS.image_height, FLAGS.image_width, 1])
+        return x, y
 
     # # debug
     # plt.imshow(s, cmap=plt.cm.gray)

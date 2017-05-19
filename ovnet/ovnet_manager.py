@@ -15,13 +15,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
 import scipy.stats
+from skimage import transform
 
 import ovnet.ovnet_model
 
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('ovnet_ckpt', 'ovnet/model/no_trans_64/ch1/ovnet.ckpt-50000',
+tf.app.flags.DEFINE_string('ovnet_ckpt', 'ovnet/model/l2_64/fidelity/ovnet.ckpt-50000',
                            """pathnet checkpoint file path.""")
 tf.app.flags.DEFINE_float('moving_avg_decay', 0.9999,
                           """The decay to use for the moving average.""")
@@ -33,8 +34,8 @@ class OvnetManager(object):
     Ovnet
     """
     def __init__(self, img_shape, crop_size=-1):
-        self._h = img_shape[0]
-        self._w = img_shape[1]
+        self._h = 1024#img_shape[0]
+        self._w = 1024#img_shape[1]
         self.crop_size = crop_size
         self._graph = tf.Graph()
         with self._graph.as_default():
@@ -129,21 +130,32 @@ class OvnetManager(object):
                     img_crop = img[cx_start:cx_end, cy_start:cy_end]
                     max_intensity = np.amax(img_crop)
                     img_crop /= max_intensity
-                    img_crop = 1.0 - img_crop
                     x_batch[i,bx_start:bx_end,by_start:by_end,0] = img_crop
                 except:
                     print(bx_start,bx_end,by_start,by_end)
                     print(cx_start,cx_end,cy_start,cy_end)
                     
             with self._graph.as_default():
-                y_batch_ = self._sess.run(self._y_hat, feed_dict={self._phase_train: False, self._x: x_batch})
+                y_batch = self._sess.run(self._y_hat, feed_dict={self._phase_train: False, self._x: x_batch})
             
                 # # debug
-                # y_vis = np.reshape(y_batch[0,:,:,:], [self.crop_size, self.crop_size])
-                # plt.imshow(y_vis, cmap=plt.cm.gray)
+                # x_vis1 = np.reshape(x_batch[0,:,:,:], [self.crop_size, self.crop_size])
+                # y_vis1 = np.reshape(y_batch[0,:,:,:], [self.crop_size, self.crop_size])
+                # x_vis2 = np.reshape(x_batch[-1,:,:,:], [self.crop_size, self.crop_size])
+                # y_vis2 = np.reshape(y_batch[-1,:,:,:], [self.crop_size, self.crop_size])
+                # print(np.amax(y_vis1), np.amax(y_vis2))
+                # plt.figure()
+                # plt.subplot(221)
+                # plt.imshow(x_vis1, cmap=plt.cm.gray, clim=(0.0, 1.0))
+                # plt.subplot(222)
+                # plt.imshow(y_vis1, cmap=plt.cm.gray, clim=(0.0, 1.0))
+                # plt.subplot(223)
+                # plt.imshow(x_vis2, cmap=plt.cm.gray, clim=(0.0, 1.0))
+                # plt.subplot(224)
+                # plt.imshow(y_vis2, cmap=plt.cm.gray, clim=(0.0, 1.0))
                 # plt.show()
 
-                y_center = y_batch_[:,center,center,0]
+                y_center = y_batch[:,center,center,0]
                 y_overlap = np.where(y_center > FLAGS.threshold)[0]
                 if len(y_overlap) > 0:
                     y[path_pixels[0][y_overlap+id_start], path_pixels[1][y_overlap+id_start]] = 1

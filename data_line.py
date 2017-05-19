@@ -143,7 +143,6 @@ def get_stroke_list(pm):
     stroke_list = []
     with open(pm.file_path, 'r') as f:
         svg = f.read()
-        svg_xml = ET.fromstring(svg)
         for i in xrange(FLAGS.num_paths):
             svg_xml = ET.fromstring(svg)
             stroke = svg_xml[0][i]

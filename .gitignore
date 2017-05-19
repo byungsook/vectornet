@@ -21,6 +21,7 @@ eval/
 test/
 result/
 model/
+share/
 gco/gco_vs2015/x64
 gco/qpbo_src/gco_linenet
 gco/qpbo_src/libgco.so

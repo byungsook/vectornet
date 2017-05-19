@@ -36,9 +36,11 @@ flags.DEFINE_integer('batch_size', 8,
                      """Number of images to process in a batch.""")
 flags.DEFINE_string('data_dir', '../data/fidelity',
                     """Path to the Sketch data directory.""")
-flags.DEFINE_integer('image_width', 128,
+flags.DEFINE_integer('original_size', 256,
+                     """original_size.""")
+flags.DEFINE_integer('image_width', 64,
                      """Image Width.""")
-flags.DEFINE_integer('image_height', 128,
+flags.DEFINE_integer('image_height', 64,
                      """Image Height.""")
 flags.DEFINE_integer('num_threads', 16,
                      """# of threads for batch generation.""")
@@ -67,7 +69,7 @@ class BatchManager(object):
                     # preprocessing
                     print(file_path)
                     with open(file_path, 'r') as sf:
-                        svg = sf.read().format(w=1024, h=1024)
+                        svg = sf.read().format(w=FLAGS.original_size, h=FLAGS.original_size)
 
                     x_png = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
                     x_img = Image.open(io.BytesIO(x_png))
@@ -99,7 +101,7 @@ class BatchManager(object):
 
                     print('# paths: %d' % len(pathmap_list))
 
-                    y_whole = np.zeros([1024, 1024], dtype=np.bool)
+                    y_whole = np.zeros([FLAGS.original_size, FLAGS.original_size], dtype=np.bool)
                     for i in xrange(num_paths-1):
                         for j in xrange(i+1, num_paths):
                             intersect = np.logical_and(pathmap_list[i], pathmap_list[j])

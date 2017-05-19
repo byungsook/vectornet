@@ -37,15 +37,15 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('test_dir', 'log/test_big',
                            """Directory where to write event logs """
                            """and checkpoint.""")
-tf.app.flags.DEFINE_string('data_dir', 'data/fidelity/png_128',
+tf.app.flags.DEFINE_string('data_dir', 'data/fidelity/png_256_small',
                            """Data directory""")
 tf.app.flags.DEFINE_string('file_list', 'test.txt',
                            """file_list""")
 tf.app.flags.DEFINE_integer('num_test_files', 15,
                            """num_test_files""")
-tf.app.flags.DEFINE_integer('image_width', 128,
+tf.app.flags.DEFINE_integer('image_width', 256,
                             """Image Width.""")
-tf.app.flags.DEFINE_integer('image_height', 128,
+tf.app.flags.DEFINE_integer('image_height', 256,
                             """Image Height.""")
 tf.app.flags.DEFINE_integer('max_num_labels', 128,
                            """the maximum number of labels""")
@@ -59,9 +59,9 @@ tf.app.flags.DEFINE_boolean('compile', False,
                             """whether compile gco or not""")
 tf.app.flags.DEFINE_boolean('find_overlap', True,
                             """whether to find overlap or not""")
-tf.app.flags.DEFINE_integer('pathnet_crop_radius', 32,
+tf.app.flags.DEFINE_integer('pathnet_crop_radius', 64,
                            """pathnet_crop_radius""")
-tf.app.flags.DEFINE_integer('pathnet_batch_size', 512,
+tf.app.flags.DEFINE_integer('pathnet_batch_size', 128,
                            """batch size""")
 tf.app.flags.DEFINE_integer('ovnet_crop_radius', 32,
                            """ovnet_crop_radius""")
@@ -92,7 +92,7 @@ def predict(pathnet_manager, ovnet_manager, file_path):
     # convert svg to raster image
     img = scipy.misc.imread(file_path, flatten=True)
     s = np.array(img).astype(np.float)
-    max_intensity = 255.0 # np.amax(s)
+    max_intensity = 255.0
     img = s / max_intensity
     img = 1.0 - img
 
@@ -232,8 +232,8 @@ def vectorize(pm):
     # 2. merge small components
     labels = merge_small_component(labels, pm)
     
-    # # 2-2. assign one label per one connected component
-    # labels = label_cc(labels, pm)
+    # 2-2. assign one label per one connected component
+    labels = label_cc(labels, pm)
 
     unique_labels = np.unique(labels)
     num_labels = unique_labels.size

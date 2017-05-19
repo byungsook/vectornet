@@ -1,4 +1,9 @@
-python pathnet_eval.py --train_on=fidelity --eval_dir=log/no_trans_128/fidelity --checkpoint_dir=log/no_trans_128/fidelity --image_width=128 --image_height=128 --batch_size=8 --image_size=8 --num_epoch=3 --data_dir=../data/fidelity
+python pathnet_eval.py --train_on=fidelity --eval_dir=eval/no_trans_128/fidelity_train_256 --checkpoint_dir=model/no_trans_128/fidelity --image_width=64 --image_height=64 --batch_size=16 --max_images=16 --num_epoch=3 --data_dir=../data/fidelity --file_list=train.txt
+python pathnet_eval.py --train_on=fidelity --eval_dir=eval/no_trans_128/fidelity_test_256  --checkpoint_dir=model/no_trans_128/fidelity --image_width=64 --image_height=64 --batch_size=16 --max_images=16 --num_epoch=3 --data_dir=../data/fidelity --file_list=test.txt
+
+
+# python pathnet_eval.py --train_on=fidelity --eval_dir=eval/no_trans_128/fidelity_train --checkpoint_dir=model/no_trans_128/fidelity --image_width=128 --image_height=128 --batch_size=16 --max_images=16 --num_epoch=3 --data_dir=../data/fidelity --file_list=train.txt
+# python pathnet_eval.py --train_on=fidelity --eval_dir=eval/no_trans_128/fidelity_test  --checkpoint_dir=model/no_trans_128/fidelity --image_width=128 --image_height=128 --batch_size=16 --max_images=16 --num_epoch=3 --data_dir=../data/fidelity --file_list=test.txt
 
 # python pathnet_eval.py --train_on=sketch --eval_dir=eval/no_trans_128/bicycle   --checkpoint_dir=model/no_trans_128/bicycle --transform=False --image_width=128 --image_height=96 --batch_size=8 --max_images=8 --num_epoch=3 --data_dir=../data/bicycle
 # python pathnet_eval.py --train_on=sketch --eval_dir=eval/no_trans_128/car       --checkpoint_dir=model/no_trans_128/car     --transform=False --image_width=128 --image_height=96 --batch_size=8 --max_images=8 --num_epoch=3 --data_dir=../data/car

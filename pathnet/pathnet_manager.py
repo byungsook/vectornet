@@ -20,7 +20,7 @@ import pathnet.pathnet_model
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('pathnet_ckpt', 'pathnet/model/no_trans_64/ch1/pathnet.ckpt-50000',
+tf.app.flags.DEFINE_string('pathnet_ckpt', 'pathnet/model/no_trans_128/fidelity/pathnet.ckpt-50000',
                            """pathnet checkpoint file path.""")
 tf.app.flags.DEFINE_boolean('use_two_channels', True,
                             """use two channels for input""")
@@ -201,7 +201,6 @@ class PathnetManager(object):
                     img_crop = img[cx_start:cx_end, cy_start:cy_end]
                     max_intensity = np.amax(img_crop)
                     img_crop /= max_intensity
-                    img_crop = 1.0 - img_crop
                     x_batch[i,bx_start:bx_end,by_start:by_end,0] = img_crop
                 except:
                     print(x_batch.shape, center,bx_start,bx_end,by_start,by_end)

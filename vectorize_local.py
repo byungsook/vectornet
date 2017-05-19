@@ -34,33 +34,60 @@ from ovnet.ovnet_manager import OvnetManager
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('test_dir', 'log/test',
+tf.app.flags.DEFINE_string('test_dir', 'log/test_local',
                            """Directory where to write event logs """
                            """and checkpoint.""")
-tf.app.flags.DEFINE_string('data_dir', 'data/fidelity/png_64',
+tf.app.flags.DEFINE_string('data_dir', 'data/fidelity',
                            """Data directory""")
-tf.app.flags.DEFINE_string('file_list', 'test.txt',
+tf.app.flags.DEFINE_string('file_list', 'train.txt',
                            """file_list""")
 tf.app.flags.DEFINE_integer('num_test_files', 15,
                            """num_test_files""")
-tf.app.flags.DEFINE_integer('image_width', 64,
+tf.app.flags.DEFINE_integer('image_width', 1024,
                             """Image Width.""")
-tf.app.flags.DEFINE_integer('image_height', 64,
+tf.app.flags.DEFINE_integer('image_height', 1024,
                             """Image Height.""")
 tf.app.flags.DEFINE_integer('max_num_labels', 128,
                            """the maximum number of labels""")
 tf.app.flags.DEFINE_integer('label_cost', 0,
                            """label cost""")
-tf.app.flags.DEFINE_float('neighbor_sigma', 8, # 48 - 8, 64 - 10.67?
+tf.app.flags.DEFINE_float('neighbor_sigma', 16, # 48 - 8, 64 - 10.67?
                            """neighbor sigma""")
 tf.app.flags.DEFINE_float('prediction_sigma', 0.7,
                            """prediction sigma""")
 tf.app.flags.DEFINE_boolean('compile', False,
                             """whether compile gco or not""")
-tf.app.flags.DEFINE_boolean('find_overlap', False,
+tf.app.flags.DEFINE_boolean('find_overlap', True,
                             """whether to find overlap or not""")
-tf.app.flags.DEFINE_integer('batch_size', 512,
+tf.app.flags.DEFINE_integer('pathnet_crop_radius', 64,
+                           """pathnet_crop_radius""")
+tf.app.flags.DEFINE_integer('pathnet_batch_size', 128,
                            """batch size""")
+tf.app.flags.DEFINE_integer('ovnet_crop_radius', 32,
+                           """ovnet_crop_radius""")
+tf.app.flags.DEFINE_integer('ovnet_batch_size', 512,
+                           """batch size""")
+tf.app.flags.DEFINE_string('data_type', 'fidelity',
+                           """specify data""")
+
+if FLAGS.data_type == 'chinese':
+    from data_chinese import read_svg
+    from data_chinese import get_stroke_list
+elif FLAGS.data_type == 'sketch':
+    from data_sketch import read_svg
+    from data_sketch import get_stroke_list
+elif FLAGS.data_type == 'sketch2':
+    from data_sketch2 import read_svg
+    from data_sketch2 import get_stroke_list
+elif FLAGS.data_type == 'line':
+    from data_line import read_svg
+    from data_line import get_stroke_list
+elif FLAGS.data_type == 'fidelity':
+    from data_fidelity import read_svg
+    from data_fidelity import get_stroke_list
+else:
+    print('wrong data set')
+    assert(False)
 
 
 class Param(object):
@@ -84,11 +111,7 @@ def predict(pathnet_manager, ovnet_manager, file_path):
     print('%s: %s, start vectorization' % (datetime.now(), file_name))
 
     # convert svg to raster image
-    img = scipy.misc.imread(file_path)
-    s = np.array(img).astype(np.float)
-    max_intensity = 255.0 # np.amax(s)
-    img = s / max_intensity
-    img = 1.0 - img
+    img, num_paths = read_svg(file_path)
 
     # # debug
     # plt.imshow(img, cmap=plt.cm.gray)
@@ -96,7 +119,8 @@ def predict(pathnet_manager, ovnet_manager, file_path):
 
     # predict paths through pathnet
     start_time = time.time()
-    y_batch, path_pixels = pathnet_manager.extract_all(img, batch_size=FLAGS.batch_size)
+    y_batch, path_pixels, center = pathnet_manager.extract_crop(img, batch_size=int(FLAGS.pathnet_batch_size))
+    crop_size = pathnet_manager.crop_size
     # # debug
     # plt.imshow(y_batch[0,:,:,0], cmap=plt.cm.gray)
     # plt.show()
@@ -113,7 +137,22 @@ def predict(pathnet_manager, ovnet_manager, file_path):
     if FLAGS.find_overlap:
         # predict overlap using overlap net
         start_time = time.time()
-        overlap = ovnet_manager.overlap(img)
+        # overlap = ovnet_manager.overlap_crop(img, batch_size=FLAGS.ovnet_batch_size)
+        
+        ###############
+        import cairosvg
+        import io
+        from PIL import Image
+        with open(file_path, 'r') as sf:
+            svg = sf.read().format(w=1024, h=1024)
+        num_paths = svg.count('<path')
+        img_big = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
+        img_big = Image.open(io.BytesIO(img_big))
+        img_big = np.array(img_big)[:,:,3].astype(np.float) # / 255.0
+        img_big /= 255.0        
+        overlap = ovnet_manager.overlap_crop(img_big, batch_size=FLAGS.ovnet_batch_size)
+        overlap = scipy.misc.imresize(overlap, size=25) / 255.0
+        ##############
 
         overlap_img_path = os.path.join(FLAGS.test_dir, '%s_overlap.png' % file_name)
         scipy.misc.imsave(overlap_img_path, 1 - overlap)
@@ -150,29 +189,30 @@ def predict(pathnet_manager, ovnet_manager, file_path):
     f.write('%d\n' % dup_id)
 
     # support only symmetric edge weight
-    radius = FLAGS.neighbor_sigma*2
+    radius = (crop_size-1)*0.5 # 129 -> 64
     nb = sklearn.neighbors.NearestNeighbors(radius=radius)
     nb.fit(np.array(path_pixels).transpose())
 
     high_spatial = 1000
     for i in xrange(num_path_pixels-1):
         p1 = np.array([path_pixels[0][i], path_pixels[1][i]])
-        pred_p1 = np.reshape(y_batch[i,:,:,:], [FLAGS.image_height, FLAGS.image_width])
+        pred_p1 = np.reshape(y_batch[i,:,:,:], [crop_size, crop_size])
 
         # see close neighbors
         rng = nb.radius_neighbors([p1])
         for rj, j in enumerate(rng[1][0]): # ids
             if j <= i:
                 continue                
-            p2 = np.array([path_pixels[0][j], path_pixels[1][j]])            
+            p2 = np.array([path_pixels[0][j], path_pixels[1][j]])
             d12 = rng[0][0][rj]
 
-        # for j in xrange(i+1, num_path_pixels): # see entire neighbors
-        #     p2 = np.array([path_pixels[0][j], path_pixels[1][j]])
-        #     d12 = np.linalg.norm(p1-p2, 2)
+            pred_p2 = np.reshape(y_batch[j,:,:,:], [crop_size, crop_size])
             
-            pred_p2 = np.reshape(y_batch[j,:,:,:], [FLAGS.image_height, FLAGS.image_width])
-            pred = (pred_p1[p2[0],p2[1]] + pred_p2[p1[0],p1[1]]) * 0.5
+            # pred = (pred_p1[p2[0],p2[1]] + pred_p2[p1[0],p1[1]]) * 0.5
+            rp2 = [center+p2[0]-p1[0],center+p2[1]-p1[1]]
+            rp1 = [center+p1[0]-p2[0],center+p1[1]-p2[1]]
+            pred = (pred_p1[rp2[0],rp2[1]] + pred_p2[rp1[0],rp1[1]]) * 0.5
+            
             pred = np.exp(-0.5 * (1.0-pred)**2 / FLAGS.prediction_sigma**2)
 
             spatial = np.exp(-0.5 * d12**2 / FLAGS.neighbor_sigma**2)
@@ -195,6 +235,7 @@ def predict(pathnet_manager, ovnet_manager, file_path):
     print('%s: %s, prediction computed (%.3f sec)' % (datetime.now(), file_name, duration))
 
     pm = Param()
+    pm.num_paths = num_paths
     pm.path_pixels = path_pixels
     pm.dup_dict = dup_dict
     pm.dup_rev_dict = dup_rev_dict
@@ -227,15 +268,21 @@ def vectorize(pm):
     # 2-2. assign one label per one connected component
     labels = label_cc(labels, pm)
 
+    # 3. compute accuracy
+    accuracy_list = compute_accuracy(labels, pm)
+
     unique_labels = np.unique(labels)
     num_labels = unique_labels.size
+    diff_labels = num_labels - pm.num_paths
+    acc_avg = np.average(accuracy_list)
     
-    print('%s: %s, the number of labels %d' % (datetime.now(), file_name, num_labels))
+    print('%s: %s, the number of labels %d, truth %d, diff %d' % (datetime.now(), file_name, num_labels, pm.num_paths, diff_labels))
     print('%s: %s, energy before optimization %.4f' % (datetime.now(), file_name, e_before))
     print('%s: %s, energy after optimization %.4f' % (datetime.now(), file_name, e_after))
+    print('%s: %s, accuracy computed, avg.: %.3f' % (datetime.now(), file_name, acc_avg))
 
     # 4. save image
-    save_label_img(labels, unique_labels, num_labels, pm)
+    save_label_img(labels, unique_labels, num_labels, diff_labels, acc_avg, pm)
 
     duration = time.time() - start_time
     
@@ -244,7 +291,7 @@ def vectorize(pm):
     print('%s: %s, done (%.3f sec)' % (datetime.now(), file_name, pm.duration))
     stat_file_path = os.path.join(FLAGS.test_dir, file_name + '_stat.txt')
     with open(stat_file_path, 'w') as f:
-        f.write('%s %d %.3f\n' % (file_path, num_labels, pm.duration))
+        f.write('%s %d %d %.3f %.3f\n' % (file_path, num_labels, diff_labels, acc_avg, pm.duration))
 
 
 def label(file_name):
@@ -354,9 +401,49 @@ def label_cc(labels, pm):
             new_label += (num_cc - 1)
 
     return labels
+    
+
+def compute_accuracy(labels, pm):
+    stroke_list = get_stroke_list(pm)
+    
+    unique_labels = np.unique(labels)
+    num_path_pixels = len(pm.path_pixels[0])
+
+    acc_id_list = []
+    acc_list = []
+    for i in unique_labels:
+        i_label_list = np.nonzero(labels == i)
+
+        # handle duplicated pixels
+        for j, i_label in enumerate(i_label_list[0]):
+            if i_label >= num_path_pixels:
+                i_label_list[0][j] = pm.dup_rev_dict[i_label]
+
+        i_label_map = np.zeros([FLAGS.image_height, FLAGS.image_width], dtype=np.bool)
+        i_label_map[pm.path_pixels[0][i_label_list],pm.path_pixels[1][i_label_list]] = True
+
+        accuracy_list = []
+        for j, stroke in enumerate(stroke_list):
+            intersect = np.sum(np.logical_and(i_label_map, stroke))
+            union = np.sum(np.logical_or(i_label_map, stroke))
+            accuracy = intersect / float(union)
+            # print('compare with %d-th path, intersect: %d, union :%d, accuracy %.2f' % 
+            #     (j, intersect, union, accuracy))
+            accuracy_list.append(accuracy)
+
+        id = np.argmax(accuracy_list)
+        acc = np.amax(accuracy_list)
+        # print('%d-th label, match to %d-th path, max: %.2f' % (i, id, acc))
+        # consider only large label set
+        # if acc > 0.1:
+        acc_id_list.append(id)
+        acc_list.append(acc)
+
+    # print('avg: %.2f' % np.average(acc_list))
+    return acc_list
 
 
-def save_label_img(labels, unique_labels, num_labels, pm):
+def save_label_img(labels, unique_labels, num_labels, diff_labels, acc_avg, pm):
     file_path = os.path.basename(pm.file_path)
     file_name = os.path.splitext(file_path)[0]
     num_path_pixels = len(pm.path_pixels[0])
@@ -368,7 +455,7 @@ def save_label_img(labels, unique_labels, num_labels, pm):
     label_map = np.ones([FLAGS.image_height, FLAGS.image_width, 3], dtype=np.float)
     label_map_t = np.ones([FLAGS.image_height, FLAGS.image_width, 3], dtype=np.float)
     first_svg = True
-    target_svg_path = os.path.join(FLAGS.test_dir, '%s_%d.svg' % (file_name, num_labels))
+    target_svg_path = os.path.join(FLAGS.test_dir, '%s_%d_%d_%.2f.svg' % (file_name, num_labels, diff_labels, acc_avg))
     for color_id, i in enumerate(unique_labels):
         i_label_list = np.nonzero(labels == i)
 
@@ -432,11 +519,11 @@ def save_label_img(labels, unique_labels, num_labels, pm):
     with open(target_svg_path, 'w') as f:
         f.write(target_svg)
 
-    label_map_path = os.path.join(FLAGS.test_dir, '%s_%.2f_%.2f_%d.png' % (file_name, FLAGS.neighbor_sigma, FLAGS.prediction_sigma, num_labels))
+    label_map_path = os.path.join(FLAGS.test_dir, '%s_%.2f_%.2f_%d_%d_%.2f.png' % (file_name, FLAGS.neighbor_sigma, FLAGS.prediction_sigma, num_labels, diff_labels, acc_avg))
     scipy.misc.imsave(label_map_path, label_map)
 
     label_map_t /= np.amax(label_map_t)
-    label_map_path = os.path.join(FLAGS.test_dir, '%s_%.2f_%.2f_%d_t.png' % (file_name, FLAGS.neighbor_sigma, FLAGS.prediction_sigma, num_labels))
+    label_map_path = os.path.join(FLAGS.test_dir, '%s_%.2f_%.2f_%d_%d_%.2f_t.png' % (file_name, FLAGS.neighbor_sigma, FLAGS.prediction_sigma, num_labels, diff_labels, acc_avg))
     scipy.misc.imsave(label_map_path, label_map_t)
 
 
@@ -450,15 +537,20 @@ def test():
     start_time = time.time()
     print('%s: pathnet manager loading...' % datetime.now())
 
-    pathnet_manager = PathnetManager([FLAGS.image_height, FLAGS.image_width])
+    crop_size = 2*FLAGS.pathnet_crop_radius+1 # training:128 -> radius:64, crop_size=129 (should odd)
+    pathnet_manager = PathnetManager([FLAGS.image_height, FLAGS.image_width], crop_size=crop_size)
     duration = time.time() - start_time
     print('%s: pathnet manager loaded (%.3f sec)' % (datetime.now(), duration))
 
-    start_time = time.time()
-    print('%s: ovnet manager loading...' % datetime.now())
-    ovnet_manager = OvnetManager([FLAGS.image_height, FLAGS.image_width])
-    duration = time.time() - start_time
-    print('%s: ovnet manager loaded (%.3f sec)' % (datetime.now(), duration))
+    if FLAGS.find_overlap:
+        start_time = time.time()
+        print('%s: ovnet manager loading...' % datetime.now())
+        crop_size = 2*FLAGS.ovnet_crop_radius+1 # training:64 -> radius:32, crop_size=65 (should odd)
+        ovnet_manager = OvnetManager([FLAGS.image_height, FLAGS.image_width], crop_size=crop_size)
+        duration = time.time() - start_time
+        print('%s: ovnet manager loaded (%.3f sec)' % (datetime.now(), duration))
+    else:
+        ovnet_manager = None
     
     # run with multiprocessing
     queue = multiprocessing.JoinableQueue()
@@ -467,13 +559,24 @@ def test():
 
     num_files = 0
     file_path_list = []        
-    for root, _, files in os.walk(FLAGS.data_dir):
-        for file in files:
-            if not file.lower().endswith('png'):
-                continue
+    if FLAGS.file_list:
+        file_list_path = os.path.join(FLAGS.data_dir, FLAGS.file_list)
+        with open(file_list_path, 'r') as f:
+            while True:
+                line = f.readline()
+                if not line: break
 
-            file_path = os.path.join(FLAGS.data_dir, file)
-            file_path_list.append(file_path)
+                file = line.rstrip()
+                file_path = os.path.join(FLAGS.data_dir, file)
+                file_path_list.append(file_path)
+    else:
+        for root, _, files in os.walk(FLAGS.data_dir):
+            for file in files:
+                if not file.lower().endswith('svg_pre'): # 'png'):
+                    continue
+
+                file_path = os.path.join(FLAGS.data_dir, file)
+                file_path_list.append(file_path)
 
     # select test files
     num_total_test_files = len(file_path_list)
@@ -493,12 +596,11 @@ def test():
 
         pm.file_path = file_path
         pm.duration = duration
-        
         queue.put(pm)
-
-        # # debug
-        # vectorize(pm)
         
+        # debug
+        # vectorize(pm)
+
     queue.join()
     pool.terminate()
     pool.join()

@@ -1,4 +1,5 @@
-python ovnet_train_sketch.py --train_on=fidelity --log_dir=log/l2_64/fidelity --max_steps=50000 --transform=False --image_width=64 --image_height=64 --batch_size=8 --use_iou=False --data_dir=../data/fidelity
+python ovnet_train_sketch.py --train_on=fidelity --log_dir=log/l2_64/fidelity_256_c64 --max_steps=50000 --transform=False --original_size=256 --image_width=64 --image_height=64 --batch_size=8 --use_iou=False --data_dir=../data/fidelity
+# python ovnet_train_sketch.py --train_on=fidelity --log_dir=log/l2_64/fidelity --max_steps=50000 --transform=False --image_width=64 --image_height=64 --batch_size=8 --use_iou=False --data_dir=../data/fidelity
 
 
 # python ovnet_train.py --train_on=line    --log_dir=log/iou_64/line --max_steps=50000 --transform=False --image_width=64 --image_height=64 --batch_size=8 --use_iou=True --path_type=0 --num_paths=4 --max_stroke_width=5

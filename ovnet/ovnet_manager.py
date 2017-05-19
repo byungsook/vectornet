@@ -34,8 +34,8 @@ class OvnetManager(object):
     Ovnet
     """
     def __init__(self, img_shape, crop_size=-1):
-        self._h = 1024#img_shape[0]
-        self._w = 1024#img_shape[1]
+        self._h = img_shape[0] # 1024
+        self._w = img_shape[1] # 1024
         self.crop_size = crop_size
         self._graph = tf.Graph()
         with self._graph.as_default():

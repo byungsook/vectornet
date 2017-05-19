@@ -1,3 +1,15 @@
+# qdraw test
+python vectorize.py --data_type=qdraw --test_dir=result/no_overlap/qdraw/baseball_64_small --data_dir=data/qdraw_baseball_64_small --file_list=test.txt --num_test_files=100 --image_height=64 --image_width=64 --pathnet_ckpt=pathnet/model/no_trans_64/line/pathnet.ckpt-50000 --find_overlap=False 
+python postprocess_stat.py --stat_dir=result/no_overlap/qdraw/baseball_64_small
+python vectorize.py --data_type=qdraw --test_dir=result/overlap/qdraw/baseball_64_small    --data_dir=data/qdraw_baseball_64_small --file_list=test.txt --num_test_files=100 --image_height=64 --image_width=64 --pathnet_ckpt=pathnet/model/no_trans_64/line/pathnet.ckpt-50000 --find_overlap=True --ovnet_ckpt=ovnet/model/l2_64/line/ovnet.ckpt-50000
+python postprocess_stat.py --stat_dir=result/overlap/qdraw/baseball_64_small
+
+# python vectorize.py --data_type=qdraw --test_dir=result/no_overlap/qdraw_stitches_64_small --data_dir=data/qdraw_stitches_64_small --file_list=test.txt --num_test_files=100 --image_height=64 --image_width=64 --pathnet_ckpt=pathnet/model/no_trans_64/line/pathnet.ckpt-50000 --find_overlap=False 
+# python postprocess_stat.py --stat_dir=result/no_overlap/qdraw_stitches_64_small
+# python vectorize.py --data_type=qdraw --test_dir=result/overlap/qdraw_stitches_64_small    --data_dir=data/qdraw_stitches_64_small --file_list=test.txt --num_test_files=100 --image_height=64 --image_width=64 --pathnet_ckpt=pathnet/model/no_trans_64/line/pathnet.ckpt-50000 --find_overlap=True --ovnet_ckpt=ovnet/model/l2_64/line/ovnet.ckpt-50000
+# python postprocess_stat.py --stat_dir=result/overlap/qdraw_stitches_64_small
+
+
 # ovnet: l2 loss
 # python vectorize.py --data_type=chinese --test_dir=result/overlap/ch1_l2  --num_test_files=100 --image_height=64 --image_width=64 --pathnet_ckpt=pathnet/model/no_trans_64/ch1/pathnet.ckpt-50000  --ovnet_ckpt=ovnet/model/l2_64/ch1/ovnet.ckpt-50000  --find_overlap=True --data_dir=data/chinese1 --chinese1=True --file_list=test.txt
 # python postprocess_stat.py --stat_dir=result/overlap/ch1_l2

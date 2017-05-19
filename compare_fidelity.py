@@ -26,11 +26,11 @@ import xml.etree.ElementTree as et
 def init_arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('data_dir',
-                default='data/chinese1', # 'data_tmp/gc_test',
+                default='data/fidelity', # 'data_tmp/gc_test',
                 help='data directory',
                 nargs='?') # optional arg.
     parser.add_argument('dst_dir',
-                    default='result/compare/fidelity/chinese1', # 'data_tmp/gc_test',
+                    default='result/compare/fidelity/fidelity_test', # 'data_tmp/gc_test',
                     help='destination directory',
                     nargs='?') # optional arg.
     parser.add_argument('file_list',
@@ -42,11 +42,11 @@ def init_arg_parser():
                     help='',
                     nargs='?') # optional arg.
     parser.add_argument('image_width',
-                    default=64,
+                    default=256,
                     help='',
                     nargs='?') # optional arg.
     parser.add_argument('image_height',
-                    default=64,
+                    default=256,
                     help='',
                     nargs='?') # optional arg.
     parser.add_argument('fidelity_dir',
@@ -54,7 +54,7 @@ def init_arg_parser():
                     help='fidelity directory',
                     nargs='?') # optional arg.
     parser.add_argument('use_mp',
-                    default=True,
+                    default=False,
                     help='multiprocessing',
                     nargs='?') # optional arg.
 
@@ -67,7 +67,7 @@ def compare_fidelity():
     num_files = 0
     file_path_list = []
 
-    if 'chinese' in FLAGS.data_dir:
+    if 'chinese' in FLAGS.data_dir or 'fidelity' in FLAGS.data_dir:
         ########
         #### ch1, ch2
         file_list_path = os.path.join(FLAGS.data_dir, FLAGS.file_list)
@@ -81,7 +81,7 @@ def compare_fidelity():
                 file_path_list.append(file_path)
         #### ch1, ch2
         ########
-    else:
+    elif 'line' in FLAGS.data_dir:
         for root, _, files in os.walk(FLAGS.data_dir):
             for file in files:
                 if not file.lower().endswith('svg'):
@@ -143,6 +143,10 @@ def compare_fidelity():
     acc_avg_total /= FLAGS.num_test_files
     print('acc_avg: %.3f' % acc_avg_total)
 
+    stat_path = os.path.join(FLAGS.dst_dir, 'stat.txt')
+    with open(stat_path, 'w') as f:
+        f.write('acc_avg: %.3f' % acc_avg_total)
+
 def vectorize_mp(queue):
     while True:
         file_path = queue.get()
@@ -189,11 +193,13 @@ def svgpre2png(file_path):
                 r=r, sx=s[0], sy=s[1], tx=t[0], ty=t[1])
         #### ch1, ch2
         ########
-    else:
+    elif 'line' in FLAGS.data_dir:
         start = svg.find('width')
         end = svg.find('xmlns', start) - 1
         svg = svg[:start] + 'width="%d" height="%d" viewBox="0 0 64 64"' % (
                 FLAGS.image_width, FLAGS.image_height) + svg[end:]
+    elif 'fidelity' in FLAGS.data_dir:
+        svg = svg.format(w=FLAGS.image_width, h=FLAGS.image_height)
 
     s_png = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
     s_img = Image.open(io.BytesIO(s_png))
@@ -429,7 +435,7 @@ def get_stroke_list(file_path):
                 stroke_list.append(y)
         ### ch1, ch2
         ###
-    else:
+    elif 'line' in FLAGS.data_dir:
         ####
         # line start
         start = svg.find('width')
@@ -459,6 +465,24 @@ def get_stroke_list(file_path):
             stroke_list.append(y)
         # line end
         ####
+    elif 'fidelity' in FLAGS.data_dir:
+        svg = svg.format(w=FLAGS.image_width, h=FLAGS.image_height)
+        
+        num_paths = svg.count('<path')
+        path_list = []
+        end = 0
+        for i in xrange(num_paths):
+            start = svg.find('<path', end)
+            end = svg.find('/>', start) + 2
+            path_list.append([start,end])
+
+        stroke_list = []
+        for path_id in xrange(num_paths):
+            y_svg = svg[:path_list[0][0]] + svg[path_list[path_id][0]:path_list[path_id][1]] + svg[path_list[-1][1]:]
+            y_png = cairosvg.svg2png(bytestring=y_svg.encode('utf-8'))
+            y_img = Image.open(io.BytesIO(y_png))
+            y = np.array(y_img)[:,:,3].astype(np.float)
+            stroke_list.append(y)
 
     return stroke_list
 

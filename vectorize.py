@@ -77,6 +77,9 @@ elif FLAGS.data_type == 'sketch2':
 elif FLAGS.data_type == 'line':
     from data_line import read_svg
     from data_line import get_stroke_list
+elif FLAGS.data_type == 'qdraw':
+    from data_qdraw import read_svg
+    from data_qdraw import get_stroke_list
 else:
     print('wrong data set')
     assert(False)
@@ -516,77 +519,64 @@ def test():
     duration = time.time() - start_time
     print('%s: pathnet manager loaded (%.3f sec)' % (datetime.now(), duration))
 
-    start_time = time.time()
-    print('%s: ovnet manager loading...' % datetime.now())
-    ovnet_manager = OvnetManager([FLAGS.image_height, FLAGS.image_width])
-    duration = time.time() - start_time
-    print('%s: ovnet manager loaded (%.3f sec)' % (datetime.now(), duration))
+    if FLAGS.find_overlap:
+        start_time = time.time()
+        print('%s: ovnet manager loading...' % datetime.now())
+        ovnet_manager = OvnetManager([FLAGS.image_height, FLAGS.image_width])
+        duration = time.time() - start_time
+        print('%s: ovnet manager loaded (%.3f sec)' % (datetime.now(), duration))
+    else:
+        ovnet_manager = None
     
     # run with multiprocessing
     queue = multiprocessing.JoinableQueue()
     num_cpus = multiprocessing.cpu_count()
     pool = multiprocessing.Pool(num_cpus, vectorize_mp, (queue,))
 
-    if FLAGS.data_type != 'line':
-        num_files = 0
-        file_path_list = []        
-        if FLAGS.file_list:
-            file_list_path = os.path.join(FLAGS.data_dir, FLAGS.file_list)
-            with open(file_list_path, 'r') as f:
-                while True:
-                    line = f.readline()
-                    if not line: break
+    num_files = 0
+    file_path_list = []        
+    if FLAGS.file_list:
+        file_list_path = os.path.join(FLAGS.data_dir, FLAGS.file_list)
+        with open(file_list_path, 'r') as f:
+            while True:
+                line = f.readline()
+                if not line: break
 
-                    file = line.rstrip()
-                    file_path = os.path.join(FLAGS.data_dir, file)
-                    file_path_list.append(file_path)
-        else:
-            for root, _, files in os.walk(FLAGS.data_dir):
-                for file in files:
-                    if not file.lower().endswith('svg_pre'): # 'png'):
-                        continue
-
-                    file_path = os.path.join(FLAGS.data_dir, file)
-                    file_path_list.append(file_path)
-
-        # select test files
-        num_total_test_files = len(file_path_list)
-        FLAGS.num_test_files = min(num_total_test_files, FLAGS.num_test_files)
-        # np.random.seed(0)
-        # file_path_list_id = np.random.choice(num_total_test_files, FLAGS.num_test_files)
-        # file_path_list.sort()
-        file_path_list_id = xrange(FLAGS.num_test_files)
-
-        grand_start_time = time.time()
-        for file_path_id in file_path_list_id:
-            file_path = file_path_list[file_path_id]
-            start_time = time.time()
-            # only prediction done by single process because of large network
-            pm = predict(pathnet_manager, ovnet_manager, file_path)
-            duration = time.time() - start_time
-
-            pm.file_path = file_path
-            pm.duration = duration
-            queue.put(pm)
-            
-            # debug
-            # vectorize(pm)
+                file = line.rstrip()
+                file_path = os.path.join(FLAGS.data_dir, file)
+                file_path_list.append(file_path)
     else:
-        grand_start_time = time.time()
-        for svg_id in xrange(FLAGS.num_test_files):
-            start_time = time.time()
-            file_path = os.path.join(FLAGS.data_dir, '%d.svg' % svg_id)
-            # only prediction done by single process because of large network
-            pm = predict(pathnet_manager, ovnet_manager, file_path)
-            duration = time.time() - start_time
+        for root, _, files in os.walk(FLAGS.data_dir):
+            for file in files:
+                if not file.lower().endswith('svg_pre'): # 'png'):
+                    continue
 
-            pm.file_path = file_path
-            pm.duration = duration
-            queue.put(pm)
+                file_path = os.path.join(FLAGS.data_dir, file)
+                file_path_list.append(file_path)
 
-            # debug
-            # vectorize(pm)
+    # select test files
+    num_total_test_files = len(file_path_list)
+    FLAGS.num_test_files = min(num_total_test_files, FLAGS.num_test_files)
+    # np.random.seed(0)
+    # file_path_list_id = np.random.choice(num_total_test_files, FLAGS.num_test_files)
+    # file_path_list.sort()
+    file_path_list_id = xrange(FLAGS.num_test_files)
 
+    grand_start_time = time.time()
+    for file_path_id in file_path_list_id:
+        file_path = file_path_list[file_path_id]
+        start_time = time.time()
+        # only prediction done by single process because of large network
+        pm = predict(pathnet_manager, ovnet_manager, file_path)
+        duration = time.time() - start_time
+
+        pm.file_path = file_path
+        pm.duration = duration
+        queue.put(pm)
+        
+        # debug
+        # vectorize(pm)
+    
     queue.join()
     pool.terminate()
     pool.join()

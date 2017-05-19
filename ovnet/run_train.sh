@@ -1,4 +1,7 @@
-python ovnet_train_sketch.py --train_on=fidelity --log_dir=log/l2_64/fidelity_256_c64 --max_steps=50000 --transform=False --original_size=256 --image_width=64 --image_height=64 --batch_size=8 --use_iou=False --data_dir=../data/fidelity
+# qdraw
+python ovnet_train_sketch.py --train_on=qdraw --log_dir=log/l2_128/qdraw_baseball --max_steps=50000 --image_width=128 --image_height=128 --batch_size=16 --initial_learning_rate=0.005 --data_dir=../data/qdraw_baseball_128_all --use_iou=False
+
+# python ovnet_train_sketch.py --train_on=fidelity --log_dir=log/l2_64/fidelity_256_c64 --max_steps=50000 --transform=False --original_size=256 --image_width=64 --image_height=64 --batch_size=8 --use_iou=False --data_dir=../data/fidelity
 # python ovnet_train_sketch.py --train_on=fidelity --log_dir=log/l2_64/fidelity --max_steps=50000 --transform=False --image_width=64 --image_height=64 --batch_size=8 --use_iou=False --data_dir=../data/fidelity
 
 

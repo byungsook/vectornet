@@ -51,7 +51,7 @@ tf.app.flags.DEFINE_integer('summary_steps', 100,
                             """summary steps.""")
 tf.app.flags.DEFINE_integer('save_steps', 5000,
                             """save steps""")
-tf.app.flags.DEFINE_string('train_on', 'fidelity',
+tf.app.flags.DEFINE_string('train_on', 'qdraw',
                            """specify training data""")
 tf.app.flags.DEFINE_boolean('transform', False,
                             """Whether to transform character.""")
@@ -73,6 +73,8 @@ elif FLAGS.train_on == 'line':
     import pathnet_data_line
 elif FLAGS.train_on == 'fidelity':
     import pathnet_data_fidelity
+elif FLAGS.train_on == 'qdraw':
+    import pathnet_data_qdraw
 else:
     print('wrong training data set')
     assert(False)
@@ -97,6 +99,8 @@ def train():
             batch_manager = pathnet_data_line.BatchManager()
         elif FLAGS.train_on == 'fidelity':
             batch_manager = pathnet_data_fidelity.BatchManager()
+        elif FLAGS.train_on == 'qdraw':
+            batch_manager = pathnet_data_qdraw.BatchManager()
 
         # print flags
         flag_file_path = os.path.join(FLAGS.log_dir, 'flag.txt')

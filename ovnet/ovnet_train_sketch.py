@@ -71,6 +71,8 @@ elif FLAGS.train_on == 'line':
     import ovnet_data_line
 elif FLAGS.train_on == 'fidelity':
     import ovnet_data_fidelity
+elif FLAGS.train_on == 'qdraw':
+    import ovnet_data_qdraw
 else:
     print('wrong training data set')
     assert(False)
@@ -93,8 +95,8 @@ def train():
             print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
         elif FLAGS.train_on == 'line':
             batch_manager = ovnet_data_line.BatchManager()
-        elif FLAGS.train_on == 'fidelity':
-            batch_manager = ovnet_data_fidelity.BatchManager()
+        elif FLAGS.train_on == 'qdraw':
+            batch_manager = ovnet_data_qdraw.BatchManager()
 
         # print flags
         flag_file_path = os.path.join(FLAGS.log_dir, 'flag.txt')

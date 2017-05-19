@@ -22,19 +22,19 @@ os.chdir('/home/kimby/dev/vectornet')
 #         f.write(file + '\n')
 # f.close()
 
-category = 'baseball' # 'baseball'
-output = 'data/qdraw_{cat}'.format(cat=category)
+img_size = 128
+category = 'cat' # 'baseball' 'stitches' 'cat'
+output = 'data/qdraw_{cat}_{img_size}'.format(cat=category, img_size=img_size)
 
 if os.path.exists(output):
     import shutil
     shutil.rmtree(output)
 os.mkdir(output)
 
-img_size = 128
 stroke_width = 2
 bbox_pad = 20
 cmap = plt.get_cmap('jet')
-# need = 150
+need = 50
 
 with jsonlines.open('data/{cat}.ndjson'.format(cat=category)) as reader:
     for count, obj in enumerate(reader):

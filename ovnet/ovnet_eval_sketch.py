@@ -54,6 +54,8 @@ elif FLAGS.train_on == 'line':
     import ovnet_data_line
 elif FLAGS.train_on == 'fidelity':
     import ovnet_data_fidelity
+elif FLAGS.train_on == 'qdraw':
+    import ovnet_data_qdraw
 else:
     print('wrong training data set')
     assert(False)
@@ -77,6 +79,8 @@ def evaluate():
             batch_manager = ovnet_data_line.BatchManager()
         elif FLAGS.train_on == 'fidelity':
             batch_manager = ovnet_data_fidelity.BatchManager()
+        elif FLAGS.train_on == 'qdraw':
+            batch_manager = ovnet_data_qdraw.BatchManager()
 
         global_step = tf.Variable(0, name='global_step', trainable=False)
         is_train = False

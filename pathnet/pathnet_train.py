@@ -31,7 +31,7 @@ tf.app.flags.DEFINE_string('checkpoint_dir', '',
                            """If specified, restore this pretrained model """
                            """before beginning any training.
                            e.g. log/second_train""")
-tf.app.flags.DEFINE_integer('max_steps', 100,
+tf.app.flags.DEFINE_integer('max_steps', 10,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_integer('decay_steps', 30000,
                             """Decay steps""")
@@ -201,6 +201,9 @@ def train():
         y_summary = tf.summary.image('y', y_img, max_outputs=FLAGS.max_images)
         y_hat_summary = tf.summary.image('y_hat', y_hat_img, max_outputs=FLAGS.max_images)
 
+        acc_ph = tf.placeholder(tf.float32)
+        acc_summary = tf.summary.scalar('IoU accuracy', acc_ph)
+        
         dt = tf.placeholder(dtype=tf.float32)
         dt_summary = tf.summary.scalar('dt (h)', dt)
 
@@ -231,12 +234,25 @@ def train():
             # Write the summary periodically.
             if step % FLAGS.summary_steps == 0 or step < 100:
                 x_batch, y_batch, y_hat_batch = sess.run([x, y, y_hat], feed_dict={phase_train: is_train})
-                summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
-                    [summary_op, x_summary, y_summary, y_hat_summary],
+
+                y_I = np.logical_and(y_batch, y_hat_batch)
+                y_I_sum = np.sum(y_I, axis=(1, 2, 3))
+                y_U = np.logical_or(y_batch, y_hat_batch)
+                y_U_sum = np.sum(y_U, axis=(1, 2, 3))
+                # print(y_I_sum, y_U_sum)
+                nonzero_id = np.where(y_U_sum != 0)[0]
+                if nonzero_id.shape[0] == 0:
+                    acc = 1.0
+                else:
+                    acc = np.average(y_I_sum[nonzero_id] / y_U_sum[nonzero_id])
+
+                summary_str, x_summary_str, y_summary_str, y_hat_summary_str, acc_summary_str = sess.run(
+                    [summary_op, x_summary, y_summary, y_hat_summary, acc_summary],
                     feed_dict={phase_train: is_train, x_rgb: np.concatenate((x_batch, b_channel), axis=3),
-                              y_img: y_batch, y_hat_img: y_hat_batch})
+                              y_img: y_batch, y_hat_img: y_hat_batch, acc_ph: acc})
                 summary_writer.add_summary(summary_str, step)
-                
+                summary_writer.add_summary(acc_summary_str, step)
+
                 x_summary_tmp = tf.Summary()
                 y_summary_tmp = tf.Summary()
                 y_hat_summary_tmp = tf.Summary()

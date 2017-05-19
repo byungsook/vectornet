@@ -24,13 +24,13 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('eval_dir', 'eval/test',
                            """Directory where to write event logs """
                            """and checkpoint.""")
-tf.app.flags.DEFINE_string('checkpoint_dir', 'model/ch1',
+tf.app.flags.DEFINE_string('checkpoint_dir', 'log/128/qdraw_baseball_128',
                            """If specified, restore this pretrained model.""")
 tf.app.flags.DEFINE_float('moving_avg_decay', 0.9999,
                           """The decay to use for the moving average.""")
 tf.app.flags.DEFINE_integer('max_images', 8,
                             """max # images to save.""")
-tf.app.flags.DEFINE_string('train_on', 'sketch',
+tf.app.flags.DEFINE_string('train_on', 'qdraw',
                            """specify training data""")
 tf.app.flags.DEFINE_boolean('transform', False,
                             """Whether to transform character.""")
@@ -53,6 +53,8 @@ elif FLAGS.train_on == 'line':
     import pathnet_data_line
 elif FLAGS.train_on == 'fidelity':
     import pathnet_data_fidelity
+elif FLAGS.train_on == 'qdraw':
+    import pathnet_data_qdraw
 else:
     print('wrong training data set')
     assert(False)
@@ -76,6 +78,8 @@ def evaluate():
             batch_manager = pathnet_data_line.BatchManager()
         elif FLAGS.train_on == 'fidelity':
             batch_manager = pathnet_data_fidelity.BatchManager()
+        elif FLAGS.train_on == 'qdraw':
+            batch_manager = pathnet_data_qdraw.BatchManager()
 
         global_step = tf.Variable(0, name='global_step', trainable=False)
         is_train = False
@@ -117,6 +121,12 @@ def evaluate():
         y_summary = tf.summary.image('y', y_img, max_outputs=FLAGS.max_images)
         y_hat_summary = tf.summary.image('y_hat', y_hat_img, max_outputs=FLAGS.max_images)
         
+        acc_ph = tf.placeholder(tf.float32)
+        acc_summary = tf.summary.scalar('IoU accuracy', acc_ph)
+
+        acc_avg_ph = tf.placeholder(tf.float32)
+        acc_avg_summary = tf.summary.scalar('IoU accuracy (avg)', acc_avg_ph)
+
         # Start evaluation
         with tf.Session() as sess:
             ckpt = tf.train.get_checkpoint_state(FLAGS.checkpoint_dir)
@@ -133,22 +143,35 @@ def evaluate():
             # num_iter = 1
             print('total iter: %d' % num_iter)
             total_loss = 0
+            total_acc = 0
             for step in range(num_iter):
                 start_time = time.time()
                 x_batch, y_batch, y_hat_batch, loss_value = sess.run([x, y, y_hat, loss],
                                                                      feed_dict={phase_train: is_train})
+
+                y_I = np.logical_and(y_batch, y_hat_batch)
+                y_I_sum = np.sum(y_I, axis=(1, 2, 3))
+                y_U = np.logical_or(y_batch, y_hat_batch)
+                y_U_sum = np.sum(y_U, axis=(1, 2, 3))
+                # print(y_I_sum, y_U_sum)
+                nonzero_id = np.where(y_U_sum != 0)[0]
+                if nonzero_id.shape[0] == 0:
+                    acc = 1.0
+                else:
+                    acc = np.average(y_I_sum[nonzero_id] / y_U_sum[nonzero_id])
+
                 total_loss += loss_value
+                total_acc += acc
                 duration = time.time() - start_time
                 batch_manager.num_epoch = epoch_per_step*step
-                print('%s:[epoch %.2f][step %d/%d] loss = %.2f (%.3f sec/batch)' % 
-                      (datetime.now(), batch_manager.num_epoch, step, num_iter, loss_value, duration))
+                print('%s:[epoch %.2f][step %d/%d] loss %.2f acc %.2f (%.3f sec/batch)' % 
+                      (datetime.now(), batch_manager.num_epoch, step, num_iter, loss_value, acc, duration))
 
-                if FLAGS.use_two_channels:
-                    loss_summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
-                        [loss_summary, x_summary, y_summary, y_hat_summary],
-                        feed_dict={phase_train: is_train, loss_ph: loss_value,
-                                   x_rgb: np.concatenate((x_batch, b_channel), axis=3),
-                                   y_img: y_batch, y_hat_img: y_hat_batch})
+                loss_summary_str, acc_summary_str, x_summary_str, y_summary_str, y_hat_summary_str = sess.run(
+                    [loss_summary, acc_summary, x_summary, y_summary, y_hat_summary],
+                    feed_dict={phase_train: is_train, loss_ph: loss_value,
+                                x_rgb: np.concatenate((x_batch, b_channel), axis=3),
+                                y_img: y_batch, y_hat_img: y_hat_batch, acc_ph: acc})
                 summary_writer.add_summary(loss_summary_str, step)
 
                 x_summary_tmp = tf.Summary()
@@ -175,7 +198,16 @@ def evaluate():
 
             loss_avg_summary_str = sess.run(loss_avg_summary, feed_dict={loss_avg: loss_avg_})
             g_step = tf.train.global_step(sess, global_step)
-            summary_writer.add_summary(loss_avg_summary_str, g_step)    
+            summary_writer.add_summary(loss_avg_summary_str, g_step)
+            
+            # Compute precision
+            acc_avg = total_acc / num_iter
+            print('%s: IoU accuracy avg %.3f' % (datetime.now(), acc_avg))
+
+            acc_avg_summary_str = sess.run(acc_avg_summary, feed_dict={acc_avg_ph: acc_avg})
+            g_step = tf.train.global_step(sess, global_step)
+            summary_writer.add_summary(acc_avg_summary_str, g_step)
+
     print('done')
 
 

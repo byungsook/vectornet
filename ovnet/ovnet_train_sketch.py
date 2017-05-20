@@ -95,6 +95,8 @@ def train():
             print('%s: %d svg files' % (datetime.now(), batch_manager.num_examples_per_epoch))
         elif FLAGS.train_on == 'line':
             batch_manager = ovnet_data_line.BatchManager()
+        elif FLAGS.train_on == 'fidelity':
+            batch_manager = ovnet_data_fidelity.BatchManager()
         elif FLAGS.train_on == 'qdraw':
             batch_manager = ovnet_data_qdraw.BatchManager()
 

@@ -137,22 +137,22 @@ def predict(pathnet_manager, ovnet_manager, file_path):
     if FLAGS.find_overlap:
         # predict overlap using overlap net
         start_time = time.time()
-        # overlap = ovnet_manager.overlap_crop(img, batch_size=FLAGS.ovnet_batch_size)
+        overlap = ovnet_manager.overlap_crop(img, batch_size=FLAGS.ovnet_batch_size)
         
-        ###############
-        import cairosvg
-        import io
-        from PIL import Image
-        with open(file_path, 'r') as sf:
-            svg = sf.read().format(w=1024, h=1024)
-        num_paths = svg.count('<path')
-        img_big = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
-        img_big = Image.open(io.BytesIO(img_big))
-        img_big = np.array(img_big)[:,:,3].astype(np.float) # / 255.0
-        img_big /= 255.0        
-        overlap = ovnet_manager.overlap_crop(img_big, batch_size=FLAGS.ovnet_batch_size)
-        overlap = scipy.misc.imresize(overlap, size=25) / 255.0
-        ##############
+        # ###############
+        # import cairosvg
+        # import io
+        # from PIL import Image
+        # with open(file_path, 'r') as sf:
+        #     svg = sf.read().format(w=1024, h=1024)
+        # num_paths = svg.count('<path')
+        # img_big = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
+        # img_big = Image.open(io.BytesIO(img_big))
+        # img_big = np.array(img_big)[:,:,3].astype(np.float) # / 255.0
+        # img_big /= 255.0        
+        # overlap = ovnet_manager.overlap_crop(img_big, batch_size=FLAGS.ovnet_batch_size)
+        # overlap = scipy.misc.imresize(overlap, size=25) / 255.0
+        # ##############
 
         overlap_img_path = os.path.join(FLAGS.test_dir, '%s_overlap.png' % file_name)
         scipy.misc.imsave(overlap_img_path, 1 - overlap)
@@ -554,7 +554,7 @@ def test():
     
     # run with multiprocessing
     queue = multiprocessing.JoinableQueue()
-    num_cpus = multiprocessing.cpu_count()
+    num_cpus = multiprocessing.cpu_count() - 1
     pool = multiprocessing.Pool(num_cpus, vectorize_mp, (queue,))
 
     num_files = 0

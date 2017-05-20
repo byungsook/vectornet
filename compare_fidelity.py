@@ -26,11 +26,11 @@ import xml.etree.ElementTree as et
 def init_arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('data_dir',
-                default='data/fidelity', # 'data_tmp/gc_test',
+                default='data/qdraw/qdraw_stitches_128', # 'data_tmp/gc_test',
                 help='data directory',
                 nargs='?') # optional arg.
     parser.add_argument('dst_dir',
-                    default='result/compare/fidelity/fidelity_test', # 'data_tmp/gc_test',
+                    default='result/compare/fidelity/qdraw/stitches_128', # 'data_tmp/gc_test',
                     help='destination directory',
                     nargs='?') # optional arg.
     parser.add_argument('file_list',
@@ -42,11 +42,11 @@ def init_arg_parser():
                     help='',
                     nargs='?') # optional arg.
     parser.add_argument('image_width',
-                    default=256,
+                    default=128,
                     help='',
                     nargs='?') # optional arg.
     parser.add_argument('image_height',
-                    default=256,
+                    default=128,
                     help='',
                     nargs='?') # optional arg.
     parser.add_argument('fidelity_dir',
@@ -67,9 +67,9 @@ def compare_fidelity():
     num_files = 0
     file_path_list = []
 
-    if 'chinese' in FLAGS.data_dir or 'fidelity' in FLAGS.data_dir:
-        ########
-        #### ch1, ch2
+    if 'chinese' in FLAGS.data_dir or \
+       'fidelity' in FLAGS.data_dir or \
+       'qdraw' in FLAGS.data_dir:
         file_list_path = os.path.join(FLAGS.data_dir, FLAGS.file_list)
         with open(file_list_path, 'r') as f:
             while True:
@@ -79,8 +79,6 @@ def compare_fidelity():
                 file = line.rstrip()
                 file_path = os.path.join(FLAGS.data_dir, file)
                 file_path_list.append(file_path)
-        #### ch1, ch2
-        ########
     elif 'line' in FLAGS.data_dir:
         for root, _, files in os.walk(FLAGS.data_dir):
             for file in files:
@@ -483,6 +481,22 @@ def get_stroke_list(file_path):
             y_img = Image.open(io.BytesIO(y_png))
             y = np.array(y_img)[:,:,3].astype(np.float)
             stroke_list.append(y)
+    elif 'qdraw' in FLAGS.data_dir:
+        num_paths = svg.count('polyline')
+
+    for i in xrange(1,num_paths+1):
+        svg_xml = et.fromstring(svg)
+        # svg_xml[0]._children = [svg_xml[0]._children[i]]
+        stroke = svg_xml[i]
+        for c in reversed(xrange(1,num_paths+1)):
+            if svg_xml[c] != stroke:
+                svg_xml.remove(svg_xml[c])
+        svg_one_stroke = et.tostring(svg_xml, method='xml')
+
+        stroke_png = cairosvg.svg2png(bytestring=svg_one_stroke)
+        stroke_img = Image.open(io.BytesIO(stroke_png))
+        stroke = (np.array(stroke_img)[:,:,3] > 0)
+        stroke_list.append(stroke)
 
     return stroke_list
 

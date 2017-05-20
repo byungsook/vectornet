@@ -1,8 +1,25 @@
-# qdraw test
-python vectorize.py --data_type=qdraw --test_dir=result/no_overlap/qdraw/baseball_64_small --data_dir=data/qdraw_baseball_64_small --file_list=test.txt --num_test_files=100 --image_height=64 --image_width=64 --pathnet_ckpt=pathnet/model/no_trans_64/line/pathnet.ckpt-50000 --find_overlap=False 
-python postprocess_stat.py --stat_dir=result/no_overlap/qdraw/baseball_64_small
-python vectorize.py --data_type=qdraw --test_dir=result/overlap/qdraw/baseball_64_small    --data_dir=data/qdraw_baseball_64_small --file_list=test.txt --num_test_files=100 --image_height=64 --image_width=64 --pathnet_ckpt=pathnet/model/no_trans_64/line/pathnet.ckpt-50000 --find_overlap=True --ovnet_ckpt=ovnet/model/l2_64/line/ovnet.ckpt-50000
-python postprocess_stat.py --stat_dir=result/overlap/qdraw/baseball_64_small
+# qdraw stitches, baseball and cat
+python vectorize.py --data_type=qdraw --test_dir=result/no_overlap/qdraw/stitches_128 --data_dir=data/qdraw_stitches_128 --file_list=test.txt --num_test_files=100 --image_height=128 --image_width=128 --batch_size=128 --pathnet_ckpt=pathnet/model/no_trans_128/qdraw_stitches_128/pathnet.ckpt-50000 --find_overlap=False
+python postprocess_stat.py --stat_dir=result/no_overlap/qdraw/stitches_128
+# python vectorize.py --data_type=qdraw --test_dir=result/overlap/qdraw/stitches_128    --data_dir=data/qdraw_stitches_128 --file_list=test.txt --num_test_files=100 --image_height=128 --image_width=128 --batch_size=128 --pathnet_ckpt=pathnet/model/no_trans_128/qdraw_stitches_128/pathnet.ckpt-50000 --find_overlap=True --ovnet_ckpt=ovnet/model/l2_128/qdraw_stitches_128/ovnet.ckpt-50000
+# python postprocess_stat.py --stat_dir=result/overlap/qdraw/stitches_128
+
+python vectorize.py --data_type=qdraw --test_dir=result/no_overlap/qdraw/baseball_128 --data_dir=data/qdraw_baseball_128 --file_list=test.txt --num_test_files=100 --image_height=128 --image_width=128 --batch_size=128 --pathnet_ckpt=pathnet/model/no_trans_128/qdraw_baseball_128/pathnet.ckpt-50000 --find_overlap=False
+python postprocess_stat.py --stat_dir=result/no_overlap/qdraw/baseball_128
+# python vectorize.py --data_type=qdraw --test_dir=result/overlap/qdraw/baseball_128    --data_dir=data/qdraw_baseball_128 --file_list=test.txt --num_test_files=100 --image_height=128 --image_width=128 --batch_size=128 --pathnet_ckpt=pathnet/model/no_trans_128/qdraw_baseball_128/pathnet.ckpt-50000 --find_overlap=True --ovnet_ckpt=ovnet/model/l2_128/qdraw_baseball_128/ovnet.ckpt-50000
+# python postprocess_stat.py --stat_dir=result/overlap/qdraw/baseball_128
+
+python vectorize.py --data_type=qdraw --test_dir=result/no_overlap/qdraw/cat_128 --data_dir=data/qdraw_cat_128 --file_list=test.txt --num_test_files=100 --image_height=128 --image_width=128 --batch_size=128 --pathnet_ckpt=pathnet/model/no_trans_128/qdraw_cat_128/pathnet.ckpt-50000 --find_overlap=False
+python postprocess_stat.py --stat_dir=result/no_overlap/qdraw/cat_128
+# python vectorize.py --data_type=qdraw --test_dir=result/overlap/qdraw/cat_128    --data_dir=data/qdraw_cat_128 --file_list=test.txt --num_test_files=100 --image_height=128 --image_width=128 --batch_size=128 --pathnet_ckpt=pathnet/model/no_trans_128/qdraw_cat_128/pathnet.ckpt-50000 --find_overlap=True --ovnet_ckpt=ovnet/model/l2_128/qdraw_cat_128/ovnet.ckpt-50000
+# python postprocess_stat.py --stat_dir=result/overlap/qdraw/cat_128
+
+
+# # qdraw test
+# python vectorize.py --data_type=qdraw --test_dir=result/no_overlap/qdraw/baseball_64_small --data_dir=data/qdraw_baseball_64_small --file_list=test.txt --num_test_files=100 --image_height=64 --image_width=64 --pathnet_ckpt=pathnet/model/no_trans_64/line/pathnet.ckpt-50000 --find_overlap=False 
+# python postprocess_stat.py --stat_dir=result/no_overlap/qdraw/baseball_64_small
+# python vectorize.py --data_type=qdraw --test_dir=result/overlap/qdraw/baseball_64_small    --data_dir=data/qdraw_baseball_64_small --file_list=test.txt --num_test_files=100 --image_height=64 --image_width=64 --pathnet_ckpt=pathnet/model/no_trans_64/line/pathnet.ckpt-50000 --find_overlap=True --ovnet_ckpt=ovnet/model/l2_64/line/ovnet.ckpt-50000
+# python postprocess_stat.py --stat_dir=result/overlap/qdraw/baseball_64_small
 
 # python vectorize.py --data_type=qdraw --test_dir=result/no_overlap/qdraw_stitches_64_small --data_dir=data/qdraw_stitches_64_small --file_list=test.txt --num_test_files=100 --image_height=64 --image_width=64 --pathnet_ckpt=pathnet/model/no_trans_64/line/pathnet.ckpt-50000 --find_overlap=False 
 # python postprocess_stat.py --stat_dir=result/no_overlap/qdraw_stitches_64_small

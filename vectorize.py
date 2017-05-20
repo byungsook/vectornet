@@ -530,7 +530,7 @@ def test():
     
     # run with multiprocessing
     queue = multiprocessing.JoinableQueue()
-    num_cpus = multiprocessing.cpu_count()
+    num_cpus = multiprocessing.cpu_count() - 1
     pool = multiprocessing.Pool(num_cpus, vectorize_mp, (queue,))
 
     num_files = 0

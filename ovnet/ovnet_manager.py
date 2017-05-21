@@ -22,7 +22,7 @@ import ovnet.ovnet_model
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('ovnet_ckpt', 'ovnet/model/l2_64/fidelity/ovnet.ckpt-50000',
+tf.app.flags.DEFINE_string('ovnet_ckpt', 'ovnet/model/l2_64/line/ovnet.ckpt-50000',
                            """pathnet checkpoint file path.""")
 tf.app.flags.DEFINE_float('moving_avg_decay', 0.9999,
                           """The decay to use for the moving average.""")

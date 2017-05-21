@@ -63,6 +63,8 @@ tf.app.flags.DEFINE_string('data_type', 'line',
                            """specify data""")
 tf.app.flags.DEFINE_integer('batch_size', 512,
                            """batch size""")
+tf.app.flags.DEFINE_float('neighbor_sample', 0.02,
+                           """neighbor sample (%)""")
 
 
 if FLAGS.data_type == 'chinese':
@@ -101,10 +103,7 @@ class Param(object):
 def predict(pathnet_manager, ovnet_manager, file_path):
     # path for temporary files
     tf.gfile.MakeDirs(FLAGS.test_dir + '/tmp')
-
-    file_name = os.path.splitext(os.path.basename(file_path))[0]
-    print('%s: %s, start vectorization' % (datetime.now(), file_name))
-
+    
     # convert svg to raster image
     img, num_paths = read_svg(file_path)
 
@@ -118,6 +117,7 @@ def predict(pathnet_manager, ovnet_manager, file_path):
     # # debug
     # plt.imshow(y_batch[0,:,:,0], cmap=plt.cm.gray)
     # plt.show()
+    file_name = os.path.splitext(os.path.basename(file_path))[0]
     path0_img_path = os.path.join(FLAGS.test_dir, '%s_path0.png' % file_name)
     scipy.misc.imsave(path0_img_path, 1 - y_batch[0,:,:,0])
     num_path_pixels = len(path_pixels[0])
@@ -171,19 +171,30 @@ def predict(pathnet_manager, ovnet_manager, file_path):
     # radius = FLAGS.neighbor_sigma*2
     # nb = sklearn.neighbors.NearestNeighbors(radius=radius)
     # nb.fit(np.array(path_pixels).transpose())
+    # np.random.seed(0)
 
-    high_spatial = 1000
+    high_spatial = 100000
     for i in xrange(num_path_pixels-1):
         p1 = np.array([path_pixels[0][i], path_pixels[1][i]])
         pred_p1 = np.reshape(y_batch[i,:,:,:], [FLAGS.image_height, FLAGS.image_width])
 
-        # # see close neighbors
+        # # see close neighbors and some far neighbors (stochastic sampling)        
         # rng = nb.radius_neighbors([p1])
-        # for rj, j in enumerate(rng[1][0]): # ids
+        # num_close = len(rng[1][0])
+        # far = np.setdiff1d(xrange(i+1,num_path_pixels),rng[1][0])
+        # num_far = len(far)
+        # num_far = int(num_far * FLAGS.neighbor_sample)
+        # if num_far > 0:
+        #     far_ids = np.random.choice(far, size=num_far)
+        #     nb_ids = np.concatenate((rng[1][0],far_ids))
+        # else:
+        #     nb_ids = rng[1][0]
+        # for rj, j in enumerate(nb_ids): # ids
         #     if j <= i:
         #         continue                
-        #     p2 = np.array([path_pixels[0][j], path_pixels[1][j]])            
-        #     d12 = rng[0][0][rj]
+        #     p2 = np.array([path_pixels[0][j], path_pixels[1][j]])
+        #     if rj < num_close: d12 = rng[0][0][rj]
+        #     else: d12 = np.linalg.norm(p1-p2, 2)            
 
         for j in xrange(i+1, num_path_pixels): # see entire neighbors
             p2 = np.array([path_pixels[0][j], path_pixels[1][j]])
@@ -243,7 +254,7 @@ def vectorize(pm):
     # 2. merge small components
     labels = merge_small_component(labels, pm)
     
-    # 2-2. assign one label per one connected component
+    # # 2-2. assign one label per one connected component
     # labels = label_cc(labels, pm)
 
     # 3. compute accuracy
@@ -563,9 +574,12 @@ def test():
     file_path_list_id = xrange(FLAGS.num_test_files)
 
     grand_start_time = time.time()
-    for file_path_id in file_path_list_id:
+    for i, file_path_id in enumerate(file_path_list_id):
         file_path = file_path_list[file_path_id]
         start_time = time.time()
+        file_name = os.path.splitext(os.path.basename(file_path))[0]
+        print('%s: [%d/%d] %s, start vectorization' % (datetime.now(), i, FLAGS.num_test_files, file_name))
+
         # only prediction done by single process because of large network
         pm = predict(pathnet_manager, ovnet_manager, file_path)
         duration = time.time() - start_time

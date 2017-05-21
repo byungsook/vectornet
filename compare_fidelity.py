@@ -26,11 +26,11 @@ import xml.etree.ElementTree as et
 def init_arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('data_dir',
-                default='data/qdraw/qdraw_stitches_128', # 'data_tmp/gc_test',
+                default='data/chinese2', # 'data_tmp/gc_test',
                 help='data directory',
                 nargs='?') # optional arg.
     parser.add_argument('dst_dir',
-                    default='result/compare/fidelity/qdraw/stitches_128', # 'data_tmp/gc_test',
+                    default='result/compare/fidelity/chinese2_1k_thick', # 'data_tmp/gc_test',
                     help='destination directory',
                     nargs='?') # optional arg.
     parser.add_argument('file_list',
@@ -42,11 +42,15 @@ def init_arg_parser():
                     help='',
                     nargs='?') # optional arg.
     parser.add_argument('image_width',
-                    default=128,
+                    default=1024,
                     help='',
                     nargs='?') # optional arg.
     parser.add_argument('image_height',
-                    default=128,
+                    default=1024,
+                    help='',
+                    nargs='?') # optional arg.
+    parser.add_argument('stroke_width',
+                    default=50,
                     help='',
                     nargs='?') # optional arg.
     parser.add_argument('fidelity_dir',
@@ -102,7 +106,7 @@ def compare_fidelity():
     # run with multiprocessing
     if FLAGS.use_mp:
         queue = multiprocessing.JoinableQueue()
-        num_cpus = multiprocessing.cpu_count()
+        num_cpus = multiprocessing.cpu_count() - 1
         pool = multiprocessing.Pool(num_cpus, vectorize_mp, (queue,))
 
 
@@ -282,6 +286,10 @@ def run_fidelity(img_file_path):
                 if 'nan' in svg[start:end]:
                     svg = svg[:start] + svg[end:]
                     end = start
+                else:
+                    w_start = svg.find('stroke-width', start)
+                    w_end = svg.find('fill', w_start)
+                    svg = svg[:w_start] + 'stroke-width="%d" ' % FLAGS.stroke_width + svg[w_end:]                    
 
         with open(svg_file_path, 'w') as f:
             f.write(svg)
@@ -339,6 +347,17 @@ def compute_accuracy(file_path, svg_file_path):
             accuracy = intersect / float(union)
             # print('compare with %d-th path, intersect: %d, union :%d, accuracy %.2f' % 
             #     (j, intersect, union, accuracy))
+
+            # # debug
+            # plt.figure()
+            # plt.subplot(131)
+            # plt.imshow(i_label_map, cmap=plt.cm.gray)
+            # plt.subplot(132)
+            # plt.imshow(np.logical_and(i_label_map, stroke), cmap=plt.cm.gray)
+            # plt.subplot(133)
+            # plt.imshow(np.logical_or(i_label_map, stroke), cmap=plt.cm.gray)
+            # plt.show()
+
             accuracy_list.append(accuracy)
 
         id = np.argmax(accuracy_list)
@@ -484,19 +503,19 @@ def get_stroke_list(file_path):
     elif 'qdraw' in FLAGS.data_dir:
         num_paths = svg.count('polyline')
 
-    for i in xrange(1,num_paths+1):
-        svg_xml = et.fromstring(svg)
-        # svg_xml[0]._children = [svg_xml[0]._children[i]]
-        stroke = svg_xml[i]
-        for c in reversed(xrange(1,num_paths+1)):
-            if svg_xml[c] != stroke:
-                svg_xml.remove(svg_xml[c])
-        svg_one_stroke = et.tostring(svg_xml, method='xml')
+        for i in xrange(1,num_paths+1):
+            svg_xml = et.fromstring(svg)
+            # svg_xml[0]._children = [svg_xml[0]._children[i]]
+            stroke = svg_xml[i]
+            for c in reversed(xrange(1,num_paths+1)):
+                if svg_xml[c] != stroke:
+                    svg_xml.remove(svg_xml[c])
+            svg_one_stroke = et.tostring(svg_xml, method='xml')
 
-        stroke_png = cairosvg.svg2png(bytestring=svg_one_stroke)
-        stroke_img = Image.open(io.BytesIO(stroke_png))
-        stroke = (np.array(stroke_img)[:,:,3] > 0)
-        stroke_list.append(stroke)
+            stroke_png = cairosvg.svg2png(bytestring=svg_one_stroke)
+            stroke_img = Image.open(io.BytesIO(stroke_png))
+            stroke = (np.array(stroke_img)[:,:,3] > 0)
+            stroke_list.append(stroke)
 
     return stroke_list
 
@@ -507,11 +526,156 @@ if __name__ == '__main__':
     if not working_path.endswith('vectornet'):
         working_path = os.path.join(working_path, 'vectornet')
         os.chdir(working_path)
-    
+
+    # acc_avg_total = 0
+    # for root, _, files in os.walk(FLAGS.dst_dir):
+    #     for file in files:
+    #         if not file.lower().endswith('svg'):
+    #             continue
+            
+    #         acc_avg = float(file.split('_')[1][:-4])
+        
+    #         print(file, 'acc:%.2f' % acc_avg)
+    #         acc_avg_total += acc_avg
+    # acc_avg_total /= 99.0
+    # print('acc_avg: %.3f' % acc_avg_total)
+
+    # stat_path = os.path.join(FLAGS.dst_dir, 'stat.txt')
+    # with open(stat_path, 'w') as f:
+    #     f.write('acc_avg: %.3f' % acc_avg_total)
+
+    #######
+    # ch1, 64
+    FLAGS.stroke_width = 4
+    FLAGS.image_height = 64
+    FLAGS.image_width = 64
+    FLAGS.num_test_files = 100
+    FLAGS.data_dir = 'data/chinese1'
+    FLAGS.dst_dir = 'result/compare/fidelity/chinese1_%d_%d' % (
+                     FLAGS.image_height, FLAGS.stroke_width)
     if os.path.exists(FLAGS.dst_dir):
         shutil.rmtree(FLAGS.dst_dir)
     os.makedirs(FLAGS.dst_dir)       
-
     compare_fidelity()
+    ###
+
+    #######
+    # ch2, 64
+    FLAGS.stroke_width = 4
+    FLAGS.image_height = 64
+    FLAGS.image_width = 64
+    FLAGS.num_test_files = 100
+    FLAGS.data_dir = 'data/chinese2'
+    FLAGS.dst_dir = 'result/compare/fidelity/chinese2_%d_%d' % (
+                     FLAGS.image_height, FLAGS.stroke_width)
+    if os.path.exists(FLAGS.dst_dir):
+        shutil.rmtree(FLAGS.dst_dir)
+    os.makedirs(FLAGS.dst_dir)       
+    compare_fidelity()
+    ###
+
+    ########
+    ## line_ov, 64
+    FLAGS.stroke_width = 4
+    FLAGS.image_height = 64
+    FLAGS.image_width = 64
+    FLAGS.num_test_files = 100
+    FLAGS.data_dir = 'data/line_ov'
+    FLAGS.dst_dir = 'result/compare/fidelity/line_ov_%d_%d' % (
+                     FLAGS.image_height, FLAGS.stroke_width)
+    if os.path.exists(FLAGS.dst_dir):
+        shutil.rmtree(FLAGS.dst_dir)
+    os.makedirs(FLAGS.dst_dir)       
+    compare_fidelity()
+    ####
+
+    #######
+    # ch1, 1k
+    FLAGS.stroke_width = 60
+    FLAGS.image_height = 1024
+    FLAGS.image_width = 1024
+    FLAGS.num_test_files = 100
+    FLAGS.data_dir = 'data/chinese1'
+    FLAGS.dst_dir = 'result/compare/fidelity/chinese1_%d_%d' % (
+                     FLAGS.image_height, FLAGS.stroke_width)
+    if os.path.exists(FLAGS.dst_dir):
+        shutil.rmtree(FLAGS.dst_dir)
+    os.makedirs(FLAGS.dst_dir)       
+    compare_fidelity()
+    ###
+
+    #######
+    # ch2, 1k
+    FLAGS.stroke_width = 60
+    FLAGS.image_height = 1024
+    FLAGS.image_width = 1024
+    FLAGS.num_test_files = 100
+    FLAGS.data_dir = 'data/chinese2'
+    FLAGS.dst_dir = 'result/compare/fidelity/chinese2_%d_%d' % (
+                     FLAGS.image_height, FLAGS.stroke_width)
+    if os.path.exists(FLAGS.dst_dir):
+        shutil.rmtree(FLAGS.dst_dir)
+    os.makedirs(FLAGS.dst_dir)       
+    compare_fidelity()
+    ###
+
+    ########
+    ## line_ov, 1k
+    FLAGS.stroke_width = 60
+    FLAGS.image_height = 1024
+    FLAGS.image_width = 1024
+    FLAGS.num_test_files = 100
+    FLAGS.data_dir = 'data/line_ov'
+    FLAGS.dst_dir = 'result/compare/fidelity/line_ov_%d_%d' % (
+                     FLAGS.image_height, FLAGS.stroke_width)
+    if os.path.exists(FLAGS.dst_dir):
+        shutil.rmtree(FLAGS.dst_dir)
+    os.makedirs(FLAGS.dst_dir)       
+    compare_fidelity()
+    ####
+
+    ########
+    ## baseball, 128
+    FLAGS.stroke_width = 6
+    FLAGS.image_height = 128
+    FLAGS.image_width = 128
+    FLAGS.num_test_files = 100
+    FLAGS.data_dir = 'data/qdraw/qdraw_baseball_128'
+    FLAGS.dst_dir = 'result/compare/fidelity/qdraw/baseball_%d_%d' % (
+                     FLAGS.image_height, FLAGS.stroke_width)
+    if os.path.exists(FLAGS.dst_dir):
+        shutil.rmtree(FLAGS.dst_dir)
+    os.makedirs(FLAGS.dst_dir)       
+    compare_fidelity()
+    ####
+
+    ########
+    ## cat, 128
+    FLAGS.stroke_width = 6
+    FLAGS.image_height = 128
+    FLAGS.image_width = 128
+    FLAGS.num_test_files = 100
+    FLAGS.data_dir = 'data/qdraw/qdraw_cat_128'
+    FLAGS.dst_dir = 'result/compare/fidelity/qdraw/cat_%d_%d' % (
+                     FLAGS.image_height, FLAGS.stroke_width)
+    if os.path.exists(FLAGS.dst_dir):
+        shutil.rmtree(FLAGS.dst_dir)
+    os.makedirs(FLAGS.dst_dir)       
+    compare_fidelity()
+    ####
+    ########
+    ## stitches, 128
+    FLAGS.stroke_width = 6
+    FLAGS.image_height = 128
+    FLAGS.image_width = 128
+    FLAGS.num_test_files = 100
+    FLAGS.data_dir = 'data/qdraw/qdraw_stitches_128'
+    FLAGS.dst_dir = 'result/compare/fidelity/qdraw/stitches_%d_%d' % (
+                     FLAGS.image_height, FLAGS.stroke_width)
+    if os.path.exists(FLAGS.dst_dir):
+        shutil.rmtree(FLAGS.dst_dir)
+    os.makedirs(FLAGS.dst_dir)       
+    compare_fidelity()
+    ####
 
     print('Done')

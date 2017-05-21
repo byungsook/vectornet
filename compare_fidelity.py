@@ -109,7 +109,7 @@ def compare_fidelity():
         num_cpus = multiprocessing.cpu_count() - 1
         pool = multiprocessing.Pool(num_cpus, vectorize_mp, (queue,))
 
-
+    acc_avg_total = 0.0
     for file_path_id in file_path_list_id:
         file_path = file_path_list[file_path_id]
 
@@ -117,37 +117,50 @@ def compare_fidelity():
             queue.put(file_path)
         else:
             vectorize(file_path)
+            file_name = os.path.splitext(os.path.basename(file_path))[0]
+            svg_file_path = os.path.join(FLAGS.dst_dir, file_name+'.svg')
 
+            if not os.path.exists(svg_file_path):
+                continue
+        
+            acc_avg = compute_accuracy(file_path, svg_file_path)
+            print(file_path, 'acc:%.2f' % acc_avg)
+            acc_avg_total += acc_avg
+            new_file_name = svg_file_path[:-4] + '_%.2f' % acc_avg + svg_file_path[-4:]
+            os.rename(svg_file_path, new_file_name)
+        
     if FLAGS.use_mp:
         queue.join()
         pool.terminate()
         pool.join()
 
-    target_dir = os.path.join(FLAGS.dst_dir,'error_speed')
-    shutil.rmtree(target_dir)
+        # compute accuracy
+        for file_path_id in file_path_list_id:
+            file_path = file_path_list[file_path_id]
 
-    # compute accuracy
-    acc_avg_total = 0.0
-    for file_path_id in file_path_list_id:
-        file_path = file_path_list[file_path_id]
+            file_name = os.path.splitext(os.path.basename(file_path))[0]
+            svg_file_path = os.path.join(FLAGS.dst_dir, file_name+'.svg')
 
-        file_name = os.path.splitext(os.path.basename(file_path))[0]
-        svg_file_path = os.path.join(FLAGS.dst_dir, file_name+'.svg')
+            if not os.path.exists(svg_file_path):
+                continue
+        
+            acc_avg = compute_accuracy(file_path, svg_file_path)
+            print(file_path, 'acc:%.2f' % acc_avg)
+            acc_avg_total += acc_avg
+            new_file_name = svg_file_path[:-4] + '_%.2f' % acc_avg + svg_file_path[-4:]
+            os.rename(svg_file_path, new_file_name)
 
-        if not os.path.exists(svg_file_path):
-            continue
-    
-        acc_avg = compute_accuracy(file_path, svg_file_path)
-        print(file_path, 'acc:%.2f' % acc_avg)
-        acc_avg_total += acc_avg
-        new_file_name = svg_file_path[:-4] + '_%.2f' % acc_avg + svg_file_path[-4:]
-        os.rename(svg_file_path, new_file_name)
     acc_avg_total /= FLAGS.num_test_files
     print('acc_avg: %.3f' % acc_avg_total)
 
     stat_path = os.path.join(FLAGS.dst_dir, 'stat.txt')
     with open(stat_path, 'w') as f:
         f.write('acc_avg: %.3f' % acc_avg_total)
+
+    target_dir = os.path.join(FLAGS.dst_dir,'error_speed')
+    shutil.rmtree(target_dir)
+
+    
 
 def vectorize_mp(queue):
     while True:
@@ -544,12 +557,13 @@ if __name__ == '__main__':
     # with open(stat_path, 'w') as f:
     #     f.write('acc_avg: %.3f' % acc_avg_total)
 
+    num_test_files = 100
     #######
     # ch1, 64
     FLAGS.stroke_width = 4
     FLAGS.image_height = 64
     FLAGS.image_width = 64
-    FLAGS.num_test_files = 100
+    FLAGS.num_test_files = num_test_files
     FLAGS.data_dir = 'data/chinese1'
     FLAGS.dst_dir = 'result/compare/fidelity/chinese1_%d_%d' % (
                      FLAGS.image_height, FLAGS.stroke_width)
@@ -559,42 +573,42 @@ if __name__ == '__main__':
     compare_fidelity()
     ###
 
-    #######
-    # ch2, 64
-    FLAGS.stroke_width = 4
-    FLAGS.image_height = 64
-    FLAGS.image_width = 64
-    FLAGS.num_test_files = 100
-    FLAGS.data_dir = 'data/chinese2'
-    FLAGS.dst_dir = 'result/compare/fidelity/chinese2_%d_%d' % (
-                     FLAGS.image_height, FLAGS.stroke_width)
-    if os.path.exists(FLAGS.dst_dir):
-        shutil.rmtree(FLAGS.dst_dir)
-    os.makedirs(FLAGS.dst_dir)       
-    compare_fidelity()
-    ###
+    # #######
+    # # ch2, 64
+    # FLAGS.stroke_width = 4
+    # FLAGS.image_height = 64
+    # FLAGS.image_width = 64
+    # FLAGS.num_test_files = num_test_files
+    # FLAGS.data_dir = 'data/chinese2'
+    # FLAGS.dst_dir = 'result/compare/fidelity/chinese2_%d_%d' % (
+    #                  FLAGS.image_height, FLAGS.stroke_width)
+    # if os.path.exists(FLAGS.dst_dir):
+    #     shutil.rmtree(FLAGS.dst_dir)
+    # os.makedirs(FLAGS.dst_dir)       
+    # compare_fidelity()
+    # ###
 
-    ########
-    ## line_ov, 64
-    FLAGS.stroke_width = 4
-    FLAGS.image_height = 64
-    FLAGS.image_width = 64
-    FLAGS.num_test_files = 100
-    FLAGS.data_dir = 'data/line_ov'
-    FLAGS.dst_dir = 'result/compare/fidelity/line_ov_%d_%d' % (
-                     FLAGS.image_height, FLAGS.stroke_width)
-    if os.path.exists(FLAGS.dst_dir):
-        shutil.rmtree(FLAGS.dst_dir)
-    os.makedirs(FLAGS.dst_dir)       
-    compare_fidelity()
-    ####
+    # ########
+    # ## line_ov, 64
+    # FLAGS.stroke_width = 4
+    # FLAGS.image_height = 64
+    # FLAGS.image_width = 64
+    # FLAGS.num_test_files = num_test_files
+    # FLAGS.data_dir = 'data/line_ov'
+    # FLAGS.dst_dir = 'result/compare/fidelity/line_ov_%d_%d' % (
+    #                  FLAGS.image_height, FLAGS.stroke_width)
+    # if os.path.exists(FLAGS.dst_dir):
+    #     shutil.rmtree(FLAGS.dst_dir)
+    # os.makedirs(FLAGS.dst_dir)       
+    # compare_fidelity()
+    # ####
 
     #######
     # ch1, 1k
     FLAGS.stroke_width = 60
     FLAGS.image_height = 1024
     FLAGS.image_width = 1024
-    FLAGS.num_test_files = 100
+    FLAGS.num_test_files = num_test_files
     FLAGS.data_dir = 'data/chinese1'
     FLAGS.dst_dir = 'result/compare/fidelity/chinese1_%d_%d' % (
                      FLAGS.image_height, FLAGS.stroke_width)
@@ -609,7 +623,7 @@ if __name__ == '__main__':
     FLAGS.stroke_width = 60
     FLAGS.image_height = 1024
     FLAGS.image_width = 1024
-    FLAGS.num_test_files = 100
+    FLAGS.num_test_files = num_test_files
     FLAGS.data_dir = 'data/chinese2'
     FLAGS.dst_dir = 'result/compare/fidelity/chinese2_%d_%d' % (
                      FLAGS.image_height, FLAGS.stroke_width)
@@ -624,7 +638,7 @@ if __name__ == '__main__':
     FLAGS.stroke_width = 60
     FLAGS.image_height = 1024
     FLAGS.image_width = 1024
-    FLAGS.num_test_files = 100
+    FLAGS.num_test_files = num_test_files
     FLAGS.data_dir = 'data/line_ov'
     FLAGS.dst_dir = 'result/compare/fidelity/line_ov_%d_%d' % (
                      FLAGS.image_height, FLAGS.stroke_width)
@@ -639,7 +653,7 @@ if __name__ == '__main__':
     FLAGS.stroke_width = 6
     FLAGS.image_height = 128
     FLAGS.image_width = 128
-    FLAGS.num_test_files = 100
+    FLAGS.num_test_files = num_test_files
     FLAGS.data_dir = 'data/qdraw/qdraw_baseball_128'
     FLAGS.dst_dir = 'result/compare/fidelity/qdraw/baseball_%d_%d' % (
                      FLAGS.image_height, FLAGS.stroke_width)
@@ -654,7 +668,7 @@ if __name__ == '__main__':
     FLAGS.stroke_width = 6
     FLAGS.image_height = 128
     FLAGS.image_width = 128
-    FLAGS.num_test_files = 100
+    FLAGS.num_test_files = num_test_files
     FLAGS.data_dir = 'data/qdraw/qdraw_cat_128'
     FLAGS.dst_dir = 'result/compare/fidelity/qdraw/cat_%d_%d' % (
                      FLAGS.image_height, FLAGS.stroke_width)
@@ -668,7 +682,7 @@ if __name__ == '__main__':
     FLAGS.stroke_width = 6
     FLAGS.image_height = 128
     FLAGS.image_width = 128
-    FLAGS.num_test_files = 100
+    FLAGS.num_test_files = num_test_files
     FLAGS.data_dir = 'data/qdraw/qdraw_stitches_128'
     FLAGS.dst_dir = 'result/compare/fidelity/qdraw/stitches_%d_%d' % (
                      FLAGS.image_height, FLAGS.stroke_width)

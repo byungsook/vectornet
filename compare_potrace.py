@@ -413,27 +413,30 @@ if __name__ == '__main__':
         working_path = os.path.join(working_path, 'vectornet')
         os.chdir(working_path)
 
-    # acc_avg_total = 0
-    # for root, _, files in os.walk(FLAGS.dst_dir):
-    #     for file in files:
-    #         if not file.lower().endswith('svg'):
-    #             continue
+    FLAGS.dst_dir = 'result/overlap/qdraw/cat_128_full'
+    acc_avg_total = 0
+    count = 0
+    for root, _, files in os.walk(FLAGS.dst_dir):
+        for file in files:
+            if not file.lower().endswith('svg'):
+                continue
             
-    #         acc_avg = float(file.split('_')[1][:-4])
+            acc_avg = float(file.split('_')[3][:-4])
         
-    #         print(file, 'acc:%.2f' % acc_avg)
-    #         acc_avg_total += acc_avg
-    # acc_avg_total /= 99.0
-    # print('acc_avg: %.3f' % acc_avg_total)
+            print(file, 'acc:%.2f' % acc_avg)
+            acc_avg_total += acc_avg
+            count += 1
+    acc_avg_total /= count
+    print('acc_avg: %.3f' % acc_avg_total)
 
-    # stat_path = os.path.join(FLAGS.dst_dir, 'stat.txt')
-    # with open(stat_path, 'w') as f:
-    #     f.write('acc_avg: %.3f' % acc_avg_total)
+    stat_path = os.path.join(FLAGS.dst_dir, 'stat.txt')
+    with open(stat_path, 'w') as f:
+        f.write('acc_avg: %.3f' % acc_avg_total)
 
-    if os.path.exists(FLAGS.dst_dir):
-        shutil.rmtree(FLAGS.dst_dir)
-    os.makedirs(FLAGS.dst_dir)   
+    # if os.path.exists(FLAGS.dst_dir):
+    #     shutil.rmtree(FLAGS.dst_dir)
+    # os.makedirs(FLAGS.dst_dir)   
 
-    compare_potrace()
+    # compare_potrace()
 
     print('Done')

@@ -1,3 +1,7 @@
+python pathnet_train.py --train_on=qdraw --log_dir=log/128/qdraw/chandelier --max_steps=50000 --image_width=128 --image_height=128 --batch_size=16 --initial_learning_rate=0.005 --data_dir=../data/qdraw_chandelier_128
+python pathnet_train.py --train_on=qdraw --log_dir=log/128/qdraw/elephant   --max_steps=50000 --image_width=128 --image_height=128 --batch_size=16 --initial_learning_rate=0.005 --data_dir=../data/qdraw_elephant_128
+python pathnet_train.py --train_on=qdraw --log_dir=log/128/qdraw/mix        --max_steps=50000 --image_width=128 --image_height=128 --batch_size=16 --initial_learning_rate=0.005 --data_dir=../data/qdraw_mix_128
+
 # # qdraw
 # python pathnet_train.py --train_on=qdraw --log_dir=log/128/qdraw_baseball_128 --max_steps=50000 --image_width=128 --image_height=128 --batch_size=16 --initial_learning_rate=0.005 --data_dir=../data/qdraw_baseball_128_all
 # python pathnet_train.py --train_on=qdraw --log_dir=log/128/qdraw_stitches_128 --max_steps=50000 --image_width=128 --image_height=128 --batch_size=16 --initial_learning_rate=0.005 --data_dir=../data/qdraw_stitches_128_all

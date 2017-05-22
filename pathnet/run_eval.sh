@@ -1,3 +1,14 @@
+python pathnet_eval.py --train_on=line    --eval_dir=eval/64/line    --checkpoint_dir=model/no_trans_64/line --image_width=64 --image_height=64 --batch_size=8 --max_images=8 --num_epoch=1 --data_dir=../data/line_ov
+
+# qdraw
+# python pathnet_eval.py --train_on=qdraw --eval_dir=eval/qdraw/test/baseball_128  --checkpoint_dir=model/no_trans_128/qdraw_baseball_128 --image_width=128 --image_height=128 --batch_size=16 --max_images=16 --num_epoch=1 --data_dir=../data/qdraw_baseball_128 --file_list=test.txt
+# python pathnet_eval.py --train_on=qdraw --eval_dir=eval/qdraw/test/cat_128       --checkpoint_dir=model/no_trans_128/qdraw_stitches_128 --image_width=128 --image_height=128 --batch_size=16 --max_images=16 --num_epoch=1 --data_dir=../data/qdraw_cat_128      --file_list=test.txt
+# python pathnet_eval.py --train_on=qdraw --eval_dir=eval/qdraw/test/stitches_128  --checkpoint_dir=model/no_trans_128/qdraw_cat_128      --image_width=128 --image_height=128 --batch_size=16 --max_images=16 --num_epoch=1 --data_dir=../data/qdraw_stitches_128 --file_list=test.txt
+# python pathnet_eval.py --train_on=qdraw --eval_dir=eval/qdraw/train/baseball_128 --checkpoint_dir=model/no_trans_128/qdraw_baseball_128 --image_width=128 --image_height=128 --batch_size=16 --max_images=16 --num_epoch=1 --data_dir=../data/qdraw_baseball_128 --file_list=train.txt
+# python pathnet_eval.py --train_on=qdraw --eval_dir=eval/qdraw/train/cat_128      --checkpoint_dir=model/no_trans_128/qdraw_stitches_128 --image_width=128 --image_height=128 --batch_size=16 --max_images=16 --num_epoch=1 --data_dir=../data/qdraw_cat_128      --file_list=train.txt
+# python pathnet_eval.py --train_on=qdraw --eval_dir=eval/qdraw/train/stitches_128 --checkpoint_dir=model/no_trans_128/qdraw_cat_128      --image_width=128 --image_height=128 --batch_size=16 --max_images=16 --num_epoch=1 --data_dir=../data/qdraw_stitches_128 --file_list=train.txt
+
+
 # python pathnet_eval.py --train_on=fidelity --eval_dir=eval/no_trans_128/fidelity_train_256 --checkpoint_dir=model/no_trans_128/fidelity --image_width=64 --image_height=64 --batch_size=16 --max_images=16 --num_epoch=3 --data_dir=../data/fidelity --file_list=train.txt
 # python pathnet_eval.py --train_on=fidelity --eval_dir=eval/no_trans_128/fidelity_test_256  --checkpoint_dir=model/no_trans_128/fidelity --image_width=64 --image_height=64 --batch_size=16 --max_images=16 --num_epoch=3 --data_dir=../data/fidelity --file_list=test.txt
 

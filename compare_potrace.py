@@ -25,11 +25,11 @@ import xml.etree.ElementTree as et
 def init_arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('data_dir',
-                    default='data/qdraw/qdraw_stitches_128', # 'data_tmp/gc_test',
+                    default='data/line_ov', # 'data_tmp/gc_test',
                     help='data directory',
                     nargs='?') # optional arg.
     parser.add_argument('dst_dir',
-                    default='result/compare/potrace/qdraw/stitches_128', # 'data_tmp/gc_test',
+                    default='result/compare/potrace/line', # 'data_tmp/gc_test',
                     help='destination directory',
                     nargs='?') # optional arg.
     parser.add_argument('file_list',
@@ -41,11 +41,11 @@ def init_arg_parser():
                     help='',
                     nargs='?') # optional arg.
     parser.add_argument('image_width',
-                    default=128,
+                    default=64,
                     help='',
                     nargs='?') # optional arg.
     parser.add_argument('image_height',
-                    default=128,
+                    default=64,
                     help='',
                     nargs='?') # optional arg.
     parser.add_argument('potrace_dir',
@@ -66,27 +66,27 @@ def compare_potrace():
     num_files = 0
     file_path_list = []
     
-    file_list_path = os.path.join(FLAGS.data_dir, FLAGS.file_list)
-    with open(file_list_path, 'r') as f:
-        while True:
-            line = f.readline()
-            if not line: break
+    # file_list_path = os.path.join(FLAGS.data_dir, FLAGS.file_list)
+    # with open(file_list_path, 'r') as f:
+    #     while True:
+    #         line = f.readline()
+    #         if not line: break
 
-            file = line.rstrip()
-            file_path = os.path.join(FLAGS.data_dir, file)
-            file_path_list.append(file_path)
-
-    # read entire svg
-    # for root, _, files in os.walk(FLAGS.data_dir):
-    #     for file in files:
-    #         if not file.lower().endswith('svg'):
-    #             continue
-            
+    #         file = line.rstrip()
     #         file_path = os.path.join(FLAGS.data_dir, file)
     #         file_path_list.append(file_path)
-    #         # file_name = file.split('_')[0]
-    #         # file_path = os.path.join(FLAGS.data_dir, file_name+'.svg_pre')
-    #         # file_path_list.append(file_path)
+
+    # read entire svg
+    for root, _, files in os.walk(FLAGS.data_dir):
+        for file in files:
+            if not file.lower().endswith('svg'):
+                continue
+            
+            file_path = os.path.join(FLAGS.data_dir, file)
+            file_path_list.append(file_path)
+            # file_name = file.split('_')[0]
+            # file_path = os.path.join(FLAGS.data_dir, file_name+'.svg_pre')
+            # file_path_list.append(file_path)
 
     # select test files
     num_total_test_files = len(file_path_list)
@@ -288,52 +288,52 @@ def get_stroke_list(file_path):
         svg = f.read()
 
     stroke_list = []
-    num_paths = svg.count('polyline')
+    # num_paths = svg.count('polyline')
 
-    for i in xrange(1,num_paths+1):
-        svg_xml = et.fromstring(svg)
-        # svg_xml[0]._children = [svg_xml[0]._children[i]]
-        stroke = svg_xml[i]
-        for c in reversed(xrange(1,num_paths+1)):
-            if svg_xml[c] != stroke:
-                svg_xml.remove(svg_xml[c])
-        svg_one_stroke = et.tostring(svg_xml, method='xml')
-
-        stroke_png = cairosvg.svg2png(bytestring=svg_one_stroke)
-        stroke_img = Image.open(io.BytesIO(stroke_png))
-        stroke = (np.array(stroke_img)[:,:,3] > 0)
-
-        # # debug
-        # stroke_img = np.array(stroke_img)[:,:,3].astype(np.float) / 255.0
-        # plt.imshow(stroke_img, cmap=plt.cm.gray)
-        # plt.show()
-
-        stroke_list.append(stroke)
-
-    # ####
-    # # line start
-    # svg_xml = et.fromstring(svg)
-    # num_paths = len(svg_xml[0])
-
-    # for i in xrange(num_paths):
+    # for i in xrange(1,num_paths+1):
     #     svg_xml = et.fromstring(svg)
-    #     stroke = svg_xml[0][i]
-    #     for c in reversed(xrange(num_paths)):
-    #         if svg_xml[0][c] != stroke:
-    #             svg_xml[0].remove(svg_xml[0][c])
+    #     # svg_xml[0]._children = [svg_xml[0]._children[i]]
+    #     stroke = svg_xml[i]
+    #     for c in reversed(xrange(1,num_paths+1)):
+    #         if svg_xml[c] != stroke:
+    #             svg_xml.remove(svg_xml[c])
     #     svg_one_stroke = et.tostring(svg_xml, method='xml')
 
-    #     y_png = cairosvg.svg2png(bytestring=svg_one_stroke)
-    #     y_img = Image.open(io.BytesIO(y_png)).convert('L')
-    #     y = (np.array(y_img) > 0)
+    #     stroke_png = cairosvg.svg2png(bytestring=svg_one_stroke)
+    #     stroke_img = Image.open(io.BytesIO(stroke_png))
+    #     stroke = (np.array(stroke_img)[:,:,3] > 0)
 
     #     # # debug
-    #     # plt.imshow(y, cmap=plt.cm.gray)
+    #     # stroke_img = np.array(stroke_img)[:,:,3].astype(np.float) / 255.0
+    #     # plt.imshow(stroke_img, cmap=plt.cm.gray)
     #     # plt.show()
+
+    #     stroke_list.append(stroke)
+
+    ####
+    # line start
+    svg_xml = et.fromstring(svg)
+    num_paths = len(svg_xml[0])
+
+    for i in xrange(num_paths):
+        svg_xml = et.fromstring(svg)
+        stroke = svg_xml[0][i]
+        for c in reversed(xrange(num_paths)):
+            if svg_xml[0][c] != stroke:
+                svg_xml[0].remove(svg_xml[0][c])
+        svg_one_stroke = et.tostring(svg_xml, method='xml')
+
+        y_png = cairosvg.svg2png(bytestring=svg_one_stroke)
+        y_img = Image.open(io.BytesIO(y_png)).convert('L')
+        y = (np.array(y_img) > 0)
+
+        # # debug
+        # plt.imshow(y, cmap=plt.cm.gray)
+        # plt.show()
         
-    #     stroke_list.append(y)
-    # # line end
-    # ####
+        stroke_list.append(y)
+    # line end
+    ####
 
     # ###
     # ### ch1, ch2
@@ -413,30 +413,30 @@ if __name__ == '__main__':
         working_path = os.path.join(working_path, 'vectornet')
         os.chdir(working_path)
 
-    FLAGS.dst_dir = 'result/overlap/qdraw/cat_128_full'
-    acc_avg_total = 0
-    count = 0
-    for root, _, files in os.walk(FLAGS.dst_dir):
-        for file in files:
-            if not file.lower().endswith('svg'):
-                continue
+    # FLAGS.dst_dir = 'result/overlap/qdraw/cat_128_full'
+    # acc_avg_total = 0
+    # count = 0
+    # for root, _, files in os.walk(FLAGS.dst_dir):
+    #     for file in files:
+    #         if not file.lower().endswith('svg'):
+    #             continue
             
-            acc_avg = float(file.split('_')[3][:-4])
+    #         acc_avg = float(file.split('_')[3][:-4])
         
-            print(file, 'acc:%.2f' % acc_avg)
-            acc_avg_total += acc_avg
-            count += 1
-    acc_avg_total /= count
-    print('acc_avg: %.3f' % acc_avg_total)
+    #         print(file, 'acc:%.2f' % acc_avg)
+    #         acc_avg_total += acc_avg
+    #         count += 1
+    # acc_avg_total /= count
+    # print('acc_avg: %.3f' % acc_avg_total)
 
-    stat_path = os.path.join(FLAGS.dst_dir, 'stat.txt')
-    with open(stat_path, 'w') as f:
-        f.write('acc_avg: %.3f' % acc_avg_total)
+    # stat_path = os.path.join(FLAGS.dst_dir, 'stat.txt')
+    # with open(stat_path, 'w') as f:
+    #     f.write('acc_avg: %.3f' % acc_avg_total)
 
-    # if os.path.exists(FLAGS.dst_dir):
-    #     shutil.rmtree(FLAGS.dst_dir)
-    # os.makedirs(FLAGS.dst_dir)   
+    if os.path.exists(FLAGS.dst_dir):
+        shutil.rmtree(FLAGS.dst_dir)
+    os.makedirs(FLAGS.dst_dir)   
 
-    # compare_potrace()
+    compare_potrace()
 
     print('Done')

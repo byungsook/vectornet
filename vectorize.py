@@ -167,38 +167,38 @@ def predict(pathnet_manager, ovnet_manager, file_path):
     # f.write('%d\n' % num_path_pixels)
     f.write('%d\n' % dup_id)
 
-    # # support only symmetric edge weight
-    # radius = FLAGS.neighbor_sigma*2
-    # nb = sklearn.neighbors.NearestNeighbors(radius=radius)
-    # nb.fit(np.array(path_pixels).transpose())
-    # np.random.seed(0)
+    # support only symmetric edge weight
+    radius = FLAGS.neighbor_sigma*2
+    nb = sklearn.neighbors.NearestNeighbors(radius=radius)
+    nb.fit(np.array(path_pixels).transpose())
+    np.random.seed(0)
 
     high_spatial = 100000
     for i in xrange(num_path_pixels-1):
         p1 = np.array([path_pixels[0][i], path_pixels[1][i]])
         pred_p1 = np.reshape(y_batch[i,:,:,:], [FLAGS.image_height, FLAGS.image_width])
 
-        # # see close neighbors and some far neighbors (stochastic sampling)        
-        # rng = nb.radius_neighbors([p1])
-        # num_close = len(rng[1][0])
-        # far = np.setdiff1d(xrange(i+1,num_path_pixels),rng[1][0])
-        # num_far = len(far)
-        # num_far = int(num_far * FLAGS.neighbor_sample)
-        # if num_far > 0:
-        #     far_ids = np.random.choice(far, size=num_far)
-        #     nb_ids = np.concatenate((rng[1][0],far_ids))
-        # else:
-        #     nb_ids = rng[1][0]
-        # for rj, j in enumerate(nb_ids): # ids
-        #     if j <= i:
-        #         continue                
-        #     p2 = np.array([path_pixels[0][j], path_pixels[1][j]])
-        #     if rj < num_close: d12 = rng[0][0][rj]
-        #     else: d12 = np.linalg.norm(p1-p2, 2)            
-
-        for j in xrange(i+1, num_path_pixels): # see entire neighbors
+        # see close neighbors and some far neighbors (stochastic sampling)        
+        rng = nb.radius_neighbors([p1])
+        num_close = len(rng[1][0])
+        far = np.setdiff1d(xrange(i+1,num_path_pixels),rng[1][0])
+        num_far = len(far)
+        num_far = int(num_far * FLAGS.neighbor_sample)
+        if num_far > 0:
+            far_ids = np.random.choice(far, size=num_far)
+            nb_ids = np.concatenate((rng[1][0],far_ids))
+        else:
+            nb_ids = rng[1][0]
+        for rj, j in enumerate(nb_ids): # ids
+            if j <= i:
+                continue                
             p2 = np.array([path_pixels[0][j], path_pixels[1][j]])
-            d12 = np.linalg.norm(p1-p2, 2)
+            if rj < num_close: d12 = rng[0][0][rj]
+            else: d12 = np.linalg.norm(p1-p2, 2)            
+
+        # for j in xrange(i+1, num_path_pixels): # see entire neighbors
+        #     p2 = np.array([path_pixels[0][j], path_pixels[1][j]])
+        #     d12 = np.linalg.norm(p1-p2, 2)
             
             pred_p2 = np.reshape(y_batch[j,:,:,:], [FLAGS.image_height, FLAGS.image_width])
             pred = (pred_p1[p2[0],p2[1]] + pred_p2[p1[0],p1[1]]) * 0.5

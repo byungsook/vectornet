@@ -57,10 +57,10 @@ def svg2pdf(data_dir, dst_dir):
             cscalarmap = cmx.ScalarMappable(norm=cnorm, cmap=cmap)
 
             end = 0
-            # ch1
-            stroke_color = ''' style="fill:rgb({r}, {g}, {b})" /'''
-            # # ch2
-            # stroke_color = ''' stroke="rgb({r}, {g}, {b})"'''
+            # # ch1
+            # stroke_color = ''' style="fill:rgb({r}, {g}, {b})" /'''
+            # ch2
+            stroke_color = ''' stroke="rgb({r}, {g}, {b})"'''
             for i in xrange(num_path):
                 rgb = cscalarmap.to_rgba(i)
                 r = int(rgb[0]*255)
@@ -68,17 +68,17 @@ def svg2pdf(data_dir, dst_dir):
                 b = int(rgb[2]*255)
 
                 start = svg.find('path', end)
-                # ch1
-                end1 = svg.find('>', start)
-                end = svg.find('>', end1+1)
-                svg = svg[:end1] + stroke_color.format(r=r,g=g,b=b) + svg[end:]
-                # ch1
-                # # ch2
-                # end = svg.find('/>', start)
-                # svg = svg[:end] + stroke_color.format(r=r,g=g,b=b) + svg[end:]
-                # # ch2
+                # # ch1
+                # end1 = svg.find('>', start)
+                # end = svg.find('>', end1+1)
+                # svg = svg[:end1] + stroke_color.format(r=r,g=g,b=b) + svg[end:]
+                # # ch1
+                # ch2
+                end = svg.find('/>', start)
+                svg = svg[:end] + stroke_color.format(r=r,g=g,b=b) + svg[end:]
+                # ch2
                     
-            cairosvg.svg2pdf(bytestring=svg.encode('utf-8'), write_to=dst_path)
+            cairosvg.svg2pdf(bytestring=svg.encode('utf-8'), write_to=dst_path, scale=16)
             count += 1
 
 
@@ -102,12 +102,12 @@ def svg2pdf(data_dir, dst_dir):
 def init_arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('data_dir',
-                default='data/chinese1',
+                default='data/chinese2',
                 help='data directory',
                 nargs='?') # optional arg.
 
     parser.add_argument('dst_dir',
-                    default='paper/ch1',
+                    default='paper/ch2',
                     help='destination directory',
                     nargs='?') # optional arg.
     

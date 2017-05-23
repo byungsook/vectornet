@@ -25,11 +25,11 @@ import xml.etree.ElementTree as et
 def init_arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('data_dir',
-                    default='data/line_ov', # 'data_tmp/gc_test',
+                    default='data/qdraw_bicycle_128', # 'data_tmp/gc_test',
                     help='data directory',
                     nargs='?') # optional arg.
     parser.add_argument('dst_dir',
-                    default='result/compare/potrace/line', # 'data_tmp/gc_test',
+                    default='result/compare/potrace/qdraw/bicycle_128_test', # 'data_tmp/gc_test',
                     help='destination directory',
                     nargs='?') # optional arg.
     parser.add_argument('file_list',
@@ -41,11 +41,11 @@ def init_arg_parser():
                     help='',
                     nargs='?') # optional arg.
     parser.add_argument('image_width',
-                    default=64,
+                    default=128,
                     help='',
                     nargs='?') # optional arg.
     parser.add_argument('image_height',
-                    default=64,
+                    default=128,
                     help='',
                     nargs='?') # optional arg.
     parser.add_argument('potrace_dir',
@@ -288,52 +288,56 @@ def get_stroke_list(file_path):
         svg = f.read()
 
     stroke_list = []
-    # num_paths = svg.count('polyline')
-
-    # for i in xrange(1,num_paths+1):
-    #     svg_xml = et.fromstring(svg)
-    #     # svg_xml[0]._children = [svg_xml[0]._children[i]]
-    #     stroke = svg_xml[i]
-    #     for c in reversed(xrange(1,num_paths+1)):
-    #         if svg_xml[c] != stroke:
-    #             svg_xml.remove(svg_xml[c])
-    #     svg_one_stroke = et.tostring(svg_xml, method='xml')
-
-    #     stroke_png = cairosvg.svg2png(bytestring=svg_one_stroke)
-    #     stroke_img = Image.open(io.BytesIO(stroke_png))
-    #     stroke = (np.array(stroke_img)[:,:,3] > 0)
-
-    #     # # debug
-    #     # stroke_img = np.array(stroke_img)[:,:,3].astype(np.float) / 255.0
-    #     # plt.imshow(stroke_img, cmap=plt.cm.gray)
-    #     # plt.show()
-
-    #     stroke_list.append(stroke)
-
     ####
-    # line start
-    svg_xml = et.fromstring(svg)
-    num_paths = len(svg_xml[0])
+    # qdraw
+    num_paths = svg.count('polyline')
 
-    for i in xrange(num_paths):
+    for i in xrange(1,num_paths+1):
         svg_xml = et.fromstring(svg)
-        stroke = svg_xml[0][i]
-        for c in reversed(xrange(num_paths)):
-            if svg_xml[0][c] != stroke:
-                svg_xml[0].remove(svg_xml[0][c])
+        # svg_xml[0]._children = [svg_xml[0]._children[i]]
+        stroke = svg_xml[i]
+        for c in reversed(xrange(1,num_paths+1)):
+            if svg_xml[c] != stroke:
+                svg_xml.remove(svg_xml[c])
         svg_one_stroke = et.tostring(svg_xml, method='xml')
 
-        y_png = cairosvg.svg2png(bytestring=svg_one_stroke)
-        y_img = Image.open(io.BytesIO(y_png)).convert('L')
-        y = (np.array(y_img) > 0)
+        stroke_png = cairosvg.svg2png(bytestring=svg_one_stroke)
+        stroke_img = Image.open(io.BytesIO(stroke_png))
+        stroke = (np.array(stroke_img)[:,:,3] > 0)
 
         # # debug
-        # plt.imshow(y, cmap=plt.cm.gray)
+        # stroke_img = np.array(stroke_img)[:,:,3].astype(np.float) / 255.0
+        # plt.imshow(stroke_img, cmap=plt.cm.gray)
         # plt.show()
-        
-        stroke_list.append(y)
-    # line end
+
+        stroke_list.append(stroke)
+    # qdraw
     ####
+
+    # ####
+    # # line start
+    # svg_xml = et.fromstring(svg)
+    # num_paths = len(svg_xml[0])
+
+    # for i in xrange(num_paths):
+    #     svg_xml = et.fromstring(svg)
+    #     stroke = svg_xml[0][i]
+    #     for c in reversed(xrange(num_paths)):
+    #         if svg_xml[0][c] != stroke:
+    #             svg_xml[0].remove(svg_xml[0][c])
+    #     svg_one_stroke = et.tostring(svg_xml, method='xml')
+
+    #     y_png = cairosvg.svg2png(bytestring=svg_one_stroke)
+    #     y_img = Image.open(io.BytesIO(y_png)).convert('L')
+    #     y = (np.array(y_img) > 0)
+
+    #     # # debug
+    #     # plt.imshow(y, cmap=plt.cm.gray)
+    #     # plt.show()
+        
+    #     stroke_list.append(y)
+    # # line end
+    # ####
 
     # ###
     # ### ch1, ch2

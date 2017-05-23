@@ -23,7 +23,7 @@ os.chdir('/home/kimby/dev/vectornet')
 # f.close()
 
 img_size = 128
-category = 'cat' # 'baseball' 'stitches' 'cat'
+category = 'bicycle' # 'baseball' 'stitches' 'cat' 'elephant'
 output = 'data/qdraw_{cat}_{img_size}'.format(cat=category, img_size=img_size)
 
 if os.path.exists(output):
@@ -34,7 +34,7 @@ os.mkdir(output)
 stroke_width = 2
 bbox_pad = 20
 cmap = plt.get_cmap('jet')
-need = 50
+need = 200
 
 with jsonlines.open('data/{cat}.ndjson'.format(cat=category)) as reader:
     for count, obj in enumerate(reader):
@@ -82,8 +82,8 @@ with jsonlines.open('data/{cat}.ndjson'.format(cat=category)) as reader:
             dwg.viewbox(0, 0, img_size, img_size)
             dwg.save()
 
-        # if count >= need:
-        #     break
+        if count >= need:
+            break
 
 # split dataset
 file_list = []
@@ -93,10 +93,10 @@ for root, _, files in os.walk(output):
 
 num_files = len(file_list)
 ids = np.random.permutation(num_files)
-train_id = int(num_files * 0.9)
-with open(os.path.join(output,'train.txt'), 'w') as f: 
-    for id in ids[:train_id]:
-        f.write(file_list[id] + '\n')
+# train_id = int(num_files * 0.9)
+# with open(os.path.join(output,'train.txt'), 'w') as f: 
+#     for id in ids[:train_id]:
+#         f.write(file_list[id] + '\n')
 with open(os.path.join(output,'test.txt'), 'w') as f: 
-    for id in ids[train_id:]:
+    for id in ids:
         f.write(file_list[id] + '\n')

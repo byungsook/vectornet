@@ -139,7 +139,7 @@ def evaluate():
             batch_manager.start_thread(sess)
             epoch_per_step = float(FLAGS.batch_size) / batch_manager.num_examples_per_epoch
             num_eval = batch_manager.num_examples_per_epoch * FLAGS.num_epoch
-            num_iter = int(math.ceil(num_eval / FLAGS.batch_size))
+            num_iter = min(1000, int(math.ceil(num_eval / FLAGS.batch_size)))
             # num_iter = 1
             print('total iter: %d' % num_iter)
             total_loss = 0

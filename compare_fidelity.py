@@ -71,29 +71,29 @@ def compare_fidelity():
     num_files = 0
     file_path_list = []
 
-    if 'chinese' in FLAGS.data_dir or \
-       'fidelity' in FLAGS.data_dir or \
-       'qdraw' in FLAGS.data_dir:
-        file_list_path = os.path.join(FLAGS.data_dir, FLAGS.file_list)
-        with open(file_list_path, 'r') as f:
-            while True:
-                line = f.readline()
-                if not line: break
+    # if 'chinese' in FLAGS.data_dir or \
+    #    'fidelity' in FLAGS.data_dir or \
+    #    'qdraw' in FLAGS.data_dir:
+    #     file_list_path = os.path.join(FLAGS.data_dir, FLAGS.file_list)
+    #     with open(file_list_path, 'r') as f:
+    #         while True:
+    #             line = f.readline()
+    #             if not line: break
 
-                file = line.rstrip()
-                file_path = os.path.join(FLAGS.data_dir, file)
-                file_path_list.append(file_path)
-    elif 'line' in FLAGS.data_dir:
-        for root, _, files in os.walk(FLAGS.data_dir):
-            for file in files:
-                if not file.lower().endswith('svg'):
-                    continue
-                
-                file_path = os.path.join(FLAGS.data_dir, file)
-                file_path_list.append(file_path)
-                # file_name = file.split('_')[0]
-                # file_path = os.path.join(FLAGS.data_dir, file_name+'.svg_pre')
-                # file_path_list.append(file_path)
+    #             file = line.rstrip()
+    #             file_path = os.path.join(FLAGS.data_dir, file)
+    #             file_path_list.append(file_path)
+    # elif 'line' in FLAGS.data_dir:
+    for root, _, files in os.walk(FLAGS.data_dir):
+        for file in files:
+            if not file.lower().endswith('svg'):
+                continue
+            
+            file_path = os.path.join(FLAGS.data_dir, file)
+            file_path_list.append(file_path)
+            # file_name = file.split('_')[0]
+            # file_path = os.path.join(FLAGS.data_dir, file_name+'.svg_pre')
+            # file_path_list.append(file_path)
 
     # select test files
     num_total_test_files = len(file_path_list)
@@ -558,20 +558,20 @@ if __name__ == '__main__':
     #     f.write('acc_avg: %.3f' % acc_avg_total)
 
     num_test_files = 100
-    #######
-    # ch1, 64
-    FLAGS.stroke_width = 4
-    FLAGS.image_height = 64
-    FLAGS.image_width = 64
-    FLAGS.num_test_files = num_test_files
-    FLAGS.data_dir = 'data/chinese1'
-    FLAGS.dst_dir = 'result/compare/fidelity/chinese1_%d_%d' % (
-                     FLAGS.image_height, FLAGS.stroke_width)
-    if os.path.exists(FLAGS.dst_dir):
-        shutil.rmtree(FLAGS.dst_dir)
-    os.makedirs(FLAGS.dst_dir)       
-    compare_fidelity()
-    ###
+    # #######
+    # # ch1, 64
+    # FLAGS.stroke_width = 4
+    # FLAGS.image_height = 64
+    # FLAGS.image_width = 64
+    # FLAGS.num_test_files = num_test_files
+    # FLAGS.data_dir = 'data/chinese1'
+    # FLAGS.dst_dir = 'result/compare/fidelity/chinese1_%d_%d' % (
+    #                  FLAGS.image_height, FLAGS.stroke_width)
+    # if os.path.exists(FLAGS.dst_dir):
+    #     shutil.rmtree(FLAGS.dst_dir)
+    # os.makedirs(FLAGS.dst_dir)       
+    # compare_fidelity()
+    # ###
 
     # #######
     # # ch2, 64
@@ -603,88 +603,148 @@ if __name__ == '__main__':
     # compare_fidelity()
     # ####
 
-    #######
-    # ch1, 1k
-    FLAGS.stroke_width = 60
-    FLAGS.image_height = 1024
-    FLAGS.image_width = 1024
-    FLAGS.num_test_files = num_test_files
-    FLAGS.data_dir = 'data/chinese1'
-    FLAGS.dst_dir = 'result/compare/fidelity/chinese1_%d_%d' % (
-                     FLAGS.image_height, FLAGS.stroke_width)
-    if os.path.exists(FLAGS.dst_dir):
-        shutil.rmtree(FLAGS.dst_dir)
-    os.makedirs(FLAGS.dst_dir)       
-    compare_fidelity()
-    ###
+    # #######
+    # # ch1, 1k
+    # FLAGS.stroke_width = 60
+    # FLAGS.image_height = 1024
+    # FLAGS.image_width = 1024
+    # FLAGS.num_test_files = num_test_files
+    # FLAGS.data_dir = 'data/chinese1'
+    # FLAGS.dst_dir = 'result/compare/fidelity/chinese1_%d_%d' % (
+    #                  FLAGS.image_height, FLAGS.stroke_width)
+    # if os.path.exists(FLAGS.dst_dir):
+    #     shutil.rmtree(FLAGS.dst_dir)
+    # os.makedirs(FLAGS.dst_dir)       
+    # compare_fidelity()
+    # ###
 
-    #######
-    # ch2, 1k
-    FLAGS.stroke_width = 60
-    FLAGS.image_height = 1024
-    FLAGS.image_width = 1024
-    FLAGS.num_test_files = num_test_files
-    FLAGS.data_dir = 'data/chinese2'
-    FLAGS.dst_dir = 'result/compare/fidelity/chinese2_%d_%d' % (
-                     FLAGS.image_height, FLAGS.stroke_width)
-    if os.path.exists(FLAGS.dst_dir):
-        shutil.rmtree(FLAGS.dst_dir)
-    os.makedirs(FLAGS.dst_dir)       
-    compare_fidelity()
-    ###
+    # #######
+    # # ch2, 1k
+    # FLAGS.stroke_width = 60
+    # FLAGS.image_height = 1024
+    # FLAGS.image_width = 1024
+    # FLAGS.num_test_files = num_test_files
+    # FLAGS.data_dir = 'data/chinese2'
+    # FLAGS.dst_dir = 'result/compare/fidelity/chinese2_%d_%d' % (
+    #                  FLAGS.image_height, FLAGS.stroke_width)
+    # if os.path.exists(FLAGS.dst_dir):
+    #     shutil.rmtree(FLAGS.dst_dir)
+    # os.makedirs(FLAGS.dst_dir)       
+    # compare_fidelity()
+    # ###
+
+    # ########
+    # ## line_ov, 1k
+    # FLAGS.stroke_width = 60
+    # FLAGS.image_height = 1024
+    # FLAGS.image_width = 1024
+    # FLAGS.num_test_files = num_test_files
+    # FLAGS.data_dir = 'data/line_ov'
+    # FLAGS.dst_dir = 'result/compare/fidelity/line_ov_%d_%d' % (
+    #                  FLAGS.image_height, FLAGS.stroke_width)
+    # if os.path.exists(FLAGS.dst_dir):
+    #     shutil.rmtree(FLAGS.dst_dir)
+    # os.makedirs(FLAGS.dst_dir)       
+    # compare_fidelity()
+    # ####
+
+    # ########
+    # ## baseball, 128
+    # FLAGS.stroke_width = 6
+    # FLAGS.image_height = 128
+    # FLAGS.image_width = 128
+    # FLAGS.num_test_files = num_test_files
+    # FLAGS.data_dir = 'data/qdraw/qdraw_baseball_128'
+    # FLAGS.dst_dir = 'result/compare/fidelity/qdraw/baseball_%d_%d' % (
+    #                  FLAGS.image_height, FLAGS.stroke_width)
+    # if os.path.exists(FLAGS.dst_dir):
+    #     shutil.rmtree(FLAGS.dst_dir)
+    # os.makedirs(FLAGS.dst_dir)       
+    # compare_fidelity()
+    # ####
+
+    # ########
+    # ## cat, 128
+    # FLAGS.stroke_width = 6
+    # FLAGS.image_height = 128
+    # FLAGS.image_width = 128
+    # FLAGS.num_test_files = num_test_files
+    # FLAGS.data_dir = 'data/qdraw/qdraw_cat_128'
+    # FLAGS.dst_dir = 'result/compare/fidelity/qdraw/cat_%d_%d' % (
+    #                  FLAGS.image_height, FLAGS.stroke_width)
+    # if os.path.exists(FLAGS.dst_dir):
+    #     shutil.rmtree(FLAGS.dst_dir)
+    # os.makedirs(FLAGS.dst_dir)       
+    # compare_fidelity()
+    # ####
+    # ########
+    # ## stitches, 128
+    # FLAGS.stroke_width = 6
+    # FLAGS.image_height = 128
+    # FLAGS.image_width = 128
+    # FLAGS.num_test_files = num_test_files
+    # FLAGS.data_dir = 'data/qdraw/qdraw_stitches_128'
+    # FLAGS.dst_dir = 'result/compare/fidelity/qdraw/stitches_%d_%d' % (
+    #                  FLAGS.image_height, FLAGS.stroke_width)
+    # if os.path.exists(FLAGS.dst_dir):
+    #     shutil.rmtree(FLAGS.dst_dir)
+    # os.makedirs(FLAGS.dst_dir)       
+    # compare_fidelity()
+    # ####
+
+    # ########
+    # ## chandelier, 128
+    # FLAGS.stroke_width = 6
+    # FLAGS.image_height = 128
+    # FLAGS.image_width = 128
+    # FLAGS.num_test_files = num_test_files
+    # FLAGS.data_dir = 'data/qdraw_chandelier_128_test'
+    # FLAGS.dst_dir = 'result/compare/fidelity/qdraw/chandelier_%d_%d' % (
+    #                  FLAGS.image_height, FLAGS.stroke_width)
+    # if os.path.exists(FLAGS.dst_dir):
+    #     shutil.rmtree(FLAGS.dst_dir)
+    # os.makedirs(FLAGS.dst_dir)       
+    # compare_fidelity()
+    # ####
+
+    # ########
+    # ## elephant, 128
+    # FLAGS.stroke_width = 6
+    # FLAGS.image_height = 128
+    # FLAGS.image_width = 128
+    # FLAGS.num_test_files = num_test_files
+    # FLAGS.data_dir = 'data/qdraw_elephant_128_test'
+    # FLAGS.dst_dir = 'result/compare/fidelity/qdraw/elephant_%d_%d' % (
+    #                  FLAGS.image_height, FLAGS.stroke_width)
+    # if os.path.exists(FLAGS.dst_dir):
+    #     shutil.rmtree(FLAGS.dst_dir)
+    # os.makedirs(FLAGS.dst_dir)       
+    # compare_fidelity()
+    # ####
+
+    # ########
+    # ## backpack, 128
+    # FLAGS.stroke_width = 6
+    # FLAGS.image_height = 128
+    # FLAGS.image_width = 128
+    # FLAGS.num_test_files = num_test_files
+    # FLAGS.data_dir = 'data/qdraw_backpack_128'
+    # FLAGS.dst_dir = 'result/compare/fidelity/qdraw/backpack_%d_%d' % (
+    #                  FLAGS.image_height, FLAGS.stroke_width)
+    # if os.path.exists(FLAGS.dst_dir):
+    #     shutil.rmtree(FLAGS.dst_dir)
+    # os.makedirs(FLAGS.dst_dir)       
+    # compare_fidelity()
+    # ####
 
     ########
-    ## line_ov, 1k
-    FLAGS.stroke_width = 60
-    FLAGS.image_height = 1024
-    FLAGS.image_width = 1024
-    FLAGS.num_test_files = num_test_files
-    FLAGS.data_dir = 'data/line_ov'
-    FLAGS.dst_dir = 'result/compare/fidelity/line_ov_%d_%d' % (
-                     FLAGS.image_height, FLAGS.stroke_width)
-    if os.path.exists(FLAGS.dst_dir):
-        shutil.rmtree(FLAGS.dst_dir)
-    os.makedirs(FLAGS.dst_dir)       
-    compare_fidelity()
-    ####
-
-    ########
-    ## baseball, 128
+    ## mix, 128
     FLAGS.stroke_width = 6
     FLAGS.image_height = 128
     FLAGS.image_width = 128
     FLAGS.num_test_files = num_test_files
-    FLAGS.data_dir = 'data/qdraw/qdraw_baseball_128'
-    FLAGS.dst_dir = 'result/compare/fidelity/qdraw/baseball_%d_%d' % (
-                     FLAGS.image_height, FLAGS.stroke_width)
-    if os.path.exists(FLAGS.dst_dir):
-        shutil.rmtree(FLAGS.dst_dir)
-    os.makedirs(FLAGS.dst_dir)       
-    compare_fidelity()
-    ####
-
-    ########
-    ## cat, 128
-    FLAGS.stroke_width = 6
-    FLAGS.image_height = 128
-    FLAGS.image_width = 128
-    FLAGS.num_test_files = num_test_files
-    FLAGS.data_dir = 'data/qdraw/qdraw_cat_128'
-    FLAGS.dst_dir = 'result/compare/fidelity/qdraw/cat_%d_%d' % (
-                     FLAGS.image_height, FLAGS.stroke_width)
-    if os.path.exists(FLAGS.dst_dir):
-        shutil.rmtree(FLAGS.dst_dir)
-    os.makedirs(FLAGS.dst_dir)       
-    compare_fidelity()
-    ####
-    ########
-    ## stitches, 128
-    FLAGS.stroke_width = 6
-    FLAGS.image_height = 128
-    FLAGS.image_width = 128
-    FLAGS.num_test_files = num_test_files
-    FLAGS.data_dir = 'data/qdraw/qdraw_stitches_128'
-    FLAGS.dst_dir = 'result/compare/fidelity/qdraw/stitches_%d_%d' % (
+    FLAGS.data_dir = 'data/qdraw_bicycle_128'
+    FLAGS.dst_dir = 'result/compare/fidelity/qdraw/bicycle_%d_%d' % (
                      FLAGS.image_height, FLAGS.stroke_width)
     if os.path.exists(FLAGS.dst_dir):
         shutil.rmtree(FLAGS.dst_dir)

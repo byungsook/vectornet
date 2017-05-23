@@ -1,10 +1,38 @@
-# qdraw double neighbor sigma (8 -> 16)
-python vectorize.py --data_type=qdraw --test_dir=result/overlap/qdraw/cat_128_ns16      --data_dir=data/qdraw_cat_128 --file_list=test.txt --num_test_files=100 --image_height=128 --image_width=128 --batch_size=128 --neighbor_sigma=16 --neighbor_sample=0.02 --pathnet_ckpt=pathnet/model/no_trans_128/qdraw_cat_128/pathnet.ckpt-50000 --find_overlap=True --ovnet_ckpt=ovnet/model/l2_128/qdraw_cat/ovnet.ckpt-50000 
-python postprocess_stat.py --stat_dir=result/overlap/qdraw/cat_128_ns16
-python vectorize.py --data_type=qdraw --test_dir=result/overlap/qdraw/stitches_128_ns16 --data_dir=data/qdraw_stitches_128 --file_list=test.txt --num_test_files=100 --image_height=128 --image_width=128 --batch_size=128 --neighbor_sigma=16 --neighbor_sample=0.02 --pathnet_ckpt=pathnet/model/no_trans_128/qdraw_stitches_128/pathnet.ckpt-50000 --find_overlap=True --ovnet_ckpt=ovnet/model/l2_128/qdraw_stitches/ovnet.ckpt-50000
-python postprocess_stat.py --stat_dir=result/overlap/qdraw/stitches_128_ns16
-python vectorize.py --data_type=qdraw --test_dir=result/overlap/qdraw/baseball_128_ns16 --data_dir=data/qdraw_baseball_128 --file_list=test.txt --num_test_files=100 --image_height=128 --image_width=128 --batch_size=128 --neighbor_sigma=16 --neighbor_sample=0.02 --pathnet_ckpt=pathnet/model/no_trans_128/qdraw_baseball_128/pathnet.ckpt-50000 --find_overlap=True --ovnet_ckpt=ovnet/model/l2_128/qdraw_baseball/ovnet.ckpt-50000
-python postprocess_stat.py --stat_dir=result/overlap/qdraw/baseball_128_ns16
+# qdraw stitches, baseball and cat
+# python vectorize.py --data_type=qdraw --test_dir=result/no_overlap/qdraw/chandelier_128 --data_dir=data/qdraw_chandelier_128 --file_list=test.txt --num_test_files=100 --image_height=128 --image_width=128 --batch_size=128 --neighbor_sample=0.02 --pathnet_ckpt=pathnet/model/no_trans_128/qdraw/chandelier/pathnet.ckpt-50000 --find_overlap=False
+# python postprocess_stat.py --stat_dir=result/no_overlap/qdraw/chandelier_128
+# python vectorize.py --data_type=qdraw --test_dir=result/overlap/qdraw/chandelier_128    --data_dir=data/qdraw_chandelier_128 --file_list=test.txt --num_test_files=100 --image_height=128 --image_width=128 --batch_size=128 --neighbor_sample=0.02 --pathnet_ckpt=pathnet/model/no_trans_128/qdraw/chandelier/pathnet.ckpt-50000 --find_overlap=True --ovnet_ckpt=ovnet/model/l2_128/qdraw/chandelier/ovnet.ckpt-50000
+# python postprocess_stat.py --stat_dir=result/overlap/qdraw/chandelier_128
+
+# python vectorize.py --data_type=qdraw --test_dir=result/no_overlap/qdraw/elephant_128 --data_dir=data/qdraw_elephant_128 --file_list=test.txt --num_test_files=100 --image_height=128 --image_width=128 --batch_size=128 --neighbor_sample=0.02 --pathnet_ckpt=pathnet/model/no_trans_128/qdraw/elephant/pathnet.ckpt-50000 --find_overlap=False
+# python postprocess_stat.py --stat_dir=result/no_overlap/qdraw/elephant_128
+# python vectorize.py --data_type=qdraw --test_dir=result/overlap/qdraw/elephant_128    --data_dir=data/qdraw_elephant_128 --file_list=test.txt --num_test_files=100 --image_height=128 --image_width=128 --batch_size=128 --neighbor_sample=0.02 --pathnet_ckpt=pathnet/model/no_trans_128/qdraw/elephant/pathnet.ckpt-50000 --find_overlap=True --ovnet_ckpt=ovnet/model/l2_128/qdraw/elephant/ovnet.ckpt-50000
+# python postprocess_stat.py --stat_dir=result/overlap/qdraw/elephant_128
+
+# python vectorize.py --data_type=qdraw --test_dir=result/no_overlap/qdraw/mix_128 --data_dir=data/qdraw_mix_128_test --file_list=test.txt --num_test_files=100 --image_height=128 --image_width=128 --batch_size=128 --neighbor_sample=0.02 --pathnet_ckpt=pathnet/model/no_trans_128/qdraw/mix/pathnet.ckpt-50000 --find_overlap=False
+# python postprocess_stat.py --stat_dir=result/no_overlap/qdraw/mix_128
+python vectorize.py --data_type=qdraw --test_dir=result/overlap/qdraw/mix_128    --data_dir=data/qdraw_mix_128_test --file_list=test.txt --num_test_files=100 --image_height=128 --image_width=128 --batch_size=128 --neighbor_sample=0.02 --pathnet_ckpt=pathnet/model/no_trans_128/qdraw/mix/pathnet.ckpt-50000 --find_overlap=True --ovnet_ckpt=ovnet/model/l2_128/qdraw/mix/ovnet.ckpt-50000
+python postprocess_stat.py --stat_dir=result/overlap/qdraw/mix_128
+
+# python vectorize.py --data_type=qdraw --test_dir=result/no_overlap/qdraw/backpack_128 --data_dir=data/qdraw_backpack_128 --file_list=test.txt --num_test_files=100 --image_height=128 --image_width=128 --batch_size=128 --neighbor_sample=0.02 --pathnet_ckpt=pathnet/model/no_trans_128/qdraw/mix/pathnet.ckpt-50000 --find_overlap=False
+# python postprocess_stat.py --stat_dir=result/no_overlap/qdraw/backpack_128
+python vectorize.py --data_type=qdraw --test_dir=result/overlap/qdraw/backpack_128    --data_dir=data/qdraw_backpack_128 --file_list=test.txt --num_test_files=100 --image_height=128 --image_width=128 --batch_size=128 --neighbor_sample=0.02 --pathnet_ckpt=pathnet/model/no_trans_128/qdraw/mix/pathnet.ckpt-50000 --find_overlap=True --ovnet_ckpt=ovnet/model/l2_128/qdraw/mix/ovnet.ckpt-50000
+python postprocess_stat.py --stat_dir=result/overlap/qdraw/backpack_128
+
+python vectorize.py --data_type=qdraw --test_dir=result/overlap/qdraw/bicycle_128    --data_dir=data/qdraw_bicycle_128 --file_list=test.txt --num_test_files=100 --image_height=128 --image_width=128 --batch_size=128 --neighbor_sample=0.02 --pathnet_ckpt=pathnet/model/no_trans_128/qdraw/mix/pathnet.ckpt-50000 --find_overlap=True --ovnet_ckpt=ovnet/model/l2_128/qdraw/mix/ovnet.ckpt-50000
+python postprocess_stat.py --stat_dir=result/overlap/qdraw/bicycle_128
+
+# qdraw neighbor sigma
+# python vectorize.py --data_type=qdraw --test_dir=result/overlap/qdraw/cat_128_ns16      --data_dir=data/qdraw_cat_128 --file_list=test.txt --num_test_files=100 --image_height=128 --image_width=128 --batch_size=128 --neighbor_sigma=16 --neighbor_sample=0.02 --pathnet_ckpt=pathnet/model/no_trans_128/qdraw_cat_128/pathnet.ckpt-50000 --find_overlap=True --ovnet_ckpt=ovnet/model/l2_128/qdraw_cat/ovnet.ckpt-50000 
+# python postprocess_stat.py --stat_dir=result/overlap/qdraw/cat_128_ns16
+# python vectorize.py --data_type=qdraw --test_dir=result/overlap/qdraw/cat_128_ns4      --data_dir=data/qdraw_cat_128 --file_list=test.txt --num_test_files=100 --image_height=128 --image_width=128 --batch_size=128 --neighbor_sigma=4 --neighbor_sample=0.02 --pathnet_ckpt=pathnet/model/no_trans_128/qdraw_cat_128/pathnet.ckpt-50000 --find_overlap=True --ovnet_ckpt=ovnet/model/l2_128/qdraw_cat/ovnet.ckpt-50000 
+# python postprocess_stat.py --stat_dir=result/overlap/qdraw/cat_128_ns4
+# python vectorize.py --data_type=qdraw --test_dir=result/overlap/qdraw/cat_128_ns10      --data_dir=data/qdraw_cat_128 --file_list=test.txt --num_test_files=50 --image_height=128 --image_width=128 --batch_size=128 --neighbor_sigma=10 --neighbor_sample=0.02 --pathnet_ckpt=pathnet/model/no_trans_128/qdraw_cat_128/pathnet.ckpt-50000 --find_overlap=True --ovnet_ckpt=ovnet/model/l2_128/qdraw_cat/ovnet.ckpt-50000 
+# python postprocess_stat.py --stat_dir=result/overlap/qdraw/cat_128_ns10
+# python vectorize.py --data_type=qdraw --test_dir=result/overlap/qdraw/cat_128_ns6      --data_dir=data/qdraw_cat_128 --file_list=test.txt --num_test_files=50 --image_height=128 --image_width=128 --batch_size=128 --neighbor_sigma=6 --neighbor_sample=0.02 --pathnet_ckpt=pathnet/model/no_trans_128/qdraw_cat_128/pathnet.ckpt-50000 --find_overlap=True --ovnet_ckpt=ovnet/model/l2_128/qdraw_cat/ovnet.ckpt-50000 
+# python postprocess_stat.py --stat_dir=result/overlap/qdraw/cat_128_ns6
+# python vectorize.py --data_type=qdraw --test_dir=result/overlap/qdraw/cat_128_ns12      --data_dir=data/qdraw_cat_128 --file_list=test.txt --num_test_files=50 --image_height=128 --image_width=128 --batch_size=128 --neighbor_sigma=6 --neighbor_sample=0.02 --pathnet_ckpt=pathnet/model/no_trans_128/qdraw_cat_128/pathnet.ckpt-50000 --find_overlap=True --ovnet_ckpt=ovnet/model/l2_128/qdraw_cat/ovnet.ckpt-50000 
+# python postprocess_stat.py --stat_dir=result/overlap/qdraw/cat_128_ns12
 
 
 # # qdraw cat

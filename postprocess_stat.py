@@ -19,7 +19,7 @@ import scipy.misc
 
 parser = argparse.ArgumentParser(description='postprocess stat')
 parser.add_argument('--stat_dir', metavar='x', type=str, nargs='?',
-                    default='result/no_overlap/bicycle_tr')    
+                    default='result/overlap/line/line_l2')
 args = parser.parse_args()
 
 
@@ -136,16 +136,20 @@ def postprocess(stat_dir):
     fig = plt.figure()
     plt.hist(acc_list, bins=bins, color='blue', normed=False, alpha=0.75)
     plt.xlim(0, 1)
-    plt.title('Histogram of Accuracy')
+    # plt.title('Histogram of Accuracy')
+    plt.gca().axes.xaxis.set_ticklabels([])
+    plt.gca().axes.yaxis.set_ticklabels([])
     plt.grid(True)
     
     fig.canvas.draw()
     pred_hist = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
     pred_hist = pred_hist.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+    hist_path = os.path.join(stat_dir, 'accuracy_hist.png')
+    plt.savefig(hist_path, bbox_inches='tight', pad_inches=0)
     plt.close(fig)
 
-    hist_path = os.path.join(stat_dir, 'accuracy_hist.png')
-    scipy.misc.imsave(hist_path, pred_hist)
+    # hist_path = os.path.join(stat_dir, 'accuracy_hist.png')
+    # scipy.misc.imsave(hist_path, pred_hist)
 
 
     print('total # files: %d' % num_files)

@@ -47,7 +47,7 @@ flags.DEFINE_integer('num_paths', 4,
                      """# paths for batch generation""")
 flags.DEFINE_integer('path_type', 2,
                      """path type 0:line, 1:curve, 2:all""")
-flags.DEFINE_integer('max_stroke_width', 5,
+flags.DEFINE_integer('max_stroke_width', 2,
                      """max stroke width""")
 flags.DEFINE_boolean('use_two_channels', True,
                      """use two channels for input""")
@@ -65,8 +65,8 @@ SVG_END_TEMPLATE = """</g></svg>"""
 
 def _create_a_line(id, image_height, image_width, min_length, max_stroke_width):
     stroke_color = np.random.randint(240, size=3)
-    stroke_width = np.random.rand() * max_stroke_width + 1
-    # stroke_width = max_stroke_width
+    # stroke_width = np.random.rand() * max_stroke_width + 1
+    stroke_width = max_stroke_width
     while True:
         x = np.random.randint(low=0, high=image_width, size=2)
         y = np.random.randint(low=0, high=image_height, size=2)
@@ -87,8 +87,8 @@ def _create_a_cubic_bezier_curve(id, image_height, image_width, min_length, max_
     x = np.random.randint(low=0, high=image_width, size=4)
     y = np.random.randint(low=0, high=image_height, size=4)
     stroke_color = np.random.randint(240, size=3)
-    stroke_width = np.random.rand() * max_stroke_width + 1
-    # stroke_width = max_stroke_width
+    # stroke_width = np.random.rand() * max_stroke_width + 1
+    stroke_width = max_stroke_width
 
     return SVG_CUBIC_BEZIER_TEMPLATE.format(
         id=id,
@@ -113,154 +113,9 @@ def _create_a_path(path_type, id, FLAGS):
     return path_selector[path_type](id, FLAGS.image_height, FLAGS.image_width, 
                                     FLAGS.min_length, FLAGS.max_stroke_width)
 
-# class BatchManager(object):
-#     def __init__(self):
-#         self.num_examples_per_epoch = 1000
-#         self.num_epoch = 1
-
-#         FLAGS.num_threads = np.amin([FLAGS.num_threads, multiprocessing.cpu_count()*2])
-
-#         image_shape = [FLAGS.image_height, FLAGS.image_width, 1]
-#         input_shape = [FLAGS.image_height, FLAGS.image_width, 2]
-
-#         self._q = tf.FIFOQueue(FLAGS.batch_size*10, [tf.float32, tf.float32], 
-#                                shapes=[input_shape, image_shape])
-
-#         self._x = tf.placeholder(dtype=tf.float32, shape=input_shape)
-#         self._y = tf.placeholder(dtype=tf.float32, shape=image_shape)
-#         self._enqueue = self._q.enqueue([self._x, self._y])
-
-#     def __del__(self):
-#         try:
-#             self.stop_thread()
-#         except AttributeError:
-#             pass
-
-#     def batch(self):
-#         return self._q.dequeue_many(FLAGS.batch_size)
-
-#     def start_thread(self, sess):
-#         print('%s: start to enque with %d threads' % (datetime.now(), FLAGS.num_threads))
-
-#         # Main thread: create a coordinator.
-#         self._sess = sess
-#         self._coord = tf.train.Coordinator()
-
-#         # Create a method for loading and enqueuing
-#         def load_n_enqueue(sess, enqueue, coord, x, y, FLAGS):
-#             with coord.stop_on_exception():
-#                 while not coord.should_stop():
-#                     np.random.seed()
-#                     x_, y_ = preprocess(FLAGS)
-#                     sess.run(enqueue, feed_dict={x: x_, y: y_})
-
-#         # Create threads that enqueue
-#         self._threads = [threading.Thread(target=load_n_enqueue, 
-#                                           args=(self._sess, 
-#                                                 self._enqueue,
-#                                                 self._coord,
-#                                                 self._x,
-#                                                 self._y,
-#                                                 FLAGS)
-#                                           ) for i in xrange(FLAGS.num_threads)]
-
-#         # define signal handler
-#         def signal_handler(signum,frame):
-#             #print "stop training, save checkpoint..."
-#             #saver.save(sess, "./checkpoints/VDSR_norm_clip_epoch_%03d.ckpt" % epoch ,global_step=global_step)
-#             print('%s: canceled by SIGINT' % datetime.now())
-#             self._coord.request_stop()
-#             self._sess.run(self._q.close(cancel_pending_enqueues=True))
-#             self._coord.join(self._threads)
-#             sys.exit(1)
-#         signal.signal(signal.SIGINT, signal_handler)
-
-#         # Start the threads and wait for all of them to stop.
-#         for t in self._threads:
-#             t.start()
-
-#     def stop_thread(self):
-#         self._coord.request_stop()
-#         self._sess.run(self._q.close(cancel_pending_enqueues=True))
-#         self._coord.join(self._threads)
-
-
-# def preprocess(FLAGS):
-#     while True:
-#         svg = SVG_START_TEMPLATE.format(
-#                     width=FLAGS.image_width,
-#                     height=FLAGS.image_height
-#                 )
-
-#         num_paths = np.random.randint(FLAGS.num_paths) + 1
-#         path_id = np.random.randint(num_paths)
-#         for i in xrange(num_paths):
-#             LINE = _create_a_path(FLAGS.path_type, i, FLAGS)
-#             svg += LINE
-
-#             svg_one_stroke = SVG_START_TEMPLATE.format(
-#                     width=FLAGS.image_width,
-#                     height=FLAGS.image_height
-#                 ) + LINE + SVG_END_TEMPLATE
-            
-#             if i == path_id:
-#                 y_png = cairosvg.svg2png(bytestring=svg_one_stroke.encode('utf-8'))
-#                 y_img = Image.open(io.BytesIO(y_png))
-
-#         svg += SVG_END_TEMPLATE
-#         s_png = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
-#         s_img = Image.open(io.BytesIO(s_png))
-#         s = np.array(s_img)[:,:,3].astype(np.float) # / 255.0
-#         max_intensity = np.amax(s)
-        
-#         if max_intensity == 0:
-#             continue
-#         else:
-#             s = s / max_intensity
-
-#         # # debug
-#         # plt.imshow(s_img)
-#         # plt.show()
-
-#         # leave only one path
-#         y = np.array(y_img)[:,:,3].astype(np.float) / max_intensity
-
-#         # # debug
-#         # plt.imshow(y, cmap=plt.cm.gray)
-#         # plt.show()
-
-#         # select arbitrary marking pixel
-#         line_ids = np.nonzero(y)
-#         if len(line_ids[0]) == 0:
-#             continue
-#         else:
-#             break
-
-
-#     point_id = np.random.randint(len(line_ids[0]))
-#     px, py = line_ids[0][point_id], line_ids[1][point_id]
-
-#     y = np.reshape(y, [FLAGS.image_height, FLAGS.image_width, 1])
-#     x = np.zeros([FLAGS.image_height, FLAGS.image_width, 2])
-#     x[:,:,0] = s
-#     x[px,py,1] = 1.0
-
-#     return x, y
-
 class BatchManager(object):
     def __init__(self):
-        self.data_list = []
-        for root, _, files in os.walk(FLAGS.data_dir):
-            for file in files:
-                if not file.lower().endswith('svg'):
-                    continue
-
-                file_path = os.path.join(root, file)
-                with open(file_path, 'r', encoding="utf-8") as f:
-                    svg = f.read()
-                    self.data_list.append(svg)
-
-        self.num_examples_per_epoch = len(self.data_list)
+        self.num_examples_per_epoch = 1000
         self.num_epoch = 1
 
         FLAGS.num_threads = np.amin([FLAGS.num_threads, multiprocessing.cpu_count()*2])
@@ -292,11 +147,11 @@ class BatchManager(object):
         self._coord = tf.train.Coordinator()
 
         # Create a method for loading and enqueuing
-        def load_n_enqueue(sess, enqueue, coord, data_list, x, y, FLAGS):
+        def load_n_enqueue(sess, enqueue, coord, x, y, FLAGS):
             with coord.stop_on_exception():
                 while not coord.should_stop():
-                    svg = random.choice(data_list)
-                    x_, y_ = preprocess(svg, FLAGS)
+                    np.random.seed()
+                    x_, y_ = preprocess(FLAGS)
                     sess.run(enqueue, feed_dict={x: x_, y: y_})
 
         # Create threads that enqueue
@@ -304,7 +159,6 @@ class BatchManager(object):
                                           args=(self._sess, 
                                                 self._enqueue,
                                                 self._coord,
-                                                self.data_list,
                                                 self._x,
                                                 self._y,
                                                 FLAGS)
@@ -331,41 +185,59 @@ class BatchManager(object):
         self._coord.join(self._threads)
 
 
-# def preprocess(svg_path, FLAGS):
-#     with open(svg_path, 'r') as sf:
-#         svg = sf.read()
+def preprocess(FLAGS):
+    while True:
+        svg = SVG_START_TEMPLATE.format(
+                    width=FLAGS.image_width,
+                    height=FLAGS.image_height
+                )
 
-def preprocess(svg, FLAGS):
-    s_png = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
-    s_img = Image.open(io.BytesIO(s_png))
-    s = np.array(s_img)[:,:,3].astype(np.float) # / 255.0
-    max_intensity = np.amax(s)
-    s /= max_intensity
+        # num_paths = np.random.randint(FLAGS.num_paths) + 1
+        num_paths = FLAGS.num_paths
+        path_id = np.random.randint(num_paths)
+        for i in xrange(num_paths):
+            LINE = _create_a_path(FLAGS.path_type, i, FLAGS)
+            svg += LINE
 
-    # # debug
-    # plt.imshow(s_img)
-    # plt.show()
+            svg_one_stroke = SVG_START_TEMPLATE.format(
+                    width=FLAGS.image_width,
+                    height=FLAGS.image_height
+                ) + LINE + SVG_END_TEMPLATE
+            
+            if i == path_id:
+                y_png = cairosvg.svg2png(bytestring=svg_one_stroke.encode('utf-8'))
+                y_img = Image.open(io.BytesIO(y_png))
 
-    # leave only one path
-    num_paths = svg.count('path')
-    svg_xml = et.fromstring(svg)
-    path_id = np.random.randint(num_paths)
-    stroke = svg_xml[0][path_id]
-    for c in reversed(xrange(FLAGS.num_paths)):
-        if svg_xml[0][c] != stroke:
-            svg_xml[0].remove(svg_xml[0][c])
-    svg_one_stroke = et.tostring(svg_xml, method='xml')
+        svg += SVG_END_TEMPLATE
+        s_png = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
+        s_img = Image.open(io.BytesIO(s_png))
+        s = np.array(s_img)[:,:,3].astype(np.float) # / 255.0
+        max_intensity = np.amax(s)
+        
+        if max_intensity == 0:
+            continue
+        else:
+            s = s / max_intensity
 
-    y_png = cairosvg.svg2png(bytestring=svg_one_stroke)
-    y_img = Image.open(io.BytesIO(y_png))
-    y = np.array(y_img)[:,:,3].astype(np.float) / max_intensity
+        # # debug
+        # plt.imshow(s_img)
+        # plt.show()
 
-    # # debug
-    # plt.imshow(y, cmap=plt.cm.gray)
-    # plt.show()
+        # leave only one path
+        y = np.array(y_img)[:,:,3].astype(np.float) / max_intensity
 
-    # select arbitrary marking pixel
-    line_ids = np.nonzero(y)
+        # # debug
+        # plt.imshow(y, cmap=plt.cm.gray)
+        # plt.show()
+
+        # select arbitrary marking pixel
+        line_ids = np.nonzero(y)
+        if len(line_ids[0]) == 0:
+            continue
+        else:
+            break
+
+
     point_id = np.random.randint(len(line_ids[0]))
     px, py = line_ids[0][point_id], line_ids[1][point_id]
 
@@ -374,17 +246,146 @@ def preprocess(svg, FLAGS):
     x[:,:,0] = s
     x[px,py,1] = 1.0
 
-    # # debug
-    # plt.subplot(131)
-    # plt.imshow(s, cmap=plt.cm.gray)
-    # plt.subplot(132)
-    # x_ = np.concatenate((x, np.zeros([FLAGS.image_height, FLAGS.image_width, 1])), axis=2)
-    # plt.imshow(x_)
-    # plt.subplot(133)
-    # plt.imshow(y[:,:,0], cmap=plt.cm.gray)
-    # plt.show()
-
     return x, y
+
+# class BatchManager(object):
+#     def __init__(self):
+#         self.data_list = []
+#         for root, _, files in os.walk(FLAGS.data_dir):
+#             for file in files:
+#                 if not file.lower().endswith('svg'):
+#                     continue
+
+#                 file_path = os.path.join(root, file)
+#                 with open(file_path, 'r', encoding="utf-8") as f:
+#                     svg = f.read()
+#                     self.data_list.append(svg)
+
+#         self.num_examples_per_epoch = len(self.data_list)
+#         self.num_epoch = 1
+
+#         FLAGS.num_threads = np.amin([FLAGS.num_threads, multiprocessing.cpu_count()*2])
+
+#         image_shape = [FLAGS.image_height, FLAGS.image_width, 1]
+#         input_shape = [FLAGS.image_height, FLAGS.image_width, 2]
+
+#         self._q = tf.FIFOQueue(FLAGS.batch_size*10, [tf.float32, tf.float32], 
+#                                shapes=[input_shape, image_shape])
+
+#         self._x = tf.placeholder(dtype=tf.float32, shape=input_shape)
+#         self._y = tf.placeholder(dtype=tf.float32, shape=image_shape)
+#         self._enqueue = self._q.enqueue([self._x, self._y])
+
+#     def __del__(self):
+#         try:
+#             self.stop_thread()
+#         except AttributeError:
+#             pass
+
+#     def batch(self):
+#         return self._q.dequeue_many(FLAGS.batch_size)
+
+#     def start_thread(self, sess):
+#         print('%s: start to enque with %d threads' % (datetime.now(), FLAGS.num_threads))
+
+#         # Main thread: create a coordinator.
+#         self._sess = sess
+#         self._coord = tf.train.Coordinator()
+
+#         # Create a method for loading and enqueuing
+#         def load_n_enqueue(sess, enqueue, coord, data_list, x, y, FLAGS):
+#             with coord.stop_on_exception():
+#                 while not coord.should_stop():
+#                     svg = random.choice(data_list)
+#                     x_, y_ = preprocess(svg, FLAGS)
+#                     sess.run(enqueue, feed_dict={x: x_, y: y_})
+
+#         # Create threads that enqueue
+#         self._threads = [threading.Thread(target=load_n_enqueue, 
+#                                           args=(self._sess, 
+#                                                 self._enqueue,
+#                                                 self._coord,
+#                                                 self.data_list,
+#                                                 self._x,
+#                                                 self._y,
+#                                                 FLAGS)
+#                                           ) for i in xrange(FLAGS.num_threads)]
+
+#         # define signal handler
+#         def signal_handler(signum,frame):
+#             #print "stop training, save checkpoint..."
+#             #saver.save(sess, "./checkpoints/VDSR_norm_clip_epoch_%03d.ckpt" % epoch ,global_step=global_step)
+#             print('%s: canceled by SIGINT' % datetime.now())
+#             self._coord.request_stop()
+#             self._sess.run(self._q.close(cancel_pending_enqueues=True))
+#             self._coord.join(self._threads)
+#             sys.exit(1)
+#         signal.signal(signal.SIGINT, signal_handler)
+
+#         # Start the threads and wait for all of them to stop.
+#         for t in self._threads:
+#             t.start()
+
+#     def stop_thread(self):
+#         self._coord.request_stop()
+#         self._sess.run(self._q.close(cancel_pending_enqueues=True))
+#         self._coord.join(self._threads)
+
+
+# # def preprocess(svg_path, FLAGS):
+# #     with open(svg_path, 'r') as sf:
+# #         svg = sf.read()
+
+# def preprocess(svg, FLAGS):
+#     s_png = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
+#     s_img = Image.open(io.BytesIO(s_png))
+#     s = np.array(s_img)[:,:,3].astype(np.float) # / 255.0
+#     max_intensity = np.amax(s)
+#     s /= max_intensity
+
+#     # # debug
+#     # plt.imshow(s_img)
+#     # plt.show()
+
+#     # leave only one path
+#     num_paths = svg.count('path')
+#     svg_xml = et.fromstring(svg)
+#     path_id = np.random.randint(num_paths)
+#     stroke = svg_xml[0][path_id]
+#     for c in reversed(xrange(FLAGS.num_paths)):
+#         if svg_xml[0][c] != stroke:
+#             svg_xml[0].remove(svg_xml[0][c])
+#     svg_one_stroke = et.tostring(svg_xml, method='xml')
+
+#     y_png = cairosvg.svg2png(bytestring=svg_one_stroke)
+#     y_img = Image.open(io.BytesIO(y_png))
+#     y = np.array(y_img)[:,:,3].astype(np.float) / max_intensity
+
+#     # # debug
+#     # plt.imshow(y, cmap=plt.cm.gray)
+#     # plt.show()
+
+#     # select arbitrary marking pixel
+#     line_ids = np.nonzero(y)
+#     point_id = np.random.randint(len(line_ids[0]))
+#     px, py = line_ids[0][point_id], line_ids[1][point_id]
+
+#     y = np.reshape(y, [FLAGS.image_height, FLAGS.image_width, 1])
+#     x = np.zeros([FLAGS.image_height, FLAGS.image_width, 2])
+#     x[:,:,0] = s
+#     x[px,py,1] = 1.0
+
+#     # # debug
+#     # plt.subplot(131)
+#     # plt.imshow(s, cmap=plt.cm.gray)
+#     # plt.subplot(132)
+#     # x_ = np.concatenate((x, np.zeros([FLAGS.image_height, FLAGS.image_width, 1])), axis=2)
+#     # plt.imshow(x_)
+#     # plt.subplot(133)
+#     # plt.imshow(y[:,:,0], cmap=plt.cm.gray)
+#     # plt.show()
+
+#     return x, y
 
 
 if __name__ == '__main__':

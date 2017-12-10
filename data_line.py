@@ -1,52 +1,151 @@
-# Copyright (c) 2016 Byungsoo Kim. All Rights Reserved.
-# 
-# Byungsoo Kim, ETH Zurich
-# kimby@student.ethz.ch, http://byungsoo.me
-# ==============================================================================
+import os
+from glob import glob
+import threading
+import multiprocessing
+import signal
+import sys
+from datetime import datetime
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from six.moves import xrange  # pylint: disable=redefined-builtin
-import numpy as np
-from subprocess import call
-
-import cairosvg
-import io
-from PIL import Image
-
-import xml.etree.ElementTree as ET
-import matplotlib.pyplot as plt
 import tensorflow as tf
+import numpy as np
+import cairosvg
+from PIL import Image
+import io
+import xml.etree.ElementTree as et
+import matplotlib.pyplot as plt
 
-FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_integer('min_length', 10,
-                            """minimum length of a line.""")
-tf.app.flags.DEFINE_integer('num_paths', 4,
-                            """# paths for batch generation""")
-tf.app.flags.DEFINE_integer('path_type', 2,
-                            """path type 0:line, 1:curve, 2:both""")
-tf.app.flags.DEFINE_integer('max_stroke_width', 2,
-                          """max stroke width""")
+from ops import *
 
 
-SVG_START_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg width="{width}" height="{height}" xmlns="http://www.w3.org/2000/svg" version="1.1">
-<g fill="none">"""
-SVG_LINE_TEMPLATE = """<path id="{id}" d="M {x1} {y1} L{x2} {y2}" stroke="rgb({r},{g},{b})" stroke-width="{sw}" />"""
-SVG_CUBIC_BEZIER_TEMPLATE = """<path id="{id}" d="M {sx} {sy} C {cx1} {cy1} {cx2} {cy2} {tx} {ty}" stroke="rgb({r},{g},{b})" stroke-width="{sw}" />"""
-SVG_END_TEMPLATE = """</g></svg>"""
+SVG_START_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="{w}" height="{h}" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" version="1.1">
+<g fill="none">\n"""
+SVG_LINE_TEMPLATE = """<path id="{id}" d="M {x1} {y1} L{x2} {y2}" stroke="rgb({r},{g},{b})" stroke-width="{sw}"/>"""
+SVG_CUBIC_BEZIER_TEMPLATE = """<path id="{id}" d="M {sx} {sy} C {cx1} {cy1} {cx2} {cy2} {tx} {ty}" stroke="rgb({r},{g},{b})" stroke-width="{sw}"/>"""
+SVG_END_TEMPLATE = """</g>\n</svg>"""
 
 
-def _create_a_line(id, image_height, image_width, min_length, max_stroke_width):
-    stroke_color = np.random.randint(240, size=3)
-    # stroke_width = np.random.rand() * max_stroke_width + 1
-    stroke_width = max_stroke_width
+class BatchManager(object):
+    def __init__(self, config):
+        self.root = config.data_path
+        self.rng = np.random.RandomState(config.random_seed)
+
+        self.paths = sorted(glob("{}/*.{}".format(self.root, 'svg_pre')))
+        if len(self.paths) == 0:
+            data_dir = os.path.join(config.data_dir, config.dataset)
+            train_dir = os.path.join(data_dir, 'train')
+            test_dir = os.path.join(data_dir, 'test')
+            if not os.path.exists(train_dir):
+                os.makedirs(train_dir)
+            if not os.path.exists(test_dir):
+                os.makedirs(test_dir)
+
+            self.paths = gen_data(data_dir, config, self.rng,
+                                    num_train=45000, num_test=5000)
+        assert(len(self.paths) > 0)
+
+        self.batch_size = config.batch_size
+        self.height = config.height
+        self.width = config.width
+
+        feature_dim = [self.height, self.width, 2]
+        label_dim = [self.height, self.width, 1]
+
+        min_after_dequeue = 5000
+        capacity = min_after_dequeue + 3 * self.batch_size
+        self.q = tf.FIFOQueue(capacity, [tf.float32, tf.float32], [feature_dim, label_dim])
+        self.x = tf.placeholder(dtype=tf.float32, shape=feature_dim)
+        self.y = tf.placeholder(dtype=tf.float32, shape=label_dim)
+        self.enqueue = self.q.enqueue([self.x, self.y])
+        self.num_threads = np.amin([config.num_worker, multiprocessing.cpu_count(), self.batch_size])
+
+    def __del__(self):
+        try:
+            self.stop_thread()
+        except AttributeError:
+            pass
+
+    def start_thread(self, sess):
+        print('%s: start to enque with %d threads' % (datetime.now(), self.num_threads))
+
+        # Main thread: create a coordinator.
+        self.sess = sess
+        self.coord = tf.train.Coordinator()
+
+        # Create a method for loading and enqueuing
+        def load_n_enqueue(sess, enqueue, coord, paths, rng,
+                           x, y, w, h):
+            with coord.stop_on_exception():                
+                while not coord.should_stop():
+                    id = rng.randint(len(paths))
+                    x_, y_ = preprocess(paths[id], w, h, rng)
+                    sess.run(enqueue, feed_dict={x: x_, y: y_})
+
+        # Create threads that enqueue
+        self.threads = [threading.Thread(target=load_n_enqueue, 
+                                          args=(self.sess, 
+                                                self.enqueue,
+                                                self.coord,
+                                                self.paths,
+                                                self.rng,
+                                                self.x,
+                                                self.y,
+                                                self.width,
+                                                self.height)
+                                          ) for i in range(self.num_threads)]
+
+        # define signal handler
+        def signal_handler(signum, frame):
+            #print "stop training, save checkpoint..."
+            #saver.save(sess, "./checkpoints/VDSR_norm_clip_epoch_%03d.ckpt" % epoch ,global_step=global_step)
+            print('%s: canceled by SIGINT' % datetime.now())
+            self.coord.request_stop()
+            self.sess.run(self.q.close(cancel_pending_enqueues=True))
+            self.coord.join(self.threads)
+            sys.exit(1)
+        signal.signal(signal.SIGINT, signal_handler)
+
+        # Start the threads and wait for all of them to stop.
+        for t in self.threads:
+            t.start()
+
+    def stop_thread(self):
+        # dirty way to bypass graph finilization error
+        g = tf.get_default_graph()
+        g._finalized = False
+
+        self.coord.request_stop()
+        self.sess.run(self.q.close(cancel_pending_enqueues=True))
+        self.coord.join(self.threads)
+
+    def batch(self):
+        return self.q.dequeue_many(self.batch_size)
+
+    def sample(self, num):
+        idx = self.rng.choice(len(self.paths), num).tolist()
+        return [self.paths[i] for i in idx]
+
+    def random_list(self, num):
+        x_list = []
+        xs, ys = [], []
+        file_list = self.sample(num)
+        for file_path in file_list:
+            x, y = preprocess(file_path, self.width, self.height, self.rng)
+            x_list.append(x)
+
+            b_ch = np.zeros([self.height,self.width,1])
+            xs.append(np.concatenate((x*255, b_ch), axis=-1))
+            ys.append(y*255)
+            
+        return x_list, np.array(xs), np.array(ys), file_list
+
+
+def draw_line(id, w, h, min_length, max_stroke_width, rng):
+    stroke_color = rng.randint(240, size=3)
+    stroke_width = rng.randint(low=1, high=max_stroke_width+1)
     while True:
-        x = np.random.randint(low=0, high=image_width, size=2)
-        y = np.random.randint(low=0, high=image_height, size=2)
+        x = rng.randint(w, size=2)
+        y = rng.randint(h, size=2)
         if x[0] - x[1] + y[0] - y[1] < min_length:
             continue
         break
@@ -59,13 +158,11 @@ def _create_a_line(id, image_height, image_width, min_length, max_stroke_width):
         sw=stroke_width
     )
 
-
-def _create_a_cubic_bezier_curve(id, image_height, image_width, min_length, max_stroke_width):
-    x = np.random.randint(low=0, high=image_width, size=4)
-    y = np.random.randint(low=0, high=image_height, size=4)
-    stroke_color = np.random.randint(240, size=3)
-    # stroke_width = np.random.rand() * max_stroke_width + 1
-    stroke_width = max_stroke_width
+def draw_cubic_bezier_curve(id, w, h, min_length, max_stroke_width, rng):
+    stroke_color = rng.randint(240, size=3)
+    stroke_width = rng.randint(low=1, high=max_stroke_width+1)
+    x = rng.randint(w, size=4)
+    y = rng.randint(h, size=4)
 
     return SVG_CUBIC_BEZIER_TEMPLATE.format(
         id=id,
@@ -77,90 +174,167 @@ def _create_a_cubic_bezier_curve(id, image_height, image_width, min_length, max_
         sw=stroke_width
     )
 
-
-def _create_a_path(path_type, id, FLAGS):
-    if path_type == 2:
-        path_type = np.random.randint(2)
+def draw_path(stroke_type, id, w, h, min_length, max_stroke_width, rng):
+    if stroke_type == 2:
+        stroke_type = rng.randint(2)
 
     path_selector = {
-        0: _create_a_line,
-        1: _create_a_cubic_bezier_curve
+        0: draw_line,
+        1: draw_cubic_bezier_curve
     }
 
-    return path_selector[path_type](id, FLAGS.image_height, FLAGS.image_width, 
-                                    FLAGS.min_length, FLAGS.max_stroke_width)
+    return path_selector[stroke_type](id, w, h,min_length, max_stroke_width, rng)
 
+def gen_data(data_dir, config, rng, num_train, num_test):
+    file_list = []
+    num = num_train + num_test
+    for file_id in range(num):
+        while True:
+            svg = SVG_START_TEMPLATE.format(
+                        w=config.width,
+                        h=config.height,
+                    )
+            svgpre = SVG_START_TEMPLATE
 
-# def read_svg(file_path):
-#     np.random.seed()
-    
-#     while True:
-#         svg = SVG_START_TEMPLATE.format(
-#                     width=FLAGS.image_width,
-#                     height=FLAGS.image_height
-#                 )
-        
-#         path_id = np.random.randint(FLAGS.num_paths)
-#         for i in xrange(FLAGS.num_paths):
-#             LINE1 = _create_a_path(FLAGS.path_type, i, FLAGS)
-#             svg += LINE1
+            for i in range(config.num_strokes):
+                path = draw_path(
+                        stroke_type=config.stroke_type,
+                        id=i, 
+                        w=config.width,
+                        h=config.height,
+                        min_length=config.min_length,
+                        max_stroke_width=config.max_stroke_width,
+                        rng=rng,
+                    )
+                svg += path + '\n'
+                svgpre += path + '\n'
 
-#             svg_one_stroke = SVG_START_TEMPLATE.format(
-#                     width=FLAGS.image_width,
-#                     height=FLAGS.image_height
-#                 ) + LINE1 + SVG_END_TEMPLATE            
+            svg += SVG_END_TEMPLATE
+            svgpre += SVG_END_TEMPLATE
+            s_png = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
+            s_img = Image.open(io.BytesIO(s_png))
+            s = np.array(s_img)[:,:,3].astype(np.float) # / 255.0
+            max_intensity = np.amax(s)
+            
+            if max_intensity == 0:
+                continue
+            else:
+                s = s / max_intensity # [0,1]
 
-#         svg += SVG_END_TEMPLATE
-#         s_png = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
-#         s_img = Image.open(io.BytesIO(s_png))
-#         s = np.array(s_img)[:,:,3].astype(np.float) # / 255.0
-#         max_intensity = np.amax(s)
-        
-#         if max_intensity == 0:
-#             continue
-#         else:
-#             s = s / max_intensity
-#         break
+        if file_id < num_train:
+            cat = 'train'
+        else:
+            cat = 'test'
+        svg_file_path = os.path.join(data_dir, cat, '%d.svg' % file_id)
+        svgpre_file_path = os.path.join(data_dir, cat, '%d.svg_pre' % file_id)
+        print(svg_file_path)
+        with open(svg_file_path, 'w') as f:
+            f.write(svg)
+        with open(svgpre_file_path, 'w') as f:
+            f.write(svgpre)
 
-    
-#     with open(file_path, 'w') as f:
-#         f.write(svg)
+        if file_id < num_train:
+            file_list.append(svgpre_file_path)
 
-#     return s, FLAGS.num_paths
+    return file_list
 
-def read_svg(file_path):
-    with open(file_path, 'r') as sf:
-        svg = sf.read()
+def preprocess(file_path, w, h, rng):
+    with open(file_path, 'r') as f:
+        svg = f.read()
+        svg = svg.format(w=w, h=h)
         img = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
         img = Image.open(io.BytesIO(img))
         s = np.array(img)[:,:,3].astype(np.float) # / 255.0
         max_intensity = np.amax(s)
         s = s / max_intensity
-    return s, FLAGS.num_paths
+
+        # while True:
+        svg_xml = et.fromstring(svg)
+        path_id = rng.randint(len(svg_xml[0]))
+        svg_xml[0][0] = svg_xml[0][path_id]        
+        del svg_xml[0][1:]
+        svg_one = et.tostring(svg_xml, method='xml')        
+
+        # leave only one path
+        y_png = cairosvg.svg2png(bytestring=svg_one)
+        y_img = Image.open(io.BytesIO(y_png))
+        y = np.array(y_img)[:,:,3].astype(np.float) / max_intensity # [0,1]
+
+        pixel_ids = np.nonzero(y)
+            # if len(pixel_ids[0]) == 0:
+            #     continue
+            # else:
+            #     break            
+
+    # select arbitrary marking pixel
+    point_id = rng.randint(len(pixel_ids[0]))
+    px, py = pixel_ids[0][point_id], pixel_ids[1][point_id]
+
+    y = np.reshape(y, [h, w, 1])
+    x = np.zeros([h, w, 2])
+    x[:,:,0] = s
+    x[px,py,1] = 1.0
+
+    # # debug
+    # plt.figure()
+    # plt.subplot(221)
+    # plt.imshow(img)
+    # plt.subplot(222)
+    # plt.imshow(s, cmap=plt.cm.gray)
+    # plt.subplot(223)
+    # plt.imshow(np.concatenate((x, np.zeros([h, w, 1])), axis=-1))
+    # plt.subplot(224)
+    # plt.imshow(y[:,:,0], cmap=plt.cm.gray)
+    # plt.show()
+
+    return x, y
+
+def main(config):
+    prepare_dirs_and_logger(config)
+    batch_manager = BatchManager(config)
+
+    # thread test
+    sess_config = tf.ConfigProto()
+    sess_config.gpu_options.allow_growth = True
+    sess_config.allow_soft_placement = True
+    sess_config.log_device_placement = False
+    sess = tf.Session(config=sess_config)
+    batch_manager.start_thread(sess)
+
+    x, y = batch_manager.batch()
+    if config.data_format == 'NCHW':
+        x = nhwc_to_nchw(x)
+    x_, y_ = sess.run([x, y])
+    batch_manager.stop_thread()
+
+    if config.data_format == 'NCHW':
+        x_ = x_.transpose([0, 2, 3, 1])
+    b_ch = np.zeros([config.batch_size,config.height,config.width,1])
+    x_ = np.concatenate((x_*255, b_ch), axis=-1)
+    y_ = y_*255
+
+    save_image(x_, '{}/x_fixed.png'.format(config.model_dir))
+    save_image(y_, '{}/y_fixed.png'.format(config.model_dir))
 
 
-def get_stroke_list(pm):
-    stroke_list = []
-    with open(pm.file_path, 'r') as f:
-        svg = f.read()
-        for i in xrange(FLAGS.num_paths):
-            svg_xml = ET.fromstring(svg)
-            stroke = svg_xml[0][i]
-            for c in reversed(xrange(FLAGS.num_paths)):
-                if svg_xml[0][c] != stroke:
-                    svg_xml[0].remove(svg_xml[0][c])
-            svg_one_stroke = ET.tostring(svg_xml, method='xml')
+    # random pick from parameter space
+    x_samples, x_gt, y_gt, sample_list = batch_manager.random_list(8)
+    save_image(x_gt, '{}/x_gt.png'.format(config.model_dir))
+    save_image(y_gt, '{}/y_gt.png'.format(config.model_dir))
 
-            y_png = cairosvg.svg2png(bytestring=svg_one_stroke)
-            y_img = Image.open(io.BytesIO(y_png))
-            y = (np.array(y_img)[:,:,3] > 0)
+    with open('{}/sample_list.txt'.format(config.model_dir), 'w') as f:
+        for sample in sample_list:
+            f.write(sample+'\n')
 
-            # # debug
-            # y_img = np.array(y_img)[:,:,3].astype(np.float) / 255.0
-            # plt.imshow(y_img, cmap=plt.cm.gray)
-            # plt.show()
+    print('batch manager test done')
 
-            stroke_list.append(y)
+if __name__ == "__main__":
+    from config import get_config
+    from utils import prepare_dirs_and_logger, save_config, save_image
 
-    # call(['rm', pm.file_path])
-    return stroke_list
+    config, unparsed = get_config()
+    setattr(config, 'dataset', 'line')
+    setattr(config, 'width', 64)
+    setattr(config, 'height', 64)
+
+    main(config)

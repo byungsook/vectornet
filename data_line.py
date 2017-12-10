@@ -30,7 +30,7 @@ class BatchManager(object):
         self.root = config.data_path
         self.rng = np.random.RandomState(config.random_seed)
 
-        self.paths = sorted(glob("{}/*.{}".format(self.root, 'svg_pre')))
+        self.paths = sorted(glob("{}/train/*.{}".format(self.root, 'svg_pre')))
         if len(self.paths) == 0:
             data_dir = os.path.join(config.data_dir, config.dataset)
             train_dir = os.path.join(data_dir, 'train')
@@ -43,6 +43,7 @@ class BatchManager(object):
             self.paths = gen_data(data_dir, config, self.rng,
                                     num_train=45000, num_test=5000)
         assert(len(self.paths) > 0)
+        self.test_paths = sorted(glob("{}/test/*.{}".format(self.root, 'svg_pre')))
 
         self.batch_size = config.batch_size
         self.height = config.height
@@ -118,6 +119,16 @@ class BatchManager(object):
         self.sess.run(self.q.close(cancel_pending_enqueues=True))
         self.coord.join(self.threads)
 
+    def test_batch(self):
+        x_list, y_list = [], []
+        for i, file_path in enumerate(self.test_paths):
+            x_, y_ = preprocess(file_path, self.width, self.height, self.rng)
+            x_list.append(x_)
+            y_list.append(y_)
+            if i % self.batch_size == self.batch_size-1:
+                yield np.array(x_list), np.array(y_list)
+                x_list, y_list = [], []
+
     def batch(self):
         return self.q.dequeue_many(self.batch_size)
 
@@ -137,7 +148,7 @@ class BatchManager(object):
             xs.append(np.concatenate((x*255, b_ch), axis=-1))
             ys.append(y*255)
             
-        return x_list, np.array(xs), np.array(ys), file_list
+        return np.array(x_list), np.array(xs), np.array(ys), file_list
 
 
 def draw_line(id, w, h, min_length, max_stroke_width, rng):

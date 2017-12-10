@@ -3,14 +3,17 @@ import tensorflow as tf
 from ops import *
 slim = tf.contrib.slim
 
-def VDSR(x, hidden_num, repeat_num, data_format, name='VDSR',
+def VDSR(x, hidden_num, repeat_num, data_format, use_norm, name='VDSR',
          k=3, train=True, reuse=False):
     with tf.variable_scope(name, reuse=reuse) as vs:
         for i in range(repeat_num-1):
-            x = batch_norm(conv2d(x, hidden_num, data_format, k=k, s=1, act=tf.nn.relu), 
-                           train, data_format, act=tf.nn.relu)
-        out = batch_norm(conv2d(x, 1, data_format, k=k, s=1),
-                         train, data_format, act=tf.nn.relu)
+            x = conv2d(x, hidden_num, data_format, k=k, s=1, act=tf.nn.relu)
+            if use_norm:
+                x = batch_norm(x, train, data_format, act=tf.nn.relu)
+
+        out = conv2d(x, 1, data_format, k=k, s=1)
+        if use_norm:
+            out = batch_norm(out, train, data_format, act=tf.nn.relu)
     variables = tf.contrib.framework.get_variables(vs)
     return out, variables
         
@@ -47,11 +50,12 @@ def main(_):
     if data_format == 'NCHW':
         x = nhwc_to_nchw(x)
 
-    model = 2
+    model = 1
     if model == 1:
         hidden_num = 64
         repeat_num = 20
-        y = VDSR(x, hidden_num, repeat_num, data_format)
+        use_norm = True
+        y = VDSR(x, hidden_num, repeat_num, data_format, use_norm)
     else:
         hidden_num = 128 # 128
         repeat_num = 16 # 16

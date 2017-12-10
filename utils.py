@@ -28,9 +28,9 @@ def prepare_dirs_and_logger(config):
 
     # data path
     if config.is_train:
-        config.data_path = os.path.join(config.data_dir, config.dataset, 'train')
+        config.data_path = os.path.join(config.data_dir, config.dataset)
     else:
-        config.data_path = os.path.join(config.data_dir, config.dataset, 'test')
+        config.data_path = os.path.join(config.data_dir, config.dataset)
 
     # model path
     if config.load_path:

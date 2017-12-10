@@ -12,7 +12,9 @@ class Trainer(object):
         tf.set_random_seed(config.random_seed)
         self.config = config
         self.batch_manager = batch_manager
-        self.x, self.y = batch_manager.batch() # normalized input
+        self.x, self.y = batch_manager.batch()
+        self.xt = tf.placeholder(tf.float32, shape=int_shape(self.x))
+        self.yt = tf.placeholder(tf.float32, shape=int_shape(self.y))
         self.dataset = config.dataset
 
         self.beta1 = config.beta1
@@ -29,6 +31,7 @@ class Trainer(object):
         self.conv_hidden_num = config.conv_hidden_num
         self.repeat_num = config.repeat_num
         self.use_l2 = config.use_l2
+        self.use_norm = config.use_norm
 
         self.model_dir = config.model_dir
         self.load_path = config.load_path
@@ -38,9 +41,12 @@ class Trainer(object):
         if self.data_format == 'NCHW':
             self.x = nhwc_to_nchw(self.x)
             self.y = nhwc_to_nchw(self.y)
+            self.xt = nhwc_to_nchw(self.xt)
+            self.yt = nhwc_to_nchw(self.yt)
 
         self.start_step = config.start_step
         self.log_step = config.log_step
+        self.test_step = config.test_step
         self.max_step = config.max_step
         self.save_sec = config.save_sec
         self.lr_update_step = config.lr_update_step
@@ -72,10 +78,14 @@ class Trainer(object):
 
     def build_model(self):
         self.y_, self.var = VDSR(
-                self.x, self.conv_hidden_num, self.repeat_num, self.data_format)
+                self.x, self.conv_hidden_num, self.repeat_num, self.data_format, self.use_norm)
         self.y_img = denorm_img(self.y_, self.data_format) # for debug
 
-        self.build_test_model()
+        self.yt_, _ = VDSR(
+                self.xt, self.conv_hidden_num, self.repeat_num, self.data_format, self.use_norm,
+                train=False, reuse=True)
+        self.yt_img = denorm_img(self.yt_, self.data_format)
+
         show_all_variables()        
 
         if self.optimizer == 'adam':
@@ -96,6 +106,12 @@ class Trainer(object):
         else:
             self.loss = self.loss_l1
 
+        # test loss
+        self.tl1 = tf.reduce_mean(tf.abs(self.yt_ - self.yt))
+        self.tl2 = tf.reduce_mean(tf.squared_difference(self.yt_, self.yt))
+        self.test_loss_l1 = tf.placeholder(tf.float32)
+        self.test_loss_l2 = tf.placeholder(tf.float32)
+
         self.optim = optimizer.minimize(self.loss, global_step=self.step, var_list=self.var)
  
         summary = [
@@ -115,15 +131,15 @@ class Trainer(object):
             tf.summary.image("x_sample", denorm_img(self.x, self.data_format)),
             tf.summary.image("y_sample", denorm_img(self.y, self.data_format)),
         ]
+
         self.summary_once = tf.summary.merge(summary) # call just once
 
-    def build_test_model(self):
-        self.x_test = tf.placeholder(dtype=tf.float32, 
-                                   shape=[self.b_num, self.height, self.width, 2])
-        self.y_test_, _ = VDSR(
-                self.x_test, self.conv_hidden_num, self.repeat_num, 'NHWC',
-                train=False, reuse=True)
-        self.y_test = denorm_img(self.y_test_, 'NHWC')
+        summary = [
+            tf.summary.scalar("loss/test_loss_l1", self.test_loss_l1),
+            tf.summary.scalar("loss/test_loss_l2", self.test_loss_l2),
+        ]
+
+        self.summary_test = tf.summary.merge(summary)
 
     def train(self):
         x_list, xs, ys, sample_list = self.batch_manager.random_list(self.b_num)
@@ -150,6 +166,23 @@ class Trainer(object):
                     "summary": self.summary_op,                    
                 })
 
+            if step % self.test_step == self.test_step-1 or step == self.max_step-1:
+                l1, l2, nb = 0, 0, 0
+                for x, y in self.batch_manager.test_batch():
+                    if self.data_format == 'NCHW':
+                        x = to_nchw_numpy(x)
+                        y = to_nchw_numpy(y)
+                    tl1, tl2 = self.sess.run([self.tl1, self.tl2], {self.xt: x, self.yt: y})
+                    l1 += tl1
+                    l2 += tl2
+                    nb += 1
+                l1 /= float(nb)
+                l2 /= float(nb)
+                summary_test = self.sess.run(self.summary_test, 
+                              {self.test_loss_l1: l1, self.test_loss_l2: l2})
+                self.summary_writer.add_summary(summary_test, step)
+                self.summary_writer.flush()
+
             result = self.sess.run(fetch_dict)
 
             if step % self.log_step == 0 or step == self.max_step-1:
@@ -171,16 +204,11 @@ class Trainer(object):
         save_path = os.path.join(self.model_dir, 'model.ckpt')
         self.saver.save(self.sess, save_path, global_step=self.step)
         self.batch_manager.stop_thread()
-    
-    def test(self):
-        # dirty way to bypass graph finilization error
-        g = tf.get_default_graph()
-        g._finalized = False
-
-        self.build_test_model()
 
     def generate(self, x_samples, root_path=None, idx=None):
-        generated = self.sess.run(self.y_test, {self.x_test: x_samples})
+        if self.data_format == 'NCHW':
+            x_samples = to_nchw_numpy(x_samples)
+        generated = self.sess.run(self.yt_img, {self.xt: x_samples})
         y_path = os.path.join(root_path, 'y_{}.png'.format(idx))
         save_image(generated, y_path, nrow=self.b_num)
         print("[*] Samples saved: {}".format(y_path))

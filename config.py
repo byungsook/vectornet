@@ -21,6 +21,7 @@ net_arg.add_argument('--conv_hidden_num', type=int, default=64,
 net_arg.add_argument('--repeat_num', type=int, default=20,
                      choices=[16, 20, 32])
 net_arg.add_argument('--use_l2', type=str2bool, default=True)
+net_arg.add_argument('--use_norm', type=str2bool, default=True)
 net_arg.add_argument('--archi', type=str, default='path',
                      choices=['path','overlap'])
 
@@ -55,9 +56,8 @@ train_arg.add_argument('--beta2', type=float, default=0.999)
 misc_arg = add_argument_group('Misc')
 misc_arg.add_argument('--load_path', type=str, default='')
 misc_arg.add_argument('--log_step', type=int, default=20) # 100
-misc_arg.add_argument('--save_sec', type=int, default=3600)
-misc_arg.add_argument('--num_log_samples', type=int, default=3)
-# misc_arg.add_argument('--log_level', type=str, default='INFO', choices=['INFO', 'DEBUG', 'WARN'])
+misc_arg.add_argument('--test_step', type=int, default=1000) # 10000
+misc_arg.add_argument('--save_sec', type=int, default=900)
 misc_arg.add_argument('--log_dir', type=str, default='log')
 misc_arg.add_argument('--tag', type=str, default='test')
 misc_arg.add_argument('--random_seed', type=int, default=123)

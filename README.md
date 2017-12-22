@@ -9,30 +9,45 @@ Tensorflow implementation of [Semantic Segmentation for Line Drawing Vectorizati
 - [imageio 2.2.0](https://pypi.python.org/pypi/imageio)
 - [tqdm](https://github.com/tqdm/tqdm)
 - [Potrace](http://potrace.sourceforge.net/)
-- Run 'pip install tensorflow-gpu cairosvg matplotlib imageio tqdm'
+
+Run 'pip install tensorflow-gpu cairosvg matplotlib imageio tqdm'
 
 ## Usage
 
-To train PathNet on Random Line Data Set:
+To train PathNet on random lines:
     
     $ python main.py --is_train=True --archi=path --dataset=line
 
-To train OverlapNet on Random Line Data Set:
+To train OverlapNet on random lines:
     
     $ python main.py --is_train=True --archi=overlap --dataset=line
 
-To vectorize Random Line Data Set:
+To vectorize random lines:
 
     Linux: cd gco/gco_src; make gco_linenet
     Windows: go to gco/gco_vs2015 and build
 
     Then,
 
-    $ python main.py --is_train=False --load_pathnet=log/path/line_0000 --load_overlapnet=log/overlap/line_0000 --dataset=line
+    $ python main.py --is_train=False --dataset=line --load_pathnet=log/path/line_0000 --load_overlapnet=log/overlap/line_0000 
 
 ## Results
 
-### Generator output (64x64) with `gamma=0.5` after 300k steps
+### PathNet output (64x64) after 50k steps
+
+![path_rl_64x64_50k_in](./asset/path_rl_64x64_50k_in.png)
+![path_rl_64x64_50k](./asset/path_rl_64x64_50k_out.png)
+![path_rl_64x64_50k_gt](./asset/path_rl_64x64_50k_gt.png)
+
+
+### OverlapNet output (64x64) after 50k steps
+
+![ov_rl_64x64_50k_in](./asset/ov_rl_64x64_50k_in.png)
+![ov_rl_64x64_50k](./asset/ov_rl_64x64_50k_out.png)
+![ov_rl_64x64_50k_gt](./asset/ov_rl_64x64_50k_gt.png)
+
+
+### Vectorization output (64x64)
 
 ## Reference
 

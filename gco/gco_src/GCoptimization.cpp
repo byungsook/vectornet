@@ -5,6 +5,7 @@
 #include "LinkedBlockList.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include <vector>
 #include <algorithm>
 
@@ -100,8 +101,10 @@ GCoptimization::GCoptimization(SiteID nSites, LabelID nLabels)
 , m_queryActiveSitesExpansion(&GCoptimization::queryActiveSitesExpansion<DataCostFnFromArray>)
 , m_setupDataCostsSwap(0)
 , m_setupDataCostsExpansion(0)
+, m_setupDataCostsFusion(0)
 , m_setupSmoothCostsSwap(0)
 , m_setupSmoothCostsExpansion(0)
+, m_setupSmoothCostsFusion(0)
 , m_applyNewLabeling(0)
 , m_updateLabelingDataCosts(0)
 , m_giveSmoothEnergyInternal(0)
@@ -113,6 +116,8 @@ GCoptimization::GCoptimization(SiteID nSites, LabelID nLabels)
 , m_labelingInfoDirty(true)
 , m_lookupSiteVar(new SiteID[nSites])
 , m_labeling(new LabelID[nSites])
+, m_labeling_fm_1(new LabelID[nSites])
+, m_labeling_fm_2(new LabelID[nSites])
 , m_labelTable(new LabelID[nLabels])
 , m_labelingDataCosts(new EnergyTermType[nSites])
 , m_labelCounts(new SiteID[nLabels])
@@ -123,16 +128,21 @@ GCoptimization::GCoptimization(SiteID nSites, LabelID nLabels)
 	if ( nLabels <= 1 ) handleError("Number of labels must be >= 2");
 	if ( nSites <= 0 )  handleError("Number of sites must be >= 1");
 	
-	if ( !m_lookupSiteVar || !m_labelTable || !m_labeling ){
+	if ( !m_lookupSiteVar || !m_labelTable || !m_labeling ||
+		!m_labeling_fm_1 || !m_labeling_fm_2 ){
 		if (m_lookupSiteVar) delete [] m_lookupSiteVar;
 		if (m_labelTable) delete [] m_labelTable;
-		if (m_labeling) delete [] m_labeling;
+		if (m_labeling) delete[] m_labeling;
+		if (m_labeling_fm_1) delete[] m_labeling_fm_1;
+		if (m_labeling_fm_2) delete[] m_labeling_fm_2;
 		if (m_labelingDataCosts) delete [] m_labelingDataCosts;
 		if (m_labelCounts) delete [] m_labelCounts;
 		handleError("Not enough memory.");
 	}
 	
-	memset(m_labeling, 0, m_num_sites*sizeof(LabelID));
+	memset(m_labeling, 0, m_num_sites * sizeof(LabelID));
+	memset(m_labeling_fm_1, 0, m_num_sites * sizeof(LabelID));
+	memset(m_labeling_fm_2, 0, m_num_sites * sizeof(LabelID));
 	memset(m_lookupSiteVar,-1,m_num_sites*sizeof(SiteID));
 	setLabelOrder(false);
 	specializeSmoothCostFunctor(SmoothCostFnPotts());
@@ -145,6 +155,8 @@ GCoptimization::~GCoptimization()
 	delete [] m_labelTable;
 	delete [] m_lookupSiteVar;
 	delete [] m_labeling;
+	delete [] m_labeling_fm_1;
+	delete [] m_labeling_fm_2;
 	delete [] m_labelingDataCosts;
 	delete [] m_labelCounts;
 	delete [] m_activeLabelCounts;
@@ -198,7 +210,11 @@ void GCoptimization::applyNewLabeling<GCoptimization::DataCostFnSparse>(EnergyT 
 	DataCostFnSparse::iterator dciter = dc->begin(alpha_label);
 	for ( SiteID i = 0; i < size; i++ )
 	{
-		if ( e->get_var(i) == 0 )
+#ifndef _USE_QPBO_
+		if (e->get_var(i) == 0)
+#else
+		if ( e->GetLabel(i) == 0 )
+#endif
 		{
 			SiteID site = activeSites[i];
 			LabelID prev = m_labeling[site];
@@ -230,6 +246,7 @@ void GCoptimization::specializeDataCostFunctor(const UserFunctor f) {
 	m_queryActiveSitesExpansion = &GCoptimization::queryActiveSitesExpansion<UserFunctor>;
 	m_setupDataCostsExpansion   = &GCoptimization::setupDataCostsExpansion<UserFunctor>;
 	m_setupDataCostsSwap        = &GCoptimization::setupDataCostsSwap<UserFunctor>;
+	m_setupDataCostsFusion		= &GCoptimization::setupDataCostsFusion<UserFunctor>;
 	m_applyNewLabeling          = &GCoptimization::applyNewLabeling<UserFunctor>;
 	m_updateLabelingDataCosts   = &GCoptimization::updateLabelingDataCosts<UserFunctor>;
 	m_solveSpecialCases         = &GCoptimization::solveSpecialCases<UserFunctor>;
@@ -249,6 +266,7 @@ void GCoptimization::specializeSmoothCostFunctor(const UserFunctor f) {
 	m_giveSmoothEnergyInternal  = &GCoptimization::giveSmoothEnergyInternal<UserFunctor>;
 	m_setupSmoothCostsExpansion = &GCoptimization::setupSmoothCostsExpansion<UserFunctor>;
 	m_setupSmoothCostsSwap      = &GCoptimization::setupSmoothCostsSwap<UserFunctor>;
+	m_setupSmoothCostsFusion	= &GCoptimization::setupSmoothCostsFusion<UserFunctor>;
 }
 
 //-------------------------------------------------------------------
@@ -281,7 +299,11 @@ OLGA_INLINE void GCoptimization::addterm1_checked(EnergyT* e, VarID i, EnergyTer
 	if ( e0 > GCO_MAX_ENERGYTERM || e1 > GCO_MAX_ENERGYTERM )
 		handleError("Data cost term was larger than GCO_MAX_ENERGYTERM; danger of integer overflow.");
 	m_beforeExpansionEnergy += e1;
-	e->add_term1(i,e0,e1);
+#ifndef _USE_QPBO_
+	e->add_term1(i, e0, e1);
+#else
+	e->AddUnaryTerm(i,e0,e1);
+#endif
 }
 
 OLGA_INLINE void GCoptimization::addterm1_checked(EnergyT* e, VarID i, EnergyTermType e0, EnergyTermType e1, EnergyTermType w)
@@ -291,7 +313,11 @@ OLGA_INLINE void GCoptimization::addterm1_checked(EnergyT* e, VarID i, EnergyTer
 	if ( w > GCO_MAX_ENERGYTERM )
 		handleError("Smoothness weight was larger than GCO_MAX_ENERGYTERM; danger of integer overflow.");
 	m_beforeExpansionEnergy += e1*w;
-	e->add_term1(i,e0*w,e1*w);
+#ifndef _USE_QPBO_
+	e->add_term1(i, e0*w, e1*w);
+#else
+	e->AddUnaryTerm(i,e0*w,e1*w);
+#endif
 }
 
 OLGA_INLINE void GCoptimization::addterm2_checked(EnergyT* e, VarID i, VarID j, EnergyTermType e00, EnergyTermType e01, EnergyTermType e10, EnergyTermType e11, EnergyTermType w)
@@ -305,7 +331,11 @@ OLGA_INLINE void GCoptimization::addterm2_checked(EnergyT* e, VarID i, VarID j, 
 	//if ( e00+e11 > e01+e10 )
 	//	handleError("Non-submodular expansion term detected; smooth costs must be a metric for expansion");
 	m_beforeExpansionEnergy += e11*w;
-	e->add_term2(i,j,e00*w,e01*w,e10*w,e11*w);
+#ifndef _USE_QPBO_
+	e->add_term2(i, j, e00*w, e01*w, e10*w, e11*w);
+#else
+	e->AddPairwiseTerm(i,j,e00*w,e01*w,e10*w,e11*w);
+#endif
 }
 
 //------------------------------------------------------------------
@@ -370,8 +400,13 @@ void GCoptimization::setupDataCostsSwap(SiteID size, LabelID alpha_label, LabelI
 	DataCostT* dc = (DataCostT*)m_datacostFn;
 	for ( SiteID i = 0; i < size; i++ )
 	{
-		e->add_term1(i,dc->compute(activeSites[i],alpha_label),
-		               dc->compute(activeSites[i],beta_label) );
+#ifndef _USE_QPBO_
+		e->add_term1(i, dc->compute(activeSites[i], alpha_label),
+			dc->compute(activeSites[i], beta_label));
+#else
+		e->AddUnaryTerm(i, dc->compute(activeSites[i], alpha_label),
+			dc->compute(activeSites[i], beta_label) );
+#endif
 	}
 }
 
@@ -410,12 +445,76 @@ void GCoptimization::setupSmoothCostsSwap(SiteID size, LabelID alpha_label,Label
 //-----------------------------------------------------------------------------------
 
 template <typename DataCostT>
+void GCoptimization::setupDataCostsFusion(SiteID size, QPBO<EnergyType> *e)
+{
+	DataCostT* dc = (DataCostT*)m_datacostFn;
+	for (SiteID i = 0; i < size; ++i)
+	{
+		EnergyTermType e0 = dc->compute(m_lookupSiteVar[i], m_labeling_fm_2[m_lookupSiteVar[i]]);
+		EnergyTermType e1 = dc->compute(m_lookupSiteVar[i], m_labeling_fm_1[m_lookupSiteVar[i]]);
+
+		m_beforeExpansionEnergy += e1;
+		e->AddUnaryTerm(i, e0, e1);
+	}
+	//DataCostT* dc = (DataCostT*)m_datacostFn;
+	//for (SiteID i = 0; i < size; ++i)
+	//	addterm1_checked(e, i, 
+	//		dc->compute(m_lookupSiteVar[i], m_labeling_fm_2[m_lookupSiteVar[i]]),
+	//		dc->compute(m_lookupSiteVar[i], m_labeling_fm_1[m_lookupSiteVar[i]]));
+}
+
+//-------------------------------------------------------------------
+
+template <typename SmoothCostT>
+void GCoptimization::setupSmoothCostsFusion(SiteID size, QPBO<EnergyType> *e)
+{
+	SiteID i, nSite, site, n, nNum, *nPointer;
+	EnergyTermType *weights;
+	SmoothCostT* sc = (SmoothCostT*)m_smoothcostFn;
+
+	for (i = size - 1; i >= 0; --i)
+	{
+		site = m_lookupSiteVar[i];
+		m_lookupSiteVar[site] = i;
+
+		giveNeighborInfo(site, &nNum, &nPointer, &weights);
+		for (n = 0; n < nNum; n++)
+		{
+			nSite = nPointer[n];
+			if (site < nSite)
+			{
+				EnergyTermType e00 = sc->compute(site, nSite, m_labeling_fm_2[site], m_labeling_fm_2[nSite]);
+				EnergyTermType e01 = sc->compute(site, nSite, m_labeling_fm_2[site], m_labeling_fm_1[nSite]);
+				EnergyTermType e10 = sc->compute(site, nSite, m_labeling_fm_1[site], m_labeling_fm_2[nSite]);
+				EnergyTermType e11 = sc->compute(site, nSite, m_labeling_fm_1[site], m_labeling_fm_1[nSite]);
+				EnergyTermType w = weights[n];
+
+				m_beforeExpansionEnergy += e11*w;
+				e->AddPairwiseTerm(i, m_lookupSiteVar[nSite], e00*w, e01*w, e10*w, e11*w);
+				
+				//addterm2_checked(e, i, m_lookupSiteVar[nSite],
+				//	sc->compute(site, nSite, m_labeling_fm_2[site], m_labeling_fm_2[nSite]),
+				//	sc->compute(site, nSite, m_labeling_fm_2[site], m_labeling_fm_1[nSite]),
+				//	sc->compute(site, nSite, m_labeling_fm_1[site], m_labeling_fm_2[nSite]),
+				//	sc->compute(site, nSite, m_labeling_fm_1[site], m_labeling_fm_1[nSite]), weights[n]);
+			}
+		}
+	}
+}
+
+//-------------------------------------------------------------------
+
+template <typename DataCostT>
 void GCoptimization::applyNewLabeling(EnergyT *e,SiteID *activeSites,SiteID size,LabelID alpha_label)
 {
 	DataCostT* dc = (DataCostT*)m_datacostFn;
 	for ( SiteID i = 0; i < size; i++ )
 	{
-		if ( e->get_var(i) == 0 )
+#ifndef _USE_QPBO_
+		if (e->get_var(i) == 0)
+#else
+		if (e->GetLabel(i) == 0)
+#endif
 		{
 			SiteID site = activeSites[i];
 			LabelID prev = m_labeling[site];
@@ -762,8 +861,9 @@ void GCoptimization::setDataCostFunctor(DataCostFunctor* f) {
 	m_datacostFn = f;
 	m_datacostFnDelete          = 0;
 	m_queryActiveSitesExpansion = &GCoptimization::queryActiveSitesExpansion<DataCostFunctor>;
-	m_setupDataCostsExpansion   = &GCoptimization::setupDataCostsExpansion<DataCostFunctor>;
+	m_setupDataCostsExpansion = &GCoptimization::setupDataCostsExpansion<DataCostFunctor>;
 	m_setupDataCostsSwap        = &GCoptimization::setupDataCostsSwap<DataCostFunctor>;
+	m_setupDataCostsFusion		= &GCoptimization::setupDataCostsFusion<DataCostFunctor>;
 	m_applyNewLabeling          = &GCoptimization::applyNewLabeling<DataCostFunctor>;
 	m_updateLabelingDataCosts   = &GCoptimization::updateLabelingDataCosts<DataCostFunctor>;
 	m_solveSpecialCases         = &GCoptimization::solveSpecialCases<DataCostFunctor>;
@@ -1141,11 +1241,19 @@ GCoptimization::EnergyType GCoptimization::setupLabelCostsExpansion(SiteID size,
 			// Add auxiliary variable if necessary, and add pairwise potential
 			if ( lc->aux == UNINIT ) 
 			{
+#ifndef _USE_QPBO_
 				lc->aux = e->add_variable();
-				e->add_term1(lc->aux,0,lc->cost);
+				e->add_term1(lc->aux, 0, lc->cost);
 				m_beforeExpansionEnergy += lc->cost;
 			}
-			e->add_term2(i,lc->aux,0,0,lc->cost,0);
+			e->add_term2(i, lc->aux, 0, 0, lc->cost, 0);
+#else
+				lc->aux = e->AddNode();
+				e->AddUnaryTerm(lc->aux,0,lc->cost);
+				m_beforeExpansionEnergy += lc->cost;
+			}
+			e->AddPairwiseTerm(i, lc->aux, 0, 0, lc->cost, 0);
+#endif
 		}
 	}
 
@@ -1232,13 +1340,40 @@ bool GCoptimization::alpha_expansion(LabelID alpha_label)
 		EnergyT e(size+m_labelcostCount, // poor guess at number of pairwise terms needed :(
 				 m_numNeighborsTotal+(m_labelcostCount?size+m_labelcostCount : 0),
 				 handleError);
+#ifndef _USE_QPBO_
 		e.add_variable(size);
+#else
+		e.AddNode(size);
+#endif
 		m_beforeExpansionEnergy = 0;
 		if ( m_setupDataCostsExpansion   ) (this->*m_setupDataCostsExpansion  )(size,alpha_label,&e,activeSites);
 		if ( m_setupSmoothCostsExpansion ) (this->*m_setupSmoothCostsExpansion)(size,alpha_label,&e,activeSites);
 		EnergyType alphaCorrection = setupLabelCostsExpansion(size,alpha_label,&e,activeSites);
 		checkInterrupt();
+				
+#ifndef _USE_QPBO_
 		afterExpansionEnergy = e.minimize() + alphaCorrection;
+#else
+		// for Improve()
+		srand((unsigned int)time(NULL));
+
+		e.MergeParallelEdges();
+		
+		float be = e.ComputeTwiceEnergy() * 0.5;
+		e.Solve();
+		e.ComputeWeakPersistencies();
+
+		bool improve = true;
+		for (int i = 0; i < 1 && improve; ++i)
+		{
+			improve = e.Improve();
+		}
+
+		float ae = e.ComputeTwiceEnergy() * 0.5;
+		//printf("ae: %f\n", ae);
+		afterExpansionEnergy = ae + alphaCorrection;
+#endif
+
 		checkInterrupt();
 
 		if ( afterExpansionEnergy < m_beforeExpansionEnergy )
@@ -1366,17 +1501,35 @@ void GCoptimization::alpha_beta_swap(LabelID alpha_label, LabelID beta_label)
 		// Create binary variables for each remaining site, add the data costs,
 		// and compute the smooth costs between variables.
 		EnergyT e(size,m_numNeighborsTotal,handleError);
+#ifndef _USE_QPBO_
 		e.add_variable(size);
+#else
+		e.AddNode(size);
+#endif
 		if ( m_setupDataCostsSwap   ) (this->*m_setupDataCostsSwap  )(size,alpha_label,beta_label,&e,activeSites);
 		if ( m_setupSmoothCostsSwap ) (this->*m_setupSmoothCostsSwap)(size,alpha_label,beta_label,&e,activeSites);
 		checkInterrupt();
+
+#ifndef _USE_QPBO_
 		e.minimize();
+#else
+		e.Solve();
+		e.ComputeWeakPersistencies();
+		bool improve = true;
+		//while (improve)
+		for (int i = 0; i < 10 && improve; ++i)
+			improve = e.Improve();
+#endif
 		checkInterrupt();
 		
 		// Apply the new labeling
 		for ( SiteID i = 0; i < size; i++ )
 		{
+#ifndef _USE_QPBO_
 			m_labeling[activeSites[i]] = (e.get_var(i) == 0) ? alpha_label : beta_label;
+#else
+			m_labeling[activeSites[i]] = (e.GetLabel(i) == 0) ? alpha_label : beta_label;
+#endif
 			m_lookupSiteVar[activeSites[i]] = -1; // restore lookupSiteVar to all -1s
 		}
 		m_labelingInfoDirty = true;
@@ -1389,6 +1542,112 @@ void GCoptimization::alpha_beta_swap(LabelID alpha_label, LabelID beta_label)
 	delete [] activeSites;
 
 	printStatus2(alpha_label,beta_label,size,ticks0);
+}
+
+//---------------------------------------------------------------------------------
+
+GCoptimization::EnergyType GCoptimization::fusion(int max_num_iterations)
+{
+	EnergyType new_energy, old_energy;
+	if ((this->*m_solveSpecialCases)(new_energy))
+		return new_energy;
+
+	new_energy = compute_energy();
+	old_energy = new_energy + 1;
+	printStatus1("starting alpha expansion fusion");
+
+	if (max_num_iterations == -1)
+		max_num_iterations = 10000000;
+	int curr_cycle = 1;
+	m_stepsThisCycleTotal = (m_num_labels*(m_num_labels - 1)) / 2; // invalid
+	try
+	{
+		while (old_energy > new_energy && curr_cycle <= max_num_iterations)
+		{
+			gcoclock_t ticks0 = gcoclock();
+			old_energy = new_energy;
+			new_energy = oneFusionIteration();
+			printStatus1(curr_cycle, false, ticks0);
+			curr_cycle++;
+		}
+	}
+	catch (...)
+	{
+		m_stepsThisCycle = m_stepsThisCycleTotal = 0;
+		throw;
+	}
+	m_stepsThisCycle = m_stepsThisCycleTotal = 0;
+
+	return(new_energy);
+}
+
+//-------------------------------------------------------------------
+
+GCoptimization::EnergyType GCoptimization::oneFusionIteration()
+{
+	// Generate alpha labeling - 1
+	oneExpansionIteration();
+	memcpy(m_labeling_fm_1, m_labeling, m_num_sites * sizeof(LabelID));
+
+	// Generate alpha labeling - 2
+	oneExpansionIteration();
+	memcpy(m_labeling_fm_2, m_labeling, m_num_sites * sizeof(LabelID));
+	
+	
+	// restore lookup table
+	SiteID size = 0;
+	SiteID *activeSites = new SiteID[m_num_sites];
+	
+	// Get list of active sites based on alpha and current labeling
+	if (m_queryActiveSitesExpansion)
+		size = (this->*m_queryActiveSitesExpansion)(m_labelTable[m_num_labels-1], activeSites);
+	if (size == 0)  // Nothing to do
+	{
+		delete[] activeSites;
+		return 0;
+	}
+
+	// Initialise reverse-lookup so that non-active neighbours can be identified
+	// while constructing the graph
+	for (SiteID i = 0; i < size; ++i)
+		m_lookupSiteVar[activeSites[i]] = i;
+	
+	delete[] activeSites;
+
+
+	// Fusion move over generated labeling
+	fusion_move();
+
+	return compute_energy();
+}
+
+//---------------------------------------------------------------------------------
+
+void GCoptimization::fusion_move()
+{
+	QPBO<EnergyType>* e = new QPBO<EnergyType>(m_num_sites, m_num_sites*m_num_sites);
+	e->AddNode(m_num_sites);
+
+	if (m_setupDataCostsFusion) (this->*m_setupDataCostsFusion)(m_num_sites, e);
+	if (m_setupSmoothCostsFusion) (this->*m_setupSmoothCostsFusion)(m_num_sites, e);
+
+	e->Solve();
+	//e->ComputeWeakPersistencies();
+	//bool improve = true;
+	//while (improve)
+	//{
+	//	improve = e->Improve();
+	//}
+
+	for (int i = 0; i < m_num_sites; ++i)
+	{
+		if (e->GetLabel(i) == 1)
+			m_labeling[i] = m_labeling_fm_2[i];
+		else
+			m_labeling[i] = m_labeling_fm_1[i];
+	}
+
+	delete e;
 }
 
 
@@ -1874,4 +2133,3 @@ GCoptimization::SiteID GCoptimization::DataCostFnSparse::queryActiveSitesExpansi
 	}
 	return count;
 }
-

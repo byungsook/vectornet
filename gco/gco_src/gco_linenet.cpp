@@ -39,7 +39,7 @@ int main(int argc, char **argv)
 	is >> pred_file_path;
 	is >> data_dir;
 	is >> n_labels;
-	//is >> label_cost;
+	is >> label_cost;
 	is >> neighbor_sigma;
 	is >> prediction_sigma;
 	is >> n_sites;
@@ -54,11 +54,11 @@ int main(int argc, char **argv)
 	
 	float **pred = new float*[n_sites];
 	for (int i = 0; i < n_sites; ++i) {
-		pred[i] = new float[n_sites];
+		pred[i] = new float[n_sites]();
 	}
 	float **w = new float*[n_sites];
 	for (int i = 0; i < n_sites; ++i) {
-		w[i] = new float[n_sites];
+		w[i] = new float[n_sites]();
 	}
 
 	while (is.good()) {
@@ -76,13 +76,9 @@ int main(int argc, char **argv)
 	// return 0;
 
 
-	int n_iters = -1;
-
-	float *data = new float[n_sites*n_labels];
-	for (int i = 0; i < n_sites*n_labels; ++i)
-		data[i] = 0;
-
-	int *labels = new int[n_sites];
+	int n_iters = 3;
+	float *data = new float[n_sites*n_labels]();
+	int *labels = new int[n_sites]();
 
 	try {
 		GCoptimizationGeneralGraph *gc = new GCoptimizationGeneralGraph(n_sites, n_labels);
@@ -93,7 +89,7 @@ int main(int argc, char **argv)
 				gc->setNeighbors(i, j, w[i][j]);
 			}
 		}
-		//gc->setLabelCost(label_cost);
+		gc->setLabelCost(label_cost);
 		gc->setLabelOrder(true);
 
 		std::string label_file_path = argv[1];
@@ -104,12 +100,13 @@ int main(int argc, char **argv)
 			return -1;
 		}
 
-		//printf("\nBefore optimization energy is %d", gc->compute_energy());
+		// printf("\nBefore optimization energy is %f", gc->compute_energy());
 		os << gc->compute_energy() << std::endl;
-		//gc->expansion(n_iters);
+		// gc->expansion(n_iters);
 		gc->swap(n_iters);
+		// gc->fusion(n_iters);
 		os << gc->compute_energy() << std::endl;
-		//printf("\nAfter optimization energy is %d", gc->compute_energy());
+		// printf("\nAfter optimization energy is %f", gc->compute_energy());
 
 		for (int i = 0; i < n_sites; i++) {
 			labels[i] = gc->whatLabel(i);

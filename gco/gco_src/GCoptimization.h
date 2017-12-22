@@ -106,9 +106,15 @@
 #endif
 
 #include <cstddef>
-#include "energy.h"
 #include "graph.cpp"
 #include "maxflow.cpp"
+#include "QPBO.h"
+
+// #define _USE_QPBO_
+
+#ifndef _USE_QPBO_
+#include "energy.h"
+#endif
 
 /////////////////////////////////////////////////////////////////////
 // Utility functions, classes, and macros
@@ -169,8 +175,14 @@ public:
 #endif
 	typedef float EnergyTermType;    // 32-bit energy terms
 #endif
+
+#ifndef _USE_QPBO_
 	typedef Energy<EnergyTermType,EnergyTermType,EnergyType> EnergyT;
 	typedef EnergyT::Var VarID;
+#else
+	typedef QPBO<EnergyType> EnergyT;
+	typedef int VarID;
+#endif
 	typedef int LabelID;                     // Type for labels
 	typedef VarID SiteID;                    // Type for sites
 	typedef EnergyTermType (*SmoothCostFn)(SiteID s1, SiteID s2, LabelID l1, LabelID l2);
@@ -200,6 +212,14 @@ public:
 	// are, respectively, alpha_size and beta_size                                                  
 	void alpha_beta_swap(LabelID alpha_label, LabelID beta_label, SiteID *alphaSites, 
 		                 SiteID alpha_size, SiteID *betaSites, SiteID beta_size);
+
+	// Peforms fusion algorithm. Runs the number of iterations specified by max_num_iterations 
+	// If no input specified,runs until convergence. Returns total energy of labeling. 
+	EnergyType fusion(int max_num_iterations = -1);
+
+	// Peforms fusion move using qpbo on one label
+	void fusion_move();
+
 
 	struct DataCostFunctor;      // use this class to pass a functor to setDataCost 
 	struct SmoothCostFunctor;    // use this class to pass a functor to setSmoothCost 
@@ -290,6 +310,8 @@ protected:
 	LabelID m_num_labels;
 	SiteID  m_num_sites;
 	LabelID *m_labeling;
+	LabelID *m_labeling_fm_1;
+	LabelID *m_labeling_fm_2;
 	SiteID  *m_lookupSiteVar; // holds index of variable corresponding to site participating in a move,
 	                          // -1 for nonparticipating site
 	LabelID *m_labelTable;    // to figure out label order in which to do expansion/swaps
@@ -320,6 +342,8 @@ protected:
 	void (GCoptimization::*m_setupSmoothCostsExpansion)(SiteID,LabelID,EnergyT*,SiteID*);
 	void (GCoptimization::*m_setupDataCostsSwap)(SiteID,LabelID,LabelID,EnergyT*,SiteID*);
 	void (GCoptimization::*m_setupSmoothCostsSwap)(SiteID,LabelID,LabelID,EnergyT*,SiteID*);
+	void (GCoptimization::*m_setupDataCostsFusion)(SiteID, QPBO<EnergyType>*);
+	void (GCoptimization::*m_setupSmoothCostsFusion)(SiteID, QPBO<EnergyType>*);
 	void (GCoptimization::*m_applyNewLabeling)(EnergyT*,SiteID*,SiteID,LabelID);
 	void (GCoptimization::*m_updateLabelingDataCosts)();
 
@@ -445,8 +469,10 @@ protected:
 	template <typename DataCostT> SiteID queryActiveSitesExpansion(LabelID alpha_label, SiteID* activeSites);
 	template <typename DataCostT>   void setupDataCostsExpansion(SiteID size,LabelID alpha_label,EnergyT *e,SiteID *activeSites);
 	template <typename DataCostT>   void setupDataCostsSwap(SiteID size,LabelID alpha_label,LabelID beta_label,EnergyT *e,SiteID *activeSites);
+	template <typename DataCostT>   void setupDataCostsFusion(SiteID size, QPBO<EnergyType> *e);
 	template <typename SmoothCostT> void setupSmoothCostsExpansion(SiteID size,LabelID alpha_label,EnergyT *e,SiteID *activeSites);
-	template <typename SmoothCostT> void setupSmoothCostsSwap(SiteID size,LabelID alpha_label,LabelID beta_label,EnergyT *e,SiteID *activeSites);
+	template <typename SmoothCostT> void setupSmoothCostsSwap(SiteID size, LabelID alpha_label, LabelID beta_label, EnergyT *e, SiteID *activeSites);
+	template <typename SmoothCostT> void setupSmoothCostsFusion(SiteID size, QPBO<EnergyType> *e);
 	template <typename DataCostT>   void applyNewLabeling(EnergyT *e,SiteID *activeSites,SiteID size,LabelID alpha_label);
 	template <typename DataCostT>   void updateLabelingDataCosts();
 	template <typename UserFunctor> void specializeDataCostFunctor(const UserFunctor f);
@@ -471,6 +497,8 @@ private:
 	// Peforms one iteration (one pass over all pairs of labels) of expansion/swap algorithm
 	EnergyType oneExpansionIteration();
 	EnergyType oneSwapIteration();
+	EnergyType oneFusionIteration();
+
 	void printStatus1(const char* extraMsg=0);
 	void printStatus1(int cycle, bool isSwap, gcoclock_t ticks0);
 	void printStatus2(int alpha, int beta, int numVars, gcoclock_t ticks0);

@@ -15,10 +15,21 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\gco_src\GCoptimization.cpp">
+    <Text Include="..\gco_src\CHANGES.TXT">
+      <Filter>Resource Files</Filter>
+    </Text>
+    <Text Include="..\gco_src\GCO_README.TXT">
+      <Filter>Resource Files</Filter>
+    </Text>
+    <Text Include="..\gco_src\GPL.TXT">
+      <Filter>Resource Files</Filter>
+    </Text>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\gco_src\graph.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\gco_src\graph.cpp">
+    <ClCompile Include="..\gco_src\linetest.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\gco_src\LinkedBlockList.cpp">
@@ -27,24 +38,39 @@
     <ClCompile Include="..\gco_src\maxflow.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\gco_src\example.cpp">
+    <ClCompile Include="..\gco_src\QPBO.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\gco_src\linetest.cpp">
+    <ClCompile Include="..\gco_src\QPBO_example.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\gco_src\QPBO_extra.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\gco_src\QPBO_maxflow.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\gco_src\QPBO_postprocessing.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\gco_src\example.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\gco_src\gco_linenet.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\gco_src\GCoptimization.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\gco_src\GCoptimization.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\gco_src\graph.h">
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="..\gco_src\LinkedBlockList.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\gco_src\QPBO.h">
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="..\gco_src\block.h">
@@ -53,10 +79,13 @@
     <ClInclude Include="..\gco_src\energy.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\gco_src\GCoptimization.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="..\gco_src\GCO_README.TXT">
-      <Filter>Resource Files</Filter>
-    </Text>
+    <None Include="..\gco_src\instances.inc">
+      <Filter>Source Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

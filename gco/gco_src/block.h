@@ -1,4 +1,6 @@
 /* block.h */
+/* Copyright Vladimir Kolmogorov vnk@ist.ac.at */
+/* Last modified May 2013 */
 /*
 	Template classes Block and DBlock
 	Implement adding and deleting items of the same type in blocks.
@@ -106,7 +108,7 @@ public:
 	Block(int size, void (*err_function)(const char *) = NULL) { first = last = NULL; block_size = size; error_function = err_function; }
 
 	/* Destructor. Deallocates all items added so far */
-	~Block() { while (first) { block *next = first -> next; delete first; first = next; } }
+	~Block() { while (first) { block *next = first -> next; delete[] ((char*)first); first = next; } }
 
 	/* Allocates 'num' consecutive items; returns pointer
 	   to the first item. 'num' cannot be greater than the
@@ -161,6 +163,27 @@ public:
 		return scan_current_data ++;
 	}
 
+	struct iterator; // for overlapping scans
+	Type *ScanFirst(iterator& i)
+	{
+		for (i.scan_current_block=first; i.scan_current_block; i.scan_current_block = i.scan_current_block->next)
+		{
+			i.scan_current_data = & ( i.scan_current_block -> data[0] );
+			if (i.scan_current_data < i.scan_current_block -> current) return i.scan_current_data ++;
+		}
+		return NULL;
+	}
+	Type *ScanNext(iterator& i)
+	{
+		while (i.scan_current_data >= i.scan_current_block -> current)
+		{
+			i.scan_current_block = i.scan_current_block -> next;
+			if (!i.scan_current_block) return NULL;
+			i.scan_current_data = & ( i.scan_current_block -> data[0] );
+		}
+		return i.scan_current_data ++;
+	}
+
 	/* Marks all elements as empty */
 	void Reset()
 	{
@@ -188,7 +211,13 @@ private:
 	int		block_size;
 	block	*first;
 	block	*last;
-
+public:
+	struct iterator
+	{
+		block	*scan_current_block;
+		Type	*scan_current_data;
+	};
+private:
 	block	*scan_current_block;
 	Type	*scan_current_data;
 
@@ -209,7 +238,7 @@ public:
 	DBlock(int size, void (*err_function)(const char *) = NULL) { first = NULL; first_free = NULL; block_size = size; error_function = err_function; }
 
 	/* Destructor. Deallocates all items added so far */
-	~DBlock() { while (first) { block *next = first -> next; delete first; first = next; } }
+	~DBlock() { while (first) { block *next = first -> next; delete[] ((char*)first); first = next; } }
 
 	/* Allocates one item */
 	Type *New()
@@ -263,6 +292,98 @@ private:
 	void	(*error_function)(const char *);
 };
 
+
+/***********************************************************************/
+/***********************************************************************/
+/***********************************************************************/
+
+// there is no Free() function, just Alloc() that could return the same pointer.
+// The allocated space grows as needed.
+class ReusableBuffer
+{
+public:
+	/* Constructor. */
+	ReusableBuffer(void (*err_function)(const char *) = NULL) : size_max(0), buf(NULL), error_function(err_function) {}
+	~ReusableBuffer() { if (buf) free(buf); }
+
+	void* Alloc(int size)
+	{
+		if (size <= size_max) return buf;
+		size_max = (int)(1.2*size_max) + size;
+		if (buf) free(buf);
+		buf = (char*)malloc(size_max);
+		if (!buf) { if (error_function) (*error_function)("Not enough memory!"); exit(1); }
+		return buf;
+	}
+	void* Realloc(int size)
+	{
+		if (size <= size_max) return buf;
+		size_max = (int)(1.2*size_max) + size;
+		if (buf) buf = (char*)realloc(buf, size_max);
+		else     buf = (char*)malloc(size_max);
+		if (!buf) { if (error_function) (*error_function)("Not enough memory!"); exit(1); }
+		return buf;
+	}
+
+private:
+	char* buf;
+	int size_max;
+
+	void	(*error_function)(const char *);
+};
+
+
+/***********************************************************************/
+/***********************************************************************/
+/***********************************************************************/
+
+// Again, no Free() function but different calls to Alloc() return pointers
+// to disjoint chunks of memory (unlike ReusableBuffer). Convenient to avoid
+// explicit garbage collection.
+class Buffer
+{
+public:
+	Buffer(int _default_size, void (*err_function)(const char *) = NULL) 
+		: default_size(_default_size), buf_first(NULL), error_function(err_function) {}
+	~Buffer()
+	{
+		while (buf_first)
+		{
+			char* b = (char*) buf_first;
+			buf_first = buf_first->next;
+			delete [] b;
+		}
+	}
+
+	void* Alloc(int size)
+	{
+		if (!buf_first || buf_first->size+size>buf_first->size_max)
+		{
+			int size_max = 2*size + default_size;
+			Buf* b = (Buf*)(new char[sizeof(Buf)+size_max]);
+			if (!b) { if (error_function) (*error_function)("Not enough memory!"); exit(1); }
+			b->next = buf_first;
+			buf_first = b;
+			b->size = 0;
+			b->size_max = size_max;
+			b->arr = (char*)(b+1);
+		}
+		char* ptr = &buf_first->arr[buf_first->size];
+		buf_first->size += size;
+		return ptr;
+	}
+private:
+	struct Buf
+	{
+		int size, size_max;
+		char* arr;
+		Buf* next;
+	};
+	int default_size;
+	Buf* buf_first;
+
+	void	(*error_function)(const char *);
+};
 
 #endif
 

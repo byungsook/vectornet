@@ -32,11 +32,12 @@ class BatchManager(object):
 
         self.paths = sorted(glob("{}/train/*.{}".format(self.root, 'svg_pre')))
         if len(self.paths) == 0:
+            # create line dataset
             data_dir = os.path.join(config.data_dir, config.dataset)
             train_dir = os.path.join(data_dir, 'train')
-            test_dir = os.path.join(data_dir, 'test')
             if not os.path.exists(train_dir):
                 os.makedirs(train_dir)
+            test_dir = os.path.join(data_dir, 'test')
             if not os.path.exists(test_dir):
                 os.makedirs(test_dir)
 
@@ -231,18 +232,33 @@ def gen_data(data_dir, config, rng, num_train, num_test):
                 continue
             else:
                 s = s / max_intensity # [0,1]
+            break
 
         if file_id < num_train:
             cat = 'train'
         else:
             cat = 'test'
-        svg_file_path = os.path.join(data_dir, cat, '%d.svg' % file_id)
+        
+        # svgpre
         svgpre_file_path = os.path.join(data_dir, cat, '%d.svg_pre' % file_id)
-        print(svg_file_path)
-        with open(svg_file_path, 'w') as f:
-            f.write(svg)
+        print(svgpre_file_path)
         with open(svgpre_file_path, 'w') as f:
             f.write(svgpre)
+        
+        # svg and jpg for reference
+        svg_dir = os.path.join(data_dir, 'svg')
+        if not os.path.exists(svg_dir):
+            os.makedirs(svg_dir)
+        jpg_dir = os.path.join(data_dir, 'jpg')
+        if not os.path.exists(jpg_dir):
+            os.makedirs(jpg_dir)
+        
+        svg_file_path = os.path.join(data_dir, 'svg', '%d.svg' % file_id)
+        jpg_file_path = os.path.join(data_dir, 'jpg', '%d.jpg' % file_id)
+        
+        with open(svg_file_path, 'w') as f:
+            f.write(svg)
+        s_img.convert('RGB').save(jpg_file_path)
 
         if file_id < num_train:
             file_list.append(svgpre_file_path)

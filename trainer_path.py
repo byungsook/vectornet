@@ -111,6 +111,7 @@ class Trainer(object):
         self.tl2 = tf.reduce_mean(tf.squared_difference(self.yt_, self.yt))
         self.test_loss_l1 = tf.placeholder(tf.float32)
         self.test_loss_l2 = tf.placeholder(tf.float32)
+        self.test_loss_iou = tf.placeholder(tf.float32)
 
         self.optim = optimizer.minimize(self.loss, global_step=self.step, var_list=self.var)
  
@@ -137,6 +138,7 @@ class Trainer(object):
         summary = [
             tf.summary.scalar("loss/test_loss_l1", self.test_loss_l1),
             tf.summary.scalar("loss/test_loss_l2", self.test_loss_l2),
+            tf.summary.scalar("loss/test_loss_iou", self.test_loss_iou),
         ]
 
         self.summary_test = tf.summary.merge(summary)
@@ -167,19 +169,35 @@ class Trainer(object):
                 })
 
             if step % self.test_step == self.test_step-1 or step == self.max_step-1:
-                l1, l2, nb = 0, 0, 0
+                l1, l2, iou, nb = 0, 0, 0, 0
                 for x, y in self.batch_manager.test_batch():
                     if self.data_format == 'NCHW':
                         x = to_nchw_numpy(x)
                         y = to_nchw_numpy(y)
-                    tl1, tl2 = self.sess.run([self.tl1, self.tl2], {self.xt: x, self.yt: y})
+                    tl1, tl2, y_ = self.sess.run([self.tl1, self.tl2, self.yt_], {self.xt: x, self.yt: y})
                     l1 += tl1
                     l2 += tl2
                     nb += 1
+
+                    # iou
+                    y_I = np.logical_and(y, y_)
+                    y_I_sum = np.sum(y_I, axis=(1, 2, 3))
+                    y_U = np.logical_or(y, y_)
+                    y_U_sum = np.sum(y_U, axis=(1, 2, 3))
+                    # print(y_I_sum, y_U_sum)
+                    nonzero_id = np.where(y_U_sum != 0)[0]
+                    if nonzero_id.shape[0] == 0:
+                        acc = 1.0
+                    else:
+                        acc = np.average(y_I_sum[nonzero_id] / y_U_sum[nonzero_id])
+                    iou += acc
+
                 l1 /= float(nb)
                 l2 /= float(nb)
+                iou /= float(nb)
+                    
                 summary_test = self.sess.run(self.summary_test, 
-                              {self.test_loss_l1: l1, self.test_loss_l2: l2})
+                              {self.test_loss_l1: l1, self.test_loss_l2: l2, self.test_loss_iou: iou})
                 self.summary_writer.add_summary(summary_test, step)
                 self.summary_writer.flush()
 

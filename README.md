@@ -1,17 +1,43 @@
-Tensorflow implementation of [BEGAN: Boundary Equilibrium Generative Adversarial Networks](https://arxiv.org/abs/1703.10717).
+Tensorflow implementation of [Semantic Segmentation for Line Drawing Vectorization Using Neural Networks](http://www.byungsoo.me).
 
 ## Requirements
 
 - [anaconda3 / python3.6](https://www.anaconda.com/download/#linux)
-- [TensorFlow 1.4](https://github.com/tensorflow/tensorflow) run 'pip install tensorflow-gpu'
-- [CairoSVG 2.1.2](http://cairosvg.org/) run 'pip install cairosvg'
-- [Matplotlib 2.1.0](https://matplotlib.org/) run 'pip install matplotlib'
-- [imageio 2.2.0](https://pypi.python.org/pypi/imageio) run 'pip install imageio'
-- [tqdm](https://github.com/tqdm/tqdm) run 'pip install tqdm'
+- [TensorFlow 1.4](https://github.com/tensorflow/tensorflow)
+- [CairoSVG 2.1.2](http://cairosvg.org/)
+- [Matplotlib 2.1.0](https://matplotlib.org/)
+- [imageio 2.2.0](https://pypi.python.org/pypi/imageio)
+- [tqdm](https://github.com/tqdm/tqdm)
+- Run 'pip install tensorflow-gpu cairosvg matplotlib imageio tqdm'
 
 ## Usage
 
+To train PathNet on Random Line Data Set:
+    
+    python main.py --archi=path --dataset=line --data_dir='data'
+
+## Results
+
+### Generator output (64x64) with `gamma=0.5` after 300k steps
+
+## Reference
+
+[carpedm20] (https://github.com/carpedm20/BEGAN-tensorflow)
+
+## Author
+
+Byungsoo Kim / [@kimby](http://www.byungsoo.me)
+
+<!-- 
 ## Useful Settings
+
+anaconda: (Windows) [ImportError: No module named 'pip._vendor.requests.adapters' for any pip command](https://github.com/ContinuumIO/anaconda-issues/issues/6719)
+
+    conda install pip -f
+
+anaconda: (Windows) [dlopen() failed to load a library: cairo / cairo-2](https://github.com/Kozea/CairoSVG/issues/84)
+
+    Install [GTK+](https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases/download/2017-11-15/gtk3-runtime-3.22.26-2017-11-15-ts-win64.exe)
 
 git: replace existing folder
 
@@ -49,11 +75,9 @@ visual studio code: specify python version in user/workspace settings
 visual studio code: stop at the beginning of debugging
 
     "stopOnEntry": false, (launch.json)
+ -->
 
 
-## Author
-
-Byungsoo Kim / [@kimby](http://www.byungsoo.me)
 
 <!-- 
 ## Usage

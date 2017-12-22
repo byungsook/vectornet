@@ -27,7 +27,7 @@ net_arg.add_argument('--archi', type=str, default='path',
 
 # Data
 data_arg = add_argument_group('Data')
-data_arg.add_argument('--data_dir', type=str, default='/home/kimby/polybox/dev/vectornet2/data')
+data_arg.add_argument('--data_dir', type=str, default='data') #'/home/kimby/polybox/dev/vectornet2/data')
 data_arg.add_argument('--dataset', type=str, default='line',
                       choices=['line','chinese'])
 data_arg.add_argument('--batch_size', type=int, default=8)

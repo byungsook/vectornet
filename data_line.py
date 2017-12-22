@@ -169,6 +169,35 @@ class BatchManager(object):
             
         return np.array(x_list), np.array(xs), np.array(ys), file_list
 
+    def read_svg(self, file_path):
+        with open(file_path, 'r') as f:
+            svg = f.read()
+
+        svg = svg.format(w=self.width, h=self.height)
+        img = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
+        img = Image.open(io.BytesIO(img))
+        s = np.array(img)[:,:,3].astype(np.float) # / 255.0
+        max_intensity = np.amax(s)
+        s = s / max_intensity
+
+        path_list = []        
+        svg_xml = et.fromstring(svg)
+        num_paths = len(svg_xml[0])
+
+        for i in range(num_paths):
+            svg_xml = et.fromstring(svg)
+            svg_xml[0][0] = svg_xml[0][i]
+            del svg_xml[0][1:]
+            svg_one = et.tostring(svg_xml, method='xml')
+
+            # leave only one path
+            y_png = cairosvg.svg2png(bytestring=svg_one)
+            y_img = Image.open(io.BytesIO(y_png))
+            path = (np.array(y_img)[:,:,3] > 0)            
+            path_list.append(path)
+
+        return s, num_paths, path_list
+
 
 def draw_line(id, w, h, min_length, max_stroke_width, rng):
     stroke_color = rng.randint(240, size=3)

@@ -1,232 +1,594 @@
 from __future__ import print_function
 
 import os
-import numpy as np
 from tqdm import trange
+import multiprocessing
+import time
+from datetime import datetime
+import platform
+from subprocess import call
+from shutil import copyfile
+
+import numpy as np
+import sklearn.neighbors
+import skimage.measure
+
+import matplotlib.pyplot as plt
+import matplotlib.colors as colors
+import matplotlib.cm as cmx
+import scipy.misc
 
 from models import *
 from utils import save_image
+
+
+def vectorize_mp(param):
+    pass
+
 
 class Tester(object):
     def __init__(self, config, batch_manager):
         tf.set_random_seed(config.random_seed)
         self.config = config
         self.batch_manager = batch_manager
-        self.x, self.y = batch_manager.batch()
-        self.xt = tf.placeholder(tf.float32, shape=int_shape(self.x))
-        self.yt = tf.placeholder(tf.float32, shape=int_shape(self.y))
-        self.dataset = config.dataset
+        self.rng = self.batch_manager.rng
 
-        self.beta1 = config.beta1
-        self.beta2 = config.beta2
-        self.optimizer = config.optimizer
-        self.batch_size = config.batch_size
-
-        self.lr = tf.Variable(config.lr, name='lr')
-        self.lr_update = tf.assign(self.lr, tf.maximum(self.lr*0.1, config.lr_lower_boundary), name='lr_update')
-
+        self.b_num = config.test_batch_size
         self.height = config.height
         self.width = config.width
-        self.b_num = config.batch_size
         self.conv_hidden_num = config.conv_hidden_num
         self.repeat_num = config.repeat_num
-        self.use_l2 = config.use_l2
+        self.data_format = config.data_format
         self.use_norm = config.use_norm
 
+        self.load_pathnet = config.load_pathnet
+        self.load_overlapnet = config.load_overlapnet
+        self.find_overlap = config.find_overlap
+        self.overlap_threshold = config.overlap_threshold
+        self.max_label = config.max_label
+        self.label_cost = config.label_cost
+        self.sigma_neighbor = config.sigma_neighbor
+        self.sigma_predict = config.sigma_predict
+        self.neighbor_sample = config.neighbor_sample
+
+        self.num_test = config.num_test
+        self.test_paths = self.batch_manager.test_paths[:self.num_test]
+        self.mp = config.mp
+        self.num_worker = config.num_worker
+
         self.model_dir = config.model_dir
-        self.load_path = config.load_path
-
-        self.use_gpu = config.use_gpu
-        self.data_format = config.data_format
-        if self.data_format == 'NCHW':
-            self.x = nhwc_to_nchw(self.x)
-            self.y = nhwc_to_nchw(self.y)
-            self.xt = nhwc_to_nchw(self.xt)
-            self.yt = nhwc_to_nchw(self.yt)
-
-        self.start_step = config.start_step
-        self.log_step = config.log_step
-        self.test_step = config.test_step
-        self.max_step = config.max_step
-        self.save_sec = config.save_sec
-        self.lr_update_step = config.lr_update_step
-
-        self.step = tf.Variable(self.start_step, name='step', trainable=False)
-
-        self.is_train = config.is_train
+        self.data_path = config.data_path
         self.build_model()
 
-        self.saver = tf.train.Saver()
-        self.summary_writer = tf.summary.FileWriter(self.model_dir)
-
-        sv = tf.train.Supervisor(logdir=self.model_dir,
-                                is_chief=True,
-                                saver=self.saver,
-                                summary_op=None,
-                                summary_writer=self.summary_writer,
-                                save_model_secs=self.save_sec,
-                                global_step=self.step,
-                                ready_for_local_init_op=None)
-
-        gpu_options = tf.GPUOptions(allow_growth=True)
-        sess_config = tf.ConfigProto(allow_soft_placement=True,
-                                    gpu_options=gpu_options)
-
-        self.sess = sv.prepare_or_wait_for_session(config=sess_config)
-        if self.is_train:
-            self.batch_manager.start_thread(self.sess)
-
     def build_model(self):
-        self.y_, self.var = VDSR(
-                self.x, self.conv_hidden_num, self.repeat_num, self.data_format, self.use_norm)
-        self.y_img = denorm_img(self.y_, self.data_format) # for debug
+        pathnet_graph = tf.Graph()
+        sess_config = tf.ConfigProto(allow_soft_placement=True,
+                                     gpu_options=tf.GPUOptions(allow_growth=True))
+        self.sp = tf.Session(config=sess_config, graph=pathnet_graph)
+        with pathnet_graph.as_default():
+            self.xp = tf.placeholder(tf.float32, shape=[None, self.height, self.width, 2])
+            if self.data_format == 'NCHW':
+                self.xp = nhwc_to_nchw(self.xp)
 
-        self.yt_, _ = VDSR(
-                self.xt, self.conv_hidden_num, self.repeat_num, self.data_format, self.use_norm,
-                train=False, reuse=True)
-        self.yt_img = denorm_img(self.yt_, self.data_format)
+            self.yp, _ = VDSR(self.xp, self.conv_hidden_num, self.repeat_num, 
+                self.data_format, self.use_norm, train=False)
+            show_all_variables()
 
-        show_all_variables()        
+            saver = tf.train.Saver()
+            ckpt = tf.train.get_checkpoint_state(self.load_pathnet)
+            assert(ckpt and self.load_pathnet)
+            ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
+            saver.restore(self.sp, os.path.join(self.load_pathnet, ckpt_name))
+            print('%s: Pre-trained model restored from %s' % (datetime.now(), self.load_pathnet))
 
-        if self.optimizer == 'adam':
-            optimizer = tf.train.AdamOptimizer
-        else:
-            raise Exception("[!] Caution! Paper didn't use {} opimizer other than Adam".format(self.config.optimizer))
+        overlapnet_graph = tf.Graph()
+        self.so = tf.Session(config=sess_config, graph=overlapnet_graph)
+        with overlapnet_graph.as_default():
+            self.xo = tf.placeholder(tf.float32, shape=[None, self.height, self.width, 1])
+            if self.data_format == 'NCHW':
+                self.xo = nhwc_to_nchw(self.xo)
 
-        optimizer = optimizer(self.lr, beta1=self.beta1, beta2=self.beta2)
+            self.yo, _ = VDSR(self.xo, self.conv_hidden_num, self.repeat_num,
+                self.data_format, self.use_norm, train=False)
+            show_all_variables()
 
-        # losses
-        # l1 and l2
-        self.loss_l1 = tf.reduce_mean(tf.abs(self.y_ - self.y))
-        self.loss_l2 = tf.reduce_mean(tf.squared_difference(self.y_, self.y))
+            saver = tf.train.Saver()
+            ckpt = tf.train.get_checkpoint_state(self.load_overlapnet)
+            assert(ckpt and self.load_overlapnet)
+            ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
+            saver.restore(self.so, os.path.join(self.load_overlapnet, ckpt_name))
+            print('%s: Pre-trained model restored from %s' % (datetime.now(), self.load_overlapnet))
 
-        # total
-        if self.use_l2:
-            self.loss = self.loss_l2
-        else:
-            self.loss = self.loss_l1
+    def test(self):
+        if self.mp:
+            q = multiprocessing.JoinableQueue()
+            pool = multiprocessing.Pool(self.num_worker, vectorize_mp, (q,))
 
-        # test loss
-        self.tl1 = tf.reduce_mean(tf.abs(self.yt_ - self.yt))
-        self.tl2 = tf.reduce_mean(tf.squared_difference(self.yt_, self.yt))
-        self.test_loss_l1 = tf.placeholder(tf.float32)
-        self.test_loss_l2 = tf.placeholder(tf.float32)
-        self.test_loss_iou = tf.placeholder(tf.float32)
+        # preprocess first
+        for i in trange(self.num_test):
+            file_path = self.test_paths[i]
+            print('[{}/{}] start prediction, path: {}'.format(i+1,self.num_test,file_path))
 
-        self.optim = optimizer.minimize(self.loss, global_step=self.step, var_list=self.var)
- 
-        summary = [
-            tf.summary.image("y", self.y_img),
+            param = self.predict(file_path)
 
-            tf.summary.scalar("loss/loss", self.loss),
-            tf.summary.scalar("loss/loss_l1", self.loss_l1),
-            tf.summary.scalar("loss/loss_l2", self.loss_l2),
-           
-            tf.summary.scalar("misc/lr", self.lr),
-            tf.summary.scalar('misc/q', self.batch_manager.q.size())
-        ]
+            if self.mp:
+                q.put(param)
+            else:
+                self.vectorize(param)
 
-        self.summary_op = tf.summary.merge(summary)
+        if self.mp:
+            q.join()
+            pool.terminate()
+            pool.join()
 
-        summary = [
-            tf.summary.image("x_sample", denorm_img(self.x, self.data_format)),
-            tf.summary.image("y_sample", denorm_img(self.y, self.data_format)),
-        ]
 
-        self.summary_once = tf.summary.merge(summary) # call just once
+    def predict(self, file_path):
+        # convert svg to raster image
+        img, num_paths, path_list = self.batch_manager.read_svg(file_path)
 
-        summary = [
-            tf.summary.scalar("loss/test_loss_l1", self.test_loss_l1),
-            tf.summary.scalar("loss/test_loss_l2", self.test_loss_l2),
-            tf.summary.scalar("loss/test_loss_iou", self.test_loss_iou),
-        ]
+        # # debug
+        # print(num_paths)
+        # plt.imshow(img, cmap=plt.cm.gray)
+        # plt.show()
 
-        self.summary_test = tf.summary.merge(summary)
+        class Param(object):
+            pass
+        pm = Param()
 
-    def train(self):
-        x_list, xs, ys, sample_list = self.batch_manager.random_list(self.b_num)
-        save_image(xs, '{}/x_gt.png'.format(self.model_dir))
-        save_image(ys, '{}/y_gt.png'.format(self.model_dir))
-
-        with open('{}/gt.txt'.format(self.model_dir), 'w') as f:
-            for sample in sample_list:
-                f.write(sample + '\n')
+        # predict paths through pathnet
+        start_time = time.time()
+        paths, path_pixels = self.extract_path(img)        
+        file_name = os.path.splitext(os.path.basename(file_path))[0]
+        path0_img_path = os.path.join(self.model_dir, '%s_0_path.png' % file_name)
+        num_path_pixels = len(path_pixels[0])
+        pids = self.rng.randint(num_path_pixels, size=8)
+        save_image((1 - paths[pids,:,:,:])*255, path0_img_path, padding=0)
         
-        # call once
-        summary_once = self.sess.run(self.summary_once)
-        self.summary_writer.add_summary(summary_once, 0)
-        self.summary_writer.flush()
+        # # debug
+        # plt.imshow(paths[0,:,:,0], cmap=plt.cm.gray)
+        # plt.show()
         
-        for step in trange(self.start_step, self.max_step):
-            fetch_dict = {
-                "optim": self.optim,
-                "loss": self.loss,
-            }           
+        duration = time.time() - start_time
+        print('%s: %s, predict paths (#pixels:%d) through pathnet (%.3f sec)' % (datetime.now(), file_name, num_path_pixels, duration))
+        pm.duration_pred = duration
+        pm.duration = duration
 
-            if step % self.log_step == 0 or step == self.max_step-1:
-                fetch_dict.update({
-                    "summary": self.summary_op,                    
-                })
+        dup_dict = {}
+        dup_rev_dict = {}
+        dup_id = num_path_pixels # start id of duplicated pixels
 
-            if step % self.test_step == self.test_step-1 or step == self.max_step-1:
-                l1, l2, iou, nb = 0, 0, 0, 0
-                for x, y in self.batch_manager.test_batch():
-                    if self.data_format == 'NCHW':
-                        x = to_nchw_numpy(x)
-                        y = to_nchw_numpy(y)
-                    tl1, tl2, y_ = self.sess.run([self.tl1, self.tl2, self.yt_], {self.xt: x, self.yt: y})
-                    l1 += tl1
-                    l2 += tl2
-                    nb += 1
+        if self.find_overlap:
+            # predict overlap using overlap net
+            start_time = time.time()
+            ov = self.overlap(img)
 
-                    # iou
-                    y_I = np.logical_and(y, y_)
-                    y_I_sum = np.sum(y_I, axis=(1, 2, 3))
-                    y_U = np.logical_or(y, y_)
-                    y_U_sum = np.sum(y_U, axis=(1, 2, 3))
-                    # print(y_I_sum, y_U_sum)
-                    nonzero_id = np.where(y_U_sum != 0)[0]
-                    if nonzero_id.shape[0] == 0:
-                        acc = 1.0
-                    else:
-                        acc = np.average(y_I_sum[nonzero_id] / y_U_sum[nonzero_id])
-                    iou += acc
+            overlap_img_path = os.path.join(self.model_dir, '%s_1_overlap.png' % file_name)
+            ov_img = ov[np.newaxis,:,:,np.newaxis]
+            save_image((1-ov_img)*255, overlap_img_path, padding=0)
 
-                l1 /= float(nb)
-                l2 /= float(nb)
-                iou /= float(nb)
-                    
-                summary_test = self.sess.run(self.summary_test, 
-                              {self.test_loss_l1: l1, self.test_loss_l2: l2, self.test_loss_iou: iou})
-                self.summary_writer.add_summary(summary_test, step)
-                self.summary_writer.flush()
+            # # debug
+            # plt.imshow(ov, cmap=plt.cm.gray)
+            # plt.show()
 
-            result = self.sess.run(fetch_dict)
+            for i in range(num_path_pixels):
+                if ov[path_pixels[0][i], path_pixels[1][i]]:
+                    dup_dict[i] = dup_id
+                    dup_rev_dict[dup_id] = i
+                    dup_id += 1
 
-            if step % self.log_step == 0 or step == self.max_step-1:
-                self.summary_writer.add_summary(result['summary'], step)
-                self.summary_writer.flush()
+            # debug
+            # print(dup_dict)
+            # print(dup_rev_dict)
 
-                loss = result['loss']
-                assert not np.isnan(loss), 'Model diverged with loss = NaN'
+            duration = time.time() - start_time
+            print('%s: %s, predict overlap (#:%d) through ovnet (%.3f sec)' % (datetime.now(), file_name, dup_id-num_path_pixels, duration))
+            pm.duration_ov = duration
+            pm.duration += duration
 
-                print("[{}/{}] Loss: {:.6f}".format(step, self.max_step, loss))
+        # write config file for graphcut
+        start_time = time.time()
+        tmp_dir = os.path.join(self.model_dir, 'tmp')
+        if not os.path.exists(tmp_dir):
+            os.makedirs(tmp_dir)
+        pred_file_path = os.path.join(tmp_dir, file_name+'.pred')
+        f = open(pred_file_path, 'w')
+        # info
+        f.write(pred_file_path + '\n')
+        f.write(self.data_path + '\n')
+        f.write('%d\n' % self.max_label)
+        f.write('%d\n' % self.label_cost)
+        f.write('%f\n' % self.sigma_neighbor)
+        f.write('%f\n' % self.sigma_predict)
+        # f.write('%d\n' % num_path_pixels)
+        f.write('%d\n' % dup_id)
 
-            if step % (self.log_step * 10) == 0 or step == self.max_step-1:
-                self.generate(x_list, self.model_dir, idx=step)
+        # support only symmetric edge weight
+        radius = self.sigma_neighbor*2
+        nb = sklearn.neighbors.NearestNeighbors(radius=radius)
+        nb.fit(np.array(path_pixels).transpose())
 
-            if step % self.lr_update_step == self.lr_update_step - 1:
-                self.sess.run(self.lr_update)
+        high_spatial = 100000
+        for i in range(num_path_pixels-1):
+            p1 = np.array([path_pixels[0][i], path_pixels[1][i]])
+            pred_p1 = np.reshape(paths[i,:,:,:], [self.height, self.width])
 
-        # save last checkpoint..
-        save_path = os.path.join(self.model_dir, 'model.ckpt')
-        self.saver.save(self.sess, save_path, global_step=self.step)
-        self.batch_manager.stop_thread()
+            # see close neighbors and some far neighbors (stochastic sampling)        
+            rng = nb.radius_neighbors([p1])
+            num_close = len(rng[1][0])
+            far = np.setdiff1d(range(i+1,num_path_pixels),rng[1][0])
+            num_far = len(far)
+            num_far = int(num_far * self.neighbor_sample)
+            if num_far > 0:
+                far_ids = self.rng.choice(far, size=num_far)
+                nb_ids = np.concatenate((rng[1][0],far_ids))
+            else:
+                nb_ids = rng[1][0]
+            for rj, j in enumerate(nb_ids): # ids
+                if j <= i:
+                    continue                
+                p2 = np.array([path_pixels[0][j], path_pixels[1][j]])
+                if rj < num_close: d12 = rng[0][0][rj]
+                else: d12 = np.linalg.norm(p1-p2, 2)            
 
-    def generate(self, x_samples, root_path=None, idx=None):
+            # for j in xrange(i+1, num_path_pixels): # see entire neighbors
+            #     p2 = np.array([path_pixels[0][j], path_pixels[1][j]])
+            #     d12 = np.linalg.norm(p1-p2, 2)
+                
+                pred_p2 = np.reshape(paths[j,:,:,:], [self.height, self.width])
+                pred = (pred_p1[p2[0],p2[1]] + pred_p2[p1[0],p1[1]]) * 0.5
+                pred = np.exp(-0.5 * (1.0-pred)**2 / self.sigma_predict**2)
+
+                spatial = np.exp(-0.5 * d12**2 / self.sigma_neighbor**2)
+                f.write('%d %d %f %f\n' % (i, j, pred, spatial))
+
+                dup_i = dup_dict.get(i)
+                if dup_i is not None:
+                    f.write('%d %d %f %f\n' % (j, dup_i, pred, spatial)) # as dup is always smaller than normal id
+                    f.write('%d %d %f %f\n' % (i, dup_i, 0, high_spatial)) # shouldn't be labeled together
+                dup_j = dup_dict.get(j)
+                if dup_j is not None:
+                    f.write('%d %d %f %f\n' % (i, dup_j, pred, spatial)) # as dup is always smaller than normal id
+                    f.write('%d %d %f %f\n' % (j, dup_j, 0, high_spatial)) # shouldn't be labeled together
+
+                if dup_i is not None and dup_j is not None:
+                    f.write('%d %d %f %f\n' % (dup_i, dup_j, pred, spatial)) # dup_i < dup_j
+
+        f.close()
+        duration = time.time() - start_time
+        print('%s: %s, prediction computed (%.3f sec)' % (datetime.now(), file_name, duration))
+        pm.duration_map = duration
+        pm.duration += duration
+        
+        pm.num_paths = num_paths
+        pm.path_list = path_list
+        pm.path_pixels = path_pixels
+        pm.dup_dict = dup_dict
+        pm.dup_rev_dict = dup_rev_dict
+        pm.img = img
+        pm.file_path = file_path
+
+        return pm
+
+    def vectorize(self, pm):
+        start_time = time.time()
+        file_path = os.path.basename(pm.file_path)
+        file_name = os.path.splitext(file_path)[0]
+
+        # 1. label
+        labels, e_before, e_after = self.label(file_name)
+
+        # 2. merge small components
+        labels = self.merge_small_component(labels, pm)
+        
+        # # 2-2. assign one label per one connected component
+        # labels = label_cc(labels, pm)
+
+        # 3. compute accuracy
+        accuracy_list = self.compute_accuracy(labels, pm)
+
+        unique_labels = np.unique(labels)
+        num_labels = unique_labels.size        
+        acc_avg = np.average(accuracy_list)
+        # acc_avg = 0
+        
+        print('%s: %s, the number of labels %d, truth %d' % (datetime.now(), file_name, num_labels, pm.num_paths))
+        print('%s: %s, energy before optimization %.4f' % (datetime.now(), file_name, e_before))
+        print('%s: %s, energy after optimization %.4f' % (datetime.now(), file_name, e_after))
+        print('%s: %s, accuracy computed, avg.: %.3f' % (datetime.now(), file_name, acc_avg))
+
+        # 4. save image
+        self.save_label_img(labels, unique_labels, num_labels, acc_avg, pm)
+        duration = time.time() - start_time
+        pm.duration_vect = duration
+        
+        # write result
+        pm.duration += duration        
+        print('%s: %s, done (%.3f sec)' % (datetime.now(), file_name, pm.duration))
+        stat_file_path = os.path.join(self.model_dir, file_name + '_stat.txt')
+        with open(stat_file_path, 'w') as f:
+            f.write('%s %d %d %.3f %.3f %.3f %.3f %.3f %.3f\n' % (
+                file_path, num_labels, pm.num_paths, acc_avg,
+                pm.duration_pred, pm.duration_ov, pm.duration_map, 
+                pm.duration_vect, pm.duration))
+
+    def extract_path(self, img):
+        path_pixels = np.nonzero(img)
+        num_path_pixels = len(path_pixels[0]) 
+        assert(num_path_pixels > 0)
+
+        y_batch = None
+        for b in range(0,num_path_pixels,self.b_num):
+            b_size = min(self.b_num, num_path_pixels - b)
+            x_batch = np.zeros([b_size, self.height, self.width, 2])
+            for i in range(b_size):
+                x_batch[i,:,:,0] = img
+                px, py = path_pixels[0][b+i], path_pixels[1][b+i]
+                x_batch[i,px,py,1] = 1.0
+        
+            if self.data_format == 'NCHW':
+                x_batch = to_nchw_numpy(x_batch)
+            y_b = self.sp.run(self.yp, feed_dict={self.xp: x_batch})
+            y_b = np.clip(y_b, 0, 1)
+            if self.data_format == 'NCHW':
+                y_b = to_nhwc_numpy(y_b)
+            if y_batch is None:
+                y_batch = y_b
+            else:
+                y_batch = np.concatenate((y_batch, y_b), axis=0)
+
+        return y_batch, path_pixels
+
+    def overlap(self, img):
+        x_batch = np.zeros([1, self.height, self.width, 1])
+        x_batch[0,:,:,0] = img
+        
         if self.data_format == 'NCHW':
-            x_samples = to_nchw_numpy(x_samples)
-        generated = self.sess.run(self.yt_img, {self.xt: x_samples})
-        y_path = os.path.join(root_path, 'y_{}.png'.format(idx))
-        save_image(generated, y_path, nrow=self.b_num)
-        print("[*] Samples saved: {}".format(y_path))
+            x_batch = to_nchw_numpy(x_batch)
+        y_b = self.so.run(self.yo, feed_dict={self.xo: x_batch})
+        if self.data_format == 'NCHW':
+            y_b = to_nhwc_numpy(y_b)
+        return (y_b[0,:,:,0] >= self.overlap_threshold)
+
+    def label(self, file_name):
+        start_time = time.time()
+        working_path = os.getcwd()
+        gco_path = os.path.join(working_path, 'gco/gco_src')
+        os.chdir(gco_path)
+
+        sys_name = platform.system()
+        if sys_name == 'Windows':
+            pred_file_path = os.path.join(working_path, self.model_dir, 'tmp', file_name + '.pred')
+            print(['../gco_vs2015/x64/Release/gco_vs2015.exe', pred_file_path])
+            call(['../gco_vs2015/x64/Release/gco_vs2015.exe', pred_file_path])
+        else:
+            os.environ['LD_LIBRARY_PATH'] = os.getcwd()
+            pred_file_path = os.path.join(self.model_dir, 'tmp', file_name + '.pred')
+            if pred_file_path[0] != '/': # relative path
+                pred_file_path = '../../' + pred_file_path
+            call(['./gco_linenet', pred_file_path])
+        os.chdir(working_path)
+
+        # read graphcut result
+        label_file_path = os.path.join(self.model_dir, 'tmp', file_name + '.label')
+        f = open(label_file_path, 'r')
+        e_before = float(f.readline())
+        e_after = float(f.readline())
+        labels = np.fromstring(f.read(), dtype=np.int32, sep=' ')
+        f.close()
+        duration = time.time() - start_time
+        print('%s: %s, labeling finished (%.3f sec)' % (datetime.now(), file_name, duration))
+
+        return labels, e_before, e_after
+
+    def merge_small_component(self, labels, pm):
+        knb = sklearn.neighbors.NearestNeighbors(n_neighbors=5, algorithm='ball_tree')
+        knb.fit(np.array(pm.path_pixels).transpose())
+
+        num_path_pixels = len(pm.path_pixels[0])
+
+        for iter in range(2):
+            # # debug
+            # print('%d-th iter' % iter)
+            
+            unique_label = np.unique(labels)
+            for i in unique_label:
+                i_label_list = np.nonzero(labels == i)
+
+                # handle duplicated pixels
+                for j, i_label in enumerate(i_label_list[0]):
+                    if i_label >= num_path_pixels:
+                        i_label_list[0][j] = pm.dup_rev_dict[i_label]
+
+                # connected component analysis on 'i' label map
+                i_label_map = np.zeros([self.height, self.width], dtype=np.float)
+                i_label_map[pm.path_pixels[0][i_label_list],pm.path_pixels[1][i_label_list]] = 1.0
+                cc_map, num_cc = skimage.measure.label(i_label_map, background=0, return_num=True)
+
+                # # debug
+                # print('%d: # labels %d, # cc %d' % (i, num_i_label_pixels, num_cc))
+                # plt.imshow(cc_map, cmap='spectral')
+                # plt.show()
+
+                # detect small pixel component
+                for j in range(num_cc):
+                    j_cc_list = np.nonzero(cc_map == (j+1))
+                    num_j_cc = len(j_cc_list[0])
+
+                    # consider only less than 5 pixels component
+                    if num_j_cc > 4:
+                        continue
+
+                    # assign dominant label of neighbors using knn
+                    for k in range(num_j_cc):
+                        p1 = np.array([j_cc_list[0][k], j_cc_list[1][k]])
+                        _, indices = knb.kneighbors([p1], n_neighbors=5)
+                        max_label_nb = np.argmax(np.bincount(labels[indices][0]))
+                        labels[indices[0][0]] = max_label_nb
+
+                        # # debug
+                        # print(' (%d,%d) %d -> %d' % (p1[0], p1[1], i, max_label_nb))
+
+                        dup = pm.dup_dict.get(indices[0][0])
+                        if dup is not None:
+                            labels[dup] = max_label_nb
+
+        return labels
+
+
+    def label_cc(self, labels, pm):
+        unique_label = np.unique(labels)
+        num_path_pixels = len(pm.path_pixels[0])
+
+        new_label = self.max_label
+        for i in unique_label:
+            i_label_list = np.nonzero(labels == i)
+
+            # handle duplicated pixels
+            for j, i_label in enumerate(i_label_list[0]):
+                if i_label >= num_path_pixels:
+                    i_label_list[0][j] = pm.dup_rev_dict[i_label]
+
+            # connected component analysis on 'i' label map
+            i_label_map = np.zeros([self.height, self.width], dtype=np.float)
+            i_label_map[pm.path_pixels[0][i_label_list],pm.path_pixels[1][i_label_list]] = 1.0
+            cc_map, num_cc = skimage.measure.label(i_label_map, background=0, return_num=True)
+
+            if num_cc > 1:
+                for i_label in i_label_list[0]:
+                    cc_label = cc_map[pm.path_pixels[0][i_label],pm.path_pixels[1][i_label]]
+                    if cc_label > 1:
+                        labels[i_label] = new_label + (cc_label-2)
+
+                new_label += (num_cc - 1)
+
+        return labels
+
+    def compute_accuracy(self, labels, pm):
+        unique_labels = np.unique(labels)
+        num_path_pixels = len(pm.path_pixels[0])
+
+        acc_id_list = []
+        acc_list = []
+        for i in unique_labels:
+            i_label_list = np.nonzero(labels == i)
+
+            # handle duplicated pixels
+            for j, i_label in enumerate(i_label_list[0]):
+                if i_label >= num_path_pixels:
+                    i_label_list[0][j] = pm.dup_rev_dict[i_label]
+
+            i_label_map = np.zeros([self.height, self.width], dtype=np.bool)
+            i_label_map[pm.path_pixels[0][i_label_list],pm.path_pixels[1][i_label_list]] = True
+
+            accuracy_list = []
+            for j, stroke in enumerate(pm.path_list):
+                intersect = np.sum(np.logical_and(i_label_map, stroke))
+                union = np.sum(np.logical_or(i_label_map, stroke))
+                accuracy = intersect / float(union)
+                # print('compare with %d-th path, intersect: %d, union :%d, accuracy %.2f' % 
+                #     (j, intersect, union, accuracy))
+                accuracy_list.append(accuracy)
+
+            id = np.argmax(accuracy_list)
+            acc = np.amax(accuracy_list)
+            # print('%d-th label, match to %d-th path, max: %.2f' % (i, id, acc))
+            # consider only large label set
+            # if acc > 0.1:
+            acc_id_list.append(id)
+            acc_list.append(acc)
+
+        # print('avg: %.2f' % np.average(acc_list))
+        return acc_list
+
+    def save_label_img(self, labels, unique_labels, num_labels, acc_avg, pm):
+        sys_name = platform.system()
+
+        file_path = os.path.basename(pm.file_path)
+        file_name = os.path.splitext(file_path)[0]
+        num_path_pixels = len(pm.path_pixels[0])
+        gt_labels = pm.num_paths
+
+        cmap = plt.get_cmap('jet')    
+        cnorm = colors.Normalize(vmin=0, vmax=num_labels-1)
+        cscalarmap = cmx.ScalarMappable(norm=cnorm, cmap=cmap)
+        
+        label_map = np.ones([self.height, self.width, 3], dtype=np.float)
+        label_map_t = np.ones([self.height, self.width, 3], dtype=np.float)
+        first_svg = True
+        target_svg_path = os.path.join(self.model_dir, '%s_%d_%d_%.2f.svg' % (file_name, num_labels, gt_labels, acc_avg))
+        for color_id, i in enumerate(unique_labels):
+            i_label_list = np.nonzero(labels == i)
+
+            # handle duplicated pixels
+            for j, i_label in enumerate(i_label_list[0]):
+                if i_label >= num_path_pixels:
+                    i_label_list[0][j] = pm.dup_rev_dict[i_label]
+
+            color = np.asarray(cscalarmap.to_rgba(color_id))
+            label_map[pm.path_pixels[0][i_label_list],pm.path_pixels[1][i_label_list]] = color[:3]
+
+            # save i label map
+            i_label_map = np.zeros([self.height, self.width], dtype=np.float)
+            i_label_map[pm.path_pixels[0][i_label_list],pm.path_pixels[1][i_label_list]] = pm.img[pm.path_pixels[0][i_label_list],pm.path_pixels[1][i_label_list]]
+            _, num_cc = skimage.measure.label(i_label_map, background=0, return_num=True)
+            i_label_map_path = os.path.join(self.model_dir, 'tmp', 'i_%s_%d_%d.bmp' % (file_name, i, num_cc))
+            scipy.misc.imsave(i_label_map_path, i_label_map)
+
+            i_label_map = np.ones([self.height, self.width, 3], dtype=np.float)
+            i_label_map[pm.path_pixels[0][i_label_list],pm.path_pixels[1][i_label_list]] = color[:3]
+            label_map_t += i_label_map
+
+            # vectorize using potrace
+            color *= 255
+            color_hex = '#%02x%02x%02x' % (int(color[0]), int(color[1]), int(color[2]))
+            
+            if sys_name == 'Windows':
+                potrace_path = os.path.join('potrace', 'potrace.exe')
+                call([potrace_path, '-s', '-i', '-C'+color_hex, i_label_map_path])
+            else:
+                call(['potrace', '-s', '-i', '-C'+color_hex, i_label_map_path])
+            
+            i_label_map_svg = os.path.join(self.model_dir, 'tmp', 'i_%s_%d_%d.svg' % (file_name, i, num_cc))
+            if first_svg:
+                copyfile(i_label_map_svg, target_svg_path)
+                first_svg = False
+            else:
+                with open(target_svg_path, 'r') as f:
+                    target_svg = f.read()
+
+                with open(i_label_map_svg, 'r') as f:
+                    source_svg = f.read()
+
+                path_start = source_svg.find('<g')
+                path_end = source_svg.find('</svg>')
+
+                insert_pos = target_svg.find('</svg>')            
+                target_svg = target_svg[:insert_pos] + source_svg[path_start:path_end] + target_svg[insert_pos:]
+
+                with open(target_svg_path, 'w') as f:
+                    f.write(target_svg)
+
+            # remove i label map
+            os.remove(i_label_map_path)
+            os.remove(i_label_map_svg)
+
+        # set opacity 0.5 to see overlaps
+        with open(target_svg_path, 'r') as f:
+            target_svg = f.read()
+        
+        insert_pos = target_svg.find('<g')
+        target_svg = target_svg[:insert_pos] + '<g fill-opacity="0.5">' + target_svg[insert_pos:]
+        insert_pos = target_svg.find('</svg>')
+        target_svg = target_svg[:insert_pos] + '</g>' + target_svg[insert_pos:]
+        
+        with open(target_svg_path, 'w') as f:
+            f.write(target_svg)
+
+        label_map_path = os.path.join(self.model_dir, '%s_%.2f_%.2f_%d_%d_%.2f.png' % (
+            file_name, self.sigma_neighbor, self.sigma_predict, num_labels, gt_labels, acc_avg))
+        scipy.misc.imsave(label_map_path, label_map)
+
+        label_map_t /= np.amax(label_map_t)
+        label_map_path = os.path.join(self.model_dir, '%s_%.2f_%.2f_%d_%d_%.2f_t.png' % (
+            file_name, self.sigma_neighbor, self.sigma_predict, num_labels, gt_labels, acc_avg))
+        scipy.misc.imsave(label_map_path, label_map_t)

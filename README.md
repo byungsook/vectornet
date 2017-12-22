@@ -8,27 +8,27 @@ Tensorflow implementation of [Semantic Segmentation for Line Drawing Vectorizati
 - [Matplotlib 2.1.0](https://matplotlib.org/)
 - [imageio 2.2.0](https://pypi.python.org/pypi/imageio)
 - [tqdm](https://github.com/tqdm/tqdm)
+- [Potrace](http://potrace.sourceforge.net/)
 - Run 'pip install tensorflow-gpu cairosvg matplotlib imageio tqdm'
 
 ## Usage
 
 To train PathNet on Random Line Data Set:
     
-    python main.py --is_train=True --archi=path --dataset=line
+    $ python main.py --is_train=True --archi=path --dataset=line
 
 To train OverlapNet on Random Line Data Set:
     
-    python main.py --is_train=True --archi=overlap --dataset=line
+    $ python main.py --is_train=True --archi=overlap --dataset=line
 
 To vectorize Random Line Data Set:
 
     Linux: cd gco/gco_src; make gco_linenet
     Windows: go to gco/gco_vs2015 and build
-    
+
     Then,
 
-    python main.py --is_train=False --dataset=line
-
+    $ python main.py --is_train=False --load_pathnet=log/path/line_0000 --load_overlapnet=log/overlap/line_0000 --dataset=line
 
 ## Results
 

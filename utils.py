@@ -27,21 +27,18 @@ def prepare_dirs_and_logger(config):
     logger.addHandler(handler)
 
     # data path
-    if config.is_train:
-        config.data_path = os.path.join(config.data_dir, config.dataset)
-    else:
-        config.data_path = os.path.join(config.data_dir, config.dataset)
+    config.data_path = os.path.join(config.data_dir, config.dataset)
 
     # model path
-    if config.load_path:
-        config.model_dir = config.load_path
-
-    elif not hasattr(config, 'model_dir'):    
-        model_name = "{}/{}_{}_{}".format(
-            config.archi, config.dataset, get_time(), config.tag)
-
+    if config.is_train:
+        model_name = os.path.join(config.archi, '{}_{}_{}'.format(
+            config.dataset, get_time(), config.tag))
+        config.model_dir = os.path.join(config.log_dir, model_name)    
+    else:
+        model_name = os.path.join('vect', '{}_{}_{}'.format(
+            config.dataset, get_time(), config.tag))
         config.model_dir = os.path.join(config.log_dir, model_name)
-    
+
     if not os.path.exists(config.model_dir):
         os.makedirs(config.model_dir)
 

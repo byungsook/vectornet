@@ -63,8 +63,9 @@ int main(int argc, char **argv)
 
 	while (is.good()) {
 		int i, j;
-		float p, spatial;
+		float p, spatial;		
 		is >> i >> j >> p >> spatial;
+		//std::cout << i << " " << j << " " << p << " " << spatial << std::endl;
 		pred[i][j] = p;
 		w[i][j] = spatial;
 	}

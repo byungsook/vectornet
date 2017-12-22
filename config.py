@@ -40,7 +40,7 @@ data_arg.add_argument('--max_stroke_width', type=int, default=4)
 
 # Training / test parameters
 train_arg = add_argument_group('Training')
-train_arg.add_argument('--is_train', type=str2bool, default=True)
+train_arg.add_argument('--is_train', type=str2bool, default=False)
 train_arg.add_argument('--use_gpu', type=str2bool, default=True)
 train_arg.add_argument('--gpu_id', type=str, default='0')
 train_arg.add_argument('--start_step', type=int, default=0)
@@ -55,12 +55,17 @@ train_arg.add_argument('--beta2', type=float, default=0.999)
 # vectorize
 vect_arg = add_argument_group('Vectorize')
 vect_arg.add_argument('--load_pathnet', type=str, default='')
-vect_arg.add_argument('--load_ovnet', type=str, default='')
-vect_arg.add_argument('--num_test', type=int, default=8)
+vect_arg.add_argument('--load_overlapnet', type=str, default='')
+vect_arg.add_argument('--num_test', type=int, default=100)
 vect_arg.add_argument('--max_label', type=int, default=128)
+vect_arg.add_argument('--label_cost', type=int, default=0)
 vect_arg.add_argument('--sigma_neighbor', type=float, default=8.0)
 vect_arg.add_argument('--sigma_predict', type=float, default=0.7)
+vect_arg.add_argument('--neighbor_sample', type=float, default=0.02)
 vect_arg.add_argument('--find_overlap', type=str2bool, default=True)
+vect_arg.add_argument('--overlap_threshold', type=float, default=0.5)
+vect_arg.add_argument('--test_batch_size', type=int, default=512)
+vect_arg.add_argument('--mp', type=str2bool, default=False)
 
 # Misc
 misc_arg = add_argument_group('Misc')

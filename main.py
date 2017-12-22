@@ -17,10 +17,13 @@ def main(config):
         trainer = Trainer(config, batch_manager)
         trainer.train()
     else:
-        if not config.load_pathnet or not config.load_overlapnet:
-            raise Exception("[!] You should specify `load_path` to load a pretrained model")
-            
-        pass
+        from tester import Tester
+        if config.dataset == 'line':
+            from data_line import BatchManager
+        
+        batch_manager = BatchManager(config)
+        tester = Tester(config, batch_manager)
+        tester.test()
 
 if __name__ == "__main__":
     config, unparsed = get_config()

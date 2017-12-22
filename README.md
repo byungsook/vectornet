@@ -14,7 +14,21 @@ Tensorflow implementation of [Semantic Segmentation for Line Drawing Vectorizati
 
 To train PathNet on Random Line Data Set:
     
-    python main.py --archi=path --dataset=line --data_dir='data'
+    python main.py --is_train=True --archi=path --dataset=line
+
+To train OverlapNet on Random Line Data Set:
+    
+    python main.py --is_train=True --archi=overlap --dataset=line
+
+To vectorize Random Line Data Set:
+
+    Linux: cd gco/gco_src; make gco_linenet
+    Windows: go to gco/gco_vs2015 and build
+    
+    Then,
+
+    python main.py --is_train=False --dataset=line
+
 
 ## Results
 
@@ -22,7 +36,8 @@ To train PathNet on Random Line Data Set:
 
 ## Reference
 
-[carpedm20] (https://github.com/carpedm20/BEGAN-tensorflow)
+[carpedm20](https://github.com/carpedm20/BEGAN-tensorflow)
+[gco](http://vision.csd.uwo.ca/code/)
 
 ## Author
 

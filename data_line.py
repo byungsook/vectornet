@@ -50,8 +50,13 @@ class BatchManager(object):
         self.height = config.height
         self.width = config.width
 
-        feature_dim = [self.height, self.width, 2]
-        label_dim = [self.height, self.width, 1]
+        self.is_pathnet = (config.archi == 'path')
+        if self.is_pathnet:
+            feature_dim = [self.height, self.width, 2]
+            label_dim = [self.height, self.width, 1]
+        else:
+            feature_dim = [self.height, self.width, 1]
+            label_dim = [self.height, self.width, 1]
 
         min_after_dequeue = 5000
         capacity = min_after_dequeue + 3 * self.batch_size
@@ -76,11 +81,14 @@ class BatchManager(object):
 
         # Create a method for loading and enqueuing
         def load_n_enqueue(sess, enqueue, coord, paths, rng,
-                           x, y, w, h):
+                           x, y, w, h, is_pathnet):
             with coord.stop_on_exception():                
                 while not coord.should_stop():
                     id = rng.randint(len(paths))
-                    x_, y_ = preprocess(paths[id], w, h, rng)
+                    if is_pathnet:
+                        x_, y_ = preprocess_path(paths[id], w, h, rng)
+                    else:
+                        x_, y_ = preprocess_overlap(paths[id], w, h, rng)
                     sess.run(enqueue, feed_dict={x: x_, y: y_})
 
         # Create threads that enqueue
@@ -93,7 +101,8 @@ class BatchManager(object):
                                                 self.x,
                                                 self.y,
                                                 self.width,
-                                                self.height)
+                                                self.height,
+                                                self.is_pathnet)
                                           ) for i in range(self.num_threads)]
 
         # define signal handler
@@ -123,7 +132,10 @@ class BatchManager(object):
     def test_batch(self):
         x_list, y_list = [], []
         for i, file_path in enumerate(self.test_paths):
-            x_, y_ = preprocess(file_path, self.width, self.height, self.rng)
+            if self.is_pathnet:
+                x_, y_ = preprocess_path(file_path, self.width, self.height, self.rng)
+            else:
+                x_, y_ = preprocess_overlap(file_path, self.width, self.height, self.rng)
             x_list.append(x_)
             y_list.append(y_)
             if i % self.batch_size == self.batch_size-1:
@@ -142,11 +154,17 @@ class BatchManager(object):
         xs, ys = [], []
         file_list = self.sample(num)
         for file_path in file_list:
-            x, y = preprocess(file_path, self.width, self.height, self.rng)
+            if self.is_pathnet:
+                x, y = preprocess_path(file_path, self.width, self.height, self.rng)
+            else:
+                x, y = preprocess_overlap(file_path, self.width, self.height, self.rng)
             x_list.append(x)
 
-            b_ch = np.zeros([self.height,self.width,1])
-            xs.append(np.concatenate((x*255, b_ch), axis=-1))
+            if self.is_pathnet:
+                b_ch = np.zeros([self.height,self.width,1])
+                xs.append(np.concatenate((x*255, b_ch), axis=-1))
+            else:
+                xs.append(x*255)
             ys.append(y*255)
             
         return np.array(x_list), np.array(xs), np.array(ys), file_list
@@ -265,33 +283,34 @@ def gen_data(data_dir, config, rng, num_train, num_test):
 
     return file_list
 
-def preprocess(file_path, w, h, rng):
+def preprocess_path(file_path, w, h, rng):
     with open(file_path, 'r') as f:
         svg = f.read()
-        svg = svg.format(w=w, h=h)
-        img = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
-        img = Image.open(io.BytesIO(img))
-        s = np.array(img)[:,:,3].astype(np.float) # / 255.0
-        max_intensity = np.amax(s)
-        s = s / max_intensity
 
-        # while True:
-        svg_xml = et.fromstring(svg)
-        path_id = rng.randint(len(svg_xml[0]))
-        svg_xml[0][0] = svg_xml[0][path_id]        
-        del svg_xml[0][1:]
-        svg_one = et.tostring(svg_xml, method='xml')        
+    svg = svg.format(w=w, h=h)
+    img = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
+    img = Image.open(io.BytesIO(img))
+    s = np.array(img)[:,:,3].astype(np.float) # / 255.0
+    max_intensity = np.amax(s)
+    s = s / max_intensity
 
-        # leave only one path
-        y_png = cairosvg.svg2png(bytestring=svg_one)
-        y_img = Image.open(io.BytesIO(y_png))
-        y = np.array(y_img)[:,:,3].astype(np.float) / max_intensity # [0,1]
+    # while True:
+    svg_xml = et.fromstring(svg)
+    path_id = rng.randint(len(svg_xml[0]))
+    svg_xml[0][0] = svg_xml[0][path_id]
+    del svg_xml[0][1:]
+    svg_one = et.tostring(svg_xml, method='xml')        
 
-        pixel_ids = np.nonzero(y)
-            # if len(pixel_ids[0]) == 0:
-            #     continue
-            # else:
-            #     break            
+    # leave only one path
+    y_png = cairosvg.svg2png(bytestring=svg_one)
+    y_img = Image.open(io.BytesIO(y_png))
+    y = np.array(y_img)[:,:,3].astype(np.float) / max_intensity # [0,1]
+
+    pixel_ids = np.nonzero(y)
+    # if len(pixel_ids[0]) == 0:
+    #     continue
+    # else:
+    #     break            
 
     # select arbitrary marking pixel
     point_id = rng.randint(len(pixel_ids[0]))
@@ -316,9 +335,59 @@ def preprocess(file_path, w, h, rng):
 
     return x, y
 
+def preprocess_overlap(file_path, w, h, rng):
+    with open(file_path, 'r') as f:
+        svg = f.read()
+    svg = svg.format(w=w, h=h)
+    img = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
+    img = Image.open(io.BytesIO(img))
+    s = np.array(img)[:,:,3].astype(np.float) # / 255.0
+    max_intensity = np.amax(s)
+    s = s / max_intensity
+
+    # while True:
+    path_list = []        
+    svg_xml = et.fromstring(svg)
+    num_paths = len(svg_xml[0])
+
+    for i in range(num_paths):
+        svg_xml = et.fromstring(svg)
+        svg_xml[0][0] = svg_xml[0][i]
+        del svg_xml[0][1:]
+        svg_one = et.tostring(svg_xml, method='xml')
+
+        # leave only one path
+        y_png = cairosvg.svg2png(bytestring=svg_one)
+        y_img = Image.open(io.BytesIO(y_png))
+        path = (np.array(y_img)[:,:,3] > 0)            
+        path_list.append(path)
+
+    y = np.zeros([h, w], dtype=np.int)
+    for i in range(num_paths-1):
+        for j in range(i+1, num_paths):
+            intersect = np.logical_and(path_list[i], path_list[j])
+            y = np.logical_or(intersect, y)
+
+    x = np.expand_dims(s, axis=-1)
+    y = np.expand_dims(y, axis=-1)
+
+    # # debug
+    # plt.figure()
+    # plt.subplot(131)
+    # plt.imshow(img)
+    # plt.subplot(132)
+    # plt.imshow(s, cmap=plt.cm.gray)
+    # plt.subplot(133)
+    # plt.imshow(y[:,:,0], cmap=plt.cm.gray)
+    # plt.show()
+
+    return x, y
+
 def main(config):
     prepare_dirs_and_logger(config)
     batch_manager = BatchManager(config)
+    # preprocess_path('data/line/train/0.svg_pre', 64, 64, batch_manager.rng)
+    # preprocess_overlap('data/line/train/0.svg_pre', 64, 64, batch_manager.rng)
 
     # thread test
     sess_config = tf.ConfigProto()
@@ -336,8 +405,12 @@ def main(config):
 
     if config.data_format == 'NCHW':
         x_ = x_.transpose([0, 2, 3, 1])
-    b_ch = np.zeros([config.batch_size,config.height,config.width,1])
-    x_ = np.concatenate((x_*255, b_ch), axis=-1)
+
+    if config.archi == 'path':
+        b_ch = np.zeros([config.batch_size,config.height,config.width,1])
+        x_ = np.concatenate((x_*255, b_ch), axis=-1)
+    else:
+        x_ = x_*255
     y_ = y_*255
 
     save_image(x_, '{}/x_fixed.png'.format(config.model_dir))
@@ -360,6 +433,7 @@ if __name__ == "__main__":
     from utils import prepare_dirs_and_logger, save_config, save_image
 
     config, unparsed = get_config()
+    setattr(config, 'archi', 'path') # overlap
     setattr(config, 'dataset', 'line')
     setattr(config, 'width', 64)
     setattr(config, 'height', 64)

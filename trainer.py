@@ -5,7 +5,7 @@ import numpy as np
 from tqdm import trange
 
 from models import *
-from utils import save_image, convert_png2mp4
+from utils import save_image
 
 class Trainer(object):
     def __init__(self, config, batch_manager):

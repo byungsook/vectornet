@@ -50,7 +50,6 @@ To vectorize random lines:
 ### Vectorization output (64x64)
 
 From left to right: input / raster / transparent / overlap / vector / ground truth
-
 ![vect_45080_0_input](./asset/vect_45080_0_input.png)
 ![vect_45080_8.00_0.70_4_4_0.99](./asset/vect_45080_8.00_0.70_4_4_0.99.png)
 ![vect_45080_8.00_0.70_4_4_0.99_t](./asset/vect_45080_8.00_0.70_4_4_0.99_t.png)
@@ -61,8 +60,8 @@ From left to right: input / raster / transparent / overlap / vector / ground tru
 
 ## Reference
 
-[carpedm20](https://github.com/carpedm20/BEGAN-tensorflow)
-[gco](http://vision.csd.uwo.ca/code/)
+- Tensorflow Framework: [carpedm20](https://github.com/carpedm20/BEGAN-tensorflow)
+- Multi-label Optimization: [gco](http://vision.csd.uwo.ca/code/gco-v3.0.zip), [qpbo](http://pub.ist.ac.at/~vnk/software/QPBO-v1.3.src.tar.gz)
 
 ## Author
 

@@ -21,9 +21,17 @@ import scipy.misc
 from models import *
 from utils import save_image
 
-
-def vectorize_mp(param):
+class Param(object):
     pass
+
+def vectorize_mp(q):
+    while True:
+        pm = q.get()
+        if pm is None:
+            break
+        
+        vectorize(pm)
+        q.task_done()
 
 
 class Tester(object):
@@ -114,7 +122,7 @@ class Tester(object):
             if self.mp:
                 q.put(param)
             else:
-                self.vectorize(param)
+                vectorize(param)
 
         if self.mp:
             q.join()
@@ -131,8 +139,7 @@ class Tester(object):
         # plt.imshow(img, cmap=plt.cm.gray)
         # plt.show()
 
-        class Param(object):
-            pass
+
         pm = Param()
 
         # predict paths through pathnet
@@ -266,50 +273,14 @@ class Tester(object):
         pm.dup_rev_dict = dup_rev_dict
         pm.img = img
         pm.file_path = file_path
+        pm.model_dir = self.model_dir
+        pm.height = self.height
+        pm.width = self.width
+        pm.max_label = self.max_label
+        pm.sigma_neighbor = self.sigma_neighbor
+        pm.sigma_predict = self.sigma_predict
 
         return pm
-
-    def vectorize(self, pm):
-        start_time = time.time()
-        file_path = os.path.basename(pm.file_path)
-        file_name = os.path.splitext(file_path)[0]
-
-        # 1. label
-        labels, e_before, e_after = self.label(file_name)
-
-        # 2. merge small components
-        labels = self.merge_small_component(labels, pm)
-        
-        # # 2-2. assign one label per one connected component
-        # labels = label_cc(labels, pm)
-
-        # 3. compute accuracy
-        accuracy_list = self.compute_accuracy(labels, pm)
-
-        unique_labels = np.unique(labels)
-        num_labels = unique_labels.size        
-        acc_avg = np.average(accuracy_list)
-        # acc_avg = 0
-        
-        print('%s: %s, the number of labels %d, truth %d' % (datetime.now(), file_name, num_labels, pm.num_paths))
-        print('%s: %s, energy before optimization %.4f' % (datetime.now(), file_name, e_before))
-        print('%s: %s, energy after optimization %.4f' % (datetime.now(), file_name, e_after))
-        print('%s: %s, accuracy computed, avg.: %.3f' % (datetime.now(), file_name, acc_avg))
-
-        # 4. save image
-        self.save_label_img(labels, unique_labels, num_labels, acc_avg, pm)
-        duration = time.time() - start_time
-        pm.duration_vect = duration
-        
-        # write result
-        pm.duration += duration        
-        print('%s: %s, done (%.3f sec)' % (datetime.now(), file_name, pm.duration))
-        stat_file_path = os.path.join(self.model_dir, file_name + '_stat.txt')
-        with open(stat_file_path, 'w') as f:
-            f.write('%s %d %d %.3f %.3f %.3f %.3f %.3f %.3f\n' % (
-                file_path, num_labels, pm.num_paths, acc_avg,
-                pm.duration_pred, pm.duration_ov, pm.duration_map, 
-                pm.duration_vect, pm.duration))
 
     def extract_path(self, img):
         path_pixels = np.nonzero(img)
@@ -349,97 +320,90 @@ class Tester(object):
             y_b = to_nhwc_numpy(y_b)
         return (y_b[0,:,:,0] >= self.overlap_threshold)
 
-    def label(self, file_name):
-        start_time = time.time()
-        working_path = os.getcwd()
-        gco_path = os.path.join(working_path, 'gco/gco_src')
-        os.chdir(gco_path)
 
-        sys_name = platform.system()
-        if sys_name == 'Windows':
-            pred_file_path = os.path.join(working_path, self.model_dir, 'tmp', file_name + '.pred')
-            print(['../gco_vs2015/x64/Release/gco_vs2015.exe', pred_file_path])
-            call(['../gco_vs2015/x64/Release/gco_vs2015.exe', pred_file_path])
-        else:
-            os.environ['LD_LIBRARY_PATH'] = os.getcwd()
-            pred_file_path = os.path.join(self.model_dir, 'tmp', file_name + '.pred')
-            if pred_file_path[0] != '/': # relative path
-                pred_file_path = '../../' + pred_file_path
-            call(['./gco_linenet', pred_file_path])
-        os.chdir(working_path)
+def vectorize(pm):
+    start_time = time.time()
+    file_path = os.path.basename(pm.file_path)
+    file_name = os.path.splitext(file_path)[0]
 
-        # read graphcut result
-        label_file_path = os.path.join(self.model_dir, 'tmp', file_name + '.label')
-        f = open(label_file_path, 'r')
-        e_before = float(f.readline())
-        e_after = float(f.readline())
-        labels = np.fromstring(f.read(), dtype=np.int32, sep=' ')
-        f.close()
-        duration = time.time() - start_time
-        print('%s: %s, labeling finished (%.3f sec)' % (datetime.now(), file_name, duration))
+    # 1. label
+    labels, e_before, e_after = label(file_name, pm)
 
-        return labels, e_before, e_after
+    # 2. merge small components
+    labels = merge_small_component(labels, pm)
+    
+    # # 2-2. assign one label per one connected component
+    # labels = label_cc(labels, pm)
 
-    def merge_small_component(self, labels, pm):
-        knb = sklearn.neighbors.NearestNeighbors(n_neighbors=5, algorithm='ball_tree')
-        knb.fit(np.array(pm.path_pixels).transpose())
+    # 3. compute accuracy
+    accuracy_list = compute_accuracy(labels, pm)
 
-        num_path_pixels = len(pm.path_pixels[0])
+    unique_labels = np.unique(labels)
+    num_labels = unique_labels.size        
+    acc_avg = np.average(accuracy_list)
+    # acc_avg = 0
+    
+    print('%s: %s, the number of labels %d, truth %d' % (datetime.now(), file_name, num_labels, pm.num_paths))
+    print('%s: %s, energy before optimization %.4f' % (datetime.now(), file_name, e_before))
+    print('%s: %s, energy after optimization %.4f' % (datetime.now(), file_name, e_after))
+    print('%s: %s, accuracy computed, avg.: %.3f' % (datetime.now(), file_name, acc_avg))
 
-        for iter in range(2):
-            # # debug
-            # print('%d-th iter' % iter)
-            
-            unique_label = np.unique(labels)
-            for i in unique_label:
-                i_label_list = np.nonzero(labels == i)
+    # 4. save image
+    save_label_img(labels, unique_labels, num_labels, acc_avg, pm)
+    duration = time.time() - start_time
+    pm.duration_vect = duration
+    
+    # write result
+    pm.duration += duration        
+    print('%s: %s, done (%.3f sec)' % (datetime.now(), file_name, pm.duration))
+    stat_file_path = os.path.join(pm.model_dir, file_name + '_stat.txt')
+    with open(stat_file_path, 'w') as f:
+        f.write('%s %d %d %.3f %.3f %.3f %.3f %.3f %.3f\n' % (
+            file_path, num_labels, pm.num_paths, acc_avg,
+            pm.duration_pred, pm.duration_ov, pm.duration_map, 
+            pm.duration_vect, pm.duration))
 
-                # handle duplicated pixels
-                for j, i_label in enumerate(i_label_list[0]):
-                    if i_label >= num_path_pixels:
-                        i_label_list[0][j] = pm.dup_rev_dict[i_label]
+def label(file_name, pm):
+    start_time = time.time()
+    working_path = os.getcwd()
+    gco_path = os.path.join(working_path, 'gco/gco_src')
+    os.chdir(gco_path)
 
-                # connected component analysis on 'i' label map
-                i_label_map = np.zeros([self.height, self.width], dtype=np.float)
-                i_label_map[pm.path_pixels[0][i_label_list],pm.path_pixels[1][i_label_list]] = 1.0
-                cc_map, num_cc = skimage.measure.label(i_label_map, background=0, return_num=True)
+    sys_name = platform.system()
+    if sys_name == 'Windows':
+        pred_file_path = os.path.join(working_path, pm.model_dir, 'tmp', file_name + '.pred')
+        call(['../gco_vs2015/x64/Release/gco_vs2015.exe', pred_file_path])
+    else:
+        os.environ['LD_LIBRARY_PATH'] = os.getcwd()
+        pred_file_path = os.path.join(pm.model_dir, 'tmp', file_name + '.pred')
+        if pred_file_path[0] != '/': # relative path
+            pred_file_path = '../../' + pred_file_path
+        call(['./gco_linenet', pred_file_path])
+    os.chdir(working_path)
 
-                # # debug
-                # print('%d: # labels %d, # cc %d' % (i, num_i_label_pixels, num_cc))
-                # plt.imshow(cc_map, cmap='spectral')
-                # plt.show()
+    # read graphcut result
+    label_file_path = os.path.join(pm.model_dir, 'tmp', file_name + '.label')
+    f = open(label_file_path, 'r')
+    e_before = float(f.readline())
+    e_after = float(f.readline())
+    labels = np.fromstring(f.read(), dtype=np.int32, sep=' ')
+    f.close()
+    duration = time.time() - start_time
+    print('%s: %s, labeling finished (%.3f sec)' % (datetime.now(), file_name, duration))
 
-                # detect small pixel component
-                for j in range(num_cc):
-                    j_cc_list = np.nonzero(cc_map == (j+1))
-                    num_j_cc = len(j_cc_list[0])
+    return labels, e_before, e_after
 
-                    # consider only less than 5 pixels component
-                    if num_j_cc > 4:
-                        continue
+def merge_small_component(labels, pm):
+    knb = sklearn.neighbors.NearestNeighbors(n_neighbors=5, algorithm='ball_tree')
+    knb.fit(np.array(pm.path_pixels).transpose())
 
-                    # assign dominant label of neighbors using knn
-                    for k in range(num_j_cc):
-                        p1 = np.array([j_cc_list[0][k], j_cc_list[1][k]])
-                        _, indices = knb.kneighbors([p1], n_neighbors=5)
-                        max_label_nb = np.argmax(np.bincount(labels[indices][0]))
-                        labels[indices[0][0]] = max_label_nb
+    num_path_pixels = len(pm.path_pixels[0])
 
-                        # # debug
-                        # print(' (%d,%d) %d -> %d' % (p1[0], p1[1], i, max_label_nb))
-
-                        dup = pm.dup_dict.get(indices[0][0])
-                        if dup is not None:
-                            labels[dup] = max_label_nb
-
-        return labels
-
-
-    def label_cc(self, labels, pm):
+    for iter in range(2):
+        # # debug
+        # print('%d-th iter' % iter)
+        
         unique_label = np.unique(labels)
-        num_path_pixels = len(pm.path_pixels[0])
-
-        new_label = self.max_label
         for i in unique_label:
             i_label_list = np.nonzero(labels == i)
 
@@ -449,146 +413,195 @@ class Tester(object):
                     i_label_list[0][j] = pm.dup_rev_dict[i_label]
 
             # connected component analysis on 'i' label map
-            i_label_map = np.zeros([self.height, self.width], dtype=np.float)
+            i_label_map = np.zeros([pm.height, pm.width], dtype=np.float)
             i_label_map[pm.path_pixels[0][i_label_list],pm.path_pixels[1][i_label_list]] = 1.0
             cc_map, num_cc = skimage.measure.label(i_label_map, background=0, return_num=True)
 
-            if num_cc > 1:
-                for i_label in i_label_list[0]:
-                    cc_label = cc_map[pm.path_pixels[0][i_label],pm.path_pixels[1][i_label]]
-                    if cc_label > 1:
-                        labels[i_label] = new_label + (cc_label-2)
+            # # debug
+            # print('%d: # labels %d, # cc %d' % (i, num_i_label_pixels, num_cc))
+            # plt.imshow(cc_map, cmap='spectral')
+            # plt.show()
 
-                new_label += (num_cc - 1)
+            # detect small pixel component
+            for j in range(num_cc):
+                j_cc_list = np.nonzero(cc_map == (j+1))
+                num_j_cc = len(j_cc_list[0])
 
-        return labels
+                # consider only less than 5 pixels component
+                if num_j_cc > 4:
+                    continue
 
-    def compute_accuracy(self, labels, pm):
-        unique_labels = np.unique(labels)
-        num_path_pixels = len(pm.path_pixels[0])
+                # assign dominant label of neighbors using knn
+                for k in range(num_j_cc):
+                    p1 = np.array([j_cc_list[0][k], j_cc_list[1][k]])
+                    _, indices = knb.kneighbors([p1], n_neighbors=5)
+                    max_label_nb = np.argmax(np.bincount(labels[indices][0]))
+                    labels[indices[0][0]] = max_label_nb
 
-        acc_id_list = []
-        acc_list = []
-        for i in unique_labels:
-            i_label_list = np.nonzero(labels == i)
+                    # # debug
+                    # print(' (%d,%d) %d -> %d' % (p1[0], p1[1], i, max_label_nb))
 
-            # handle duplicated pixels
-            for j, i_label in enumerate(i_label_list[0]):
-                if i_label >= num_path_pixels:
-                    i_label_list[0][j] = pm.dup_rev_dict[i_label]
+                    dup = pm.dup_dict.get(indices[0][0])
+                    if dup is not None:
+                        labels[dup] = max_label_nb
 
-            i_label_map = np.zeros([self.height, self.width], dtype=np.bool)
-            i_label_map[pm.path_pixels[0][i_label_list],pm.path_pixels[1][i_label_list]] = True
+    return labels
 
-            accuracy_list = []
-            for j, stroke in enumerate(pm.path_list):
-                intersect = np.sum(np.logical_and(i_label_map, stroke))
-                union = np.sum(np.logical_or(i_label_map, stroke))
-                accuracy = intersect / float(union)
-                # print('compare with %d-th path, intersect: %d, union :%d, accuracy %.2f' % 
-                #     (j, intersect, union, accuracy))
-                accuracy_list.append(accuracy)
 
-            id = np.argmax(accuracy_list)
-            acc = np.amax(accuracy_list)
-            # print('%d-th label, match to %d-th path, max: %.2f' % (i, id, acc))
-            # consider only large label set
-            # if acc > 0.1:
-            acc_id_list.append(id)
-            acc_list.append(acc)
+def label_cc(labels, pm):
+    unique_label = np.unique(labels)
+    num_path_pixels = len(pm.path_pixels[0])
 
-        # print('avg: %.2f' % np.average(acc_list))
-        return acc_list
+    new_label = pm.max_label
+    for i in unique_label:
+        i_label_list = np.nonzero(labels == i)
 
-    def save_label_img(self, labels, unique_labels, num_labels, acc_avg, pm):
-        sys_name = platform.system()
+        # handle duplicated pixels
+        for j, i_label in enumerate(i_label_list[0]):
+            if i_label >= num_path_pixels:
+                i_label_list[0][j] = pm.dup_rev_dict[i_label]
 
-        file_path = os.path.basename(pm.file_path)
-        file_name = os.path.splitext(file_path)[0]
-        num_path_pixels = len(pm.path_pixels[0])
-        gt_labels = pm.num_paths
+        # connected component analysis on 'i' label map
+        i_label_map = np.zeros([pm.height, pm.width], dtype=np.float)
+        i_label_map[pm.path_pixels[0][i_label_list],pm.path_pixels[1][i_label_list]] = 1.0
+        cc_map, num_cc = skimage.measure.label(i_label_map, background=0, return_num=True)
 
-        cmap = plt.get_cmap('jet')    
-        cnorm = colors.Normalize(vmin=0, vmax=num_labels-1)
-        cscalarmap = cmx.ScalarMappable(norm=cnorm, cmap=cmap)
+        if num_cc > 1:
+            for i_label in i_label_list[0]:
+                cc_label = cc_map[pm.path_pixels[0][i_label],pm.path_pixels[1][i_label]]
+                if cc_label > 1:
+                    labels[i_label] = new_label + (cc_label-2)
+
+            new_label += (num_cc - 1)
+
+    return labels
+
+def compute_accuracy(labels, pm):
+    unique_labels = np.unique(labels)
+    num_path_pixels = len(pm.path_pixels[0])
+
+    acc_id_list = []
+    acc_list = []
+    for i in unique_labels:
+        i_label_list = np.nonzero(labels == i)
+
+        # handle duplicated pixels
+        for j, i_label in enumerate(i_label_list[0]):
+            if i_label >= num_path_pixels:
+                i_label_list[0][j] = pm.dup_rev_dict[i_label]
+
+        i_label_map = np.zeros([pm.height, pm.width], dtype=np.bool)
+        i_label_map[pm.path_pixels[0][i_label_list],pm.path_pixels[1][i_label_list]] = True
+
+        accuracy_list = []
+        for j, stroke in enumerate(pm.path_list):
+            intersect = np.sum(np.logical_and(i_label_map, stroke))
+            union = np.sum(np.logical_or(i_label_map, stroke))
+            accuracy = intersect / float(union)
+            # print('compare with %d-th path, intersect: %d, union :%d, accuracy %.2f' % 
+            #     (j, intersect, union, accuracy))
+            accuracy_list.append(accuracy)
+
+        id = np.argmax(accuracy_list)
+        acc = np.amax(accuracy_list)
+        # print('%d-th label, match to %d-th path, max: %.2f' % (i, id, acc))
+        # consider only large label set
+        # if acc > 0.1:
+        acc_id_list.append(id)
+        acc_list.append(acc)
+
+    # print('avg: %.2f' % np.average(acc_list))
+    return acc_list
+
+def save_label_img(labels, unique_labels, num_labels, acc_avg, pm):
+    sys_name = platform.system()
+
+    file_path = os.path.basename(pm.file_path)
+    file_name = os.path.splitext(file_path)[0]
+    num_path_pixels = len(pm.path_pixels[0])
+    gt_labels = pm.num_paths
+
+    cmap = plt.get_cmap('jet')    
+    cnorm = colors.Normalize(vmin=0, vmax=num_labels-1)
+    cscalarmap = cmx.ScalarMappable(norm=cnorm, cmap=cmap)
+    
+    label_map = np.ones([pm.height, pm.width, 3], dtype=np.float)
+    label_map_t = np.ones([pm.height, pm.width, 3], dtype=np.float)
+    first_svg = True
+    target_svg_path = os.path.join(pm.model_dir, '%s_%d_%d_%.2f.svg' % (file_name, num_labels, gt_labels, acc_avg))
+    for color_id, i in enumerate(unique_labels):
+        i_label_list = np.nonzero(labels == i)
+
+        # handle duplicated pixels
+        for j, i_label in enumerate(i_label_list[0]):
+            if i_label >= num_path_pixels:
+                i_label_list[0][j] = pm.dup_rev_dict[i_label]
+
+        color = np.asarray(cscalarmap.to_rgba(color_id))
+        label_map[pm.path_pixels[0][i_label_list],pm.path_pixels[1][i_label_list]] = color[:3]
+
+        # save i label map
+        i_label_map = np.zeros([pm.height, pm.width], dtype=np.float)
+        i_label_map[pm.path_pixels[0][i_label_list],pm.path_pixels[1][i_label_list]] = pm.img[pm.path_pixels[0][i_label_list],pm.path_pixels[1][i_label_list]]
+        _, num_cc = skimage.measure.label(i_label_map, background=0, return_num=True)
+        i_label_map_path = os.path.join(pm.model_dir, 'tmp', 'i_%s_%d_%d.bmp' % (file_name, i, num_cc))
+        scipy.misc.imsave(i_label_map_path, i_label_map)
+
+        i_label_map = np.ones([pm.height, pm.width, 3], dtype=np.float)
+        i_label_map[pm.path_pixels[0][i_label_list],pm.path_pixels[1][i_label_list]] = color[:3]
+        label_map_t += i_label_map
+
+        # vectorize using potrace
+        color *= 255
+        color_hex = '#%02x%02x%02x' % (int(color[0]), int(color[1]), int(color[2]))
         
-        label_map = np.ones([self.height, self.width, 3], dtype=np.float)
-        label_map_t = np.ones([self.height, self.width, 3], dtype=np.float)
-        first_svg = True
-        target_svg_path = os.path.join(self.model_dir, '%s_%d_%d_%.2f.svg' % (file_name, num_labels, gt_labels, acc_avg))
-        for color_id, i in enumerate(unique_labels):
-            i_label_list = np.nonzero(labels == i)
-
-            # handle duplicated pixels
-            for j, i_label in enumerate(i_label_list[0]):
-                if i_label >= num_path_pixels:
-                    i_label_list[0][j] = pm.dup_rev_dict[i_label]
-
-            color = np.asarray(cscalarmap.to_rgba(color_id))
-            label_map[pm.path_pixels[0][i_label_list],pm.path_pixels[1][i_label_list]] = color[:3]
-
-            # save i label map
-            i_label_map = np.zeros([self.height, self.width], dtype=np.float)
-            i_label_map[pm.path_pixels[0][i_label_list],pm.path_pixels[1][i_label_list]] = pm.img[pm.path_pixels[0][i_label_list],pm.path_pixels[1][i_label_list]]
-            _, num_cc = skimage.measure.label(i_label_map, background=0, return_num=True)
-            i_label_map_path = os.path.join(self.model_dir, 'tmp', 'i_%s_%d_%d.bmp' % (file_name, i, num_cc))
-            scipy.misc.imsave(i_label_map_path, i_label_map)
-
-            i_label_map = np.ones([self.height, self.width, 3], dtype=np.float)
-            i_label_map[pm.path_pixels[0][i_label_list],pm.path_pixels[1][i_label_list]] = color[:3]
-            label_map_t += i_label_map
-
-            # vectorize using potrace
-            color *= 255
-            color_hex = '#%02x%02x%02x' % (int(color[0]), int(color[1]), int(color[2]))
-            
-            if sys_name == 'Windows':
-                potrace_path = os.path.join('potrace', 'potrace.exe')
-                call([potrace_path, '-s', '-i', '-C'+color_hex, i_label_map_path])
-            else:
-                call(['potrace', '-s', '-i', '-C'+color_hex, i_label_map_path])
-            
-            i_label_map_svg = os.path.join(self.model_dir, 'tmp', 'i_%s_%d_%d.svg' % (file_name, i, num_cc))
-            if first_svg:
-                copyfile(i_label_map_svg, target_svg_path)
-                first_svg = False
-            else:
-                with open(target_svg_path, 'r') as f:
-                    target_svg = f.read()
-
-                with open(i_label_map_svg, 'r') as f:
-                    source_svg = f.read()
-
-                path_start = source_svg.find('<g')
-                path_end = source_svg.find('</svg>')
-
-                insert_pos = target_svg.find('</svg>')            
-                target_svg = target_svg[:insert_pos] + source_svg[path_start:path_end] + target_svg[insert_pos:]
-
-                with open(target_svg_path, 'w') as f:
-                    f.write(target_svg)
-
-            # remove i label map
-            os.remove(i_label_map_path)
-            os.remove(i_label_map_svg)
-
-        # set opacity 0.5 to see overlaps
-        with open(target_svg_path, 'r') as f:
-            target_svg = f.read()
+        if sys_name == 'Windows':
+            potrace_path = os.path.join('potrace', 'potrace.exe')
+            call([potrace_path, '-s', '-i', '-C'+color_hex, i_label_map_path])
+        else:
+            call(['potrace', '-s', '-i', '-C'+color_hex, i_label_map_path])
         
-        insert_pos = target_svg.find('<g')
-        target_svg = target_svg[:insert_pos] + '<g fill-opacity="0.5">' + target_svg[insert_pos:]
-        insert_pos = target_svg.find('</svg>')
-        target_svg = target_svg[:insert_pos] + '</g>' + target_svg[insert_pos:]
-        
-        with open(target_svg_path, 'w') as f:
-            f.write(target_svg)
+        i_label_map_svg = os.path.join(pm.model_dir, 'tmp', 'i_%s_%d_%d.svg' % (file_name, i, num_cc))
+        if first_svg:
+            copyfile(i_label_map_svg, target_svg_path)
+            first_svg = False
+        else:
+            with open(target_svg_path, 'r') as f:
+                target_svg = f.read()
 
-        label_map_path = os.path.join(self.model_dir, '%s_%.2f_%.2f_%d_%d_%.2f.png' % (
-            file_name, self.sigma_neighbor, self.sigma_predict, num_labels, gt_labels, acc_avg))
-        scipy.misc.imsave(label_map_path, label_map)
+            with open(i_label_map_svg, 'r') as f:
+                source_svg = f.read()
 
-        label_map_t /= np.amax(label_map_t)
-        label_map_path = os.path.join(self.model_dir, '%s_%.2f_%.2f_%d_%d_%.2f_t.png' % (
-            file_name, self.sigma_neighbor, self.sigma_predict, num_labels, gt_labels, acc_avg))
-        scipy.misc.imsave(label_map_path, label_map_t)
+            path_start = source_svg.find('<g')
+            path_end = source_svg.find('</svg>')
+
+            insert_pos = target_svg.find('</svg>')            
+            target_svg = target_svg[:insert_pos] + source_svg[path_start:path_end] + target_svg[insert_pos:]
+
+            with open(target_svg_path, 'w') as f:
+                f.write(target_svg)
+
+        # remove i label map
+        os.remove(i_label_map_path)
+        os.remove(i_label_map_svg)
+
+    # set opacity 0.5 to see overlaps
+    with open(target_svg_path, 'r') as f:
+        target_svg = f.read()
+    
+    insert_pos = target_svg.find('<g')
+    target_svg = target_svg[:insert_pos] + '<g fill-opacity="0.5">' + target_svg[insert_pos:]
+    insert_pos = target_svg.find('</svg>')
+    target_svg = target_svg[:insert_pos] + '</g>' + target_svg[insert_pos:]
+    
+    with open(target_svg_path, 'w') as f:
+        f.write(target_svg)
+
+    label_map_path = os.path.join(pm.model_dir, '%s_%.2f_%.2f_%d_%d_%.2f.png' % (
+        file_name, pm.sigma_neighbor, pm.sigma_predict, num_labels, gt_labels, acc_avg))
+    scipy.misc.imsave(label_map_path, label_map)
+
+    label_map_t /= np.amax(label_map_t)
+    label_map_path = os.path.join(pm.model_dir, '%s_%.2f_%.2f_%d_%d_%.2f_t.png' % (
+        file_name, pm.sigma_neighbor, pm.sigma_predict, num_labels, gt_labels, acc_avg))
+    scipy.misc.imsave(label_map_path, label_map_t)

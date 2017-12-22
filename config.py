@@ -65,7 +65,7 @@ vect_arg.add_argument('--neighbor_sample', type=float, default=0.02)
 vect_arg.add_argument('--find_overlap', type=str2bool, default=True)
 vect_arg.add_argument('--overlap_threshold', type=float, default=0.5)
 vect_arg.add_argument('--test_batch_size', type=int, default=512)
-vect_arg.add_argument('--mp', type=str2bool, default=False)
+vect_arg.add_argument('--mp', type=str2bool, default=True)
 
 # Misc
 misc_arg = add_argument_group('Misc')

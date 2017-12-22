@@ -33,14 +33,14 @@ To vectorize random lines:
 
 ## Results
 
-### PathNet output (64x64) after 50k steps
+### PathNet output (64x64) after 50k steps (From top to bottom: input / output / ground truth)
 
 ![path_rl_64x64_50k_in](./asset/path_rl_64x64_50k_in.png)
 ![path_rl_64x64_50k](./asset/path_rl_64x64_50k_out.png)
 ![path_rl_64x64_50k_gt](./asset/path_rl_64x64_50k_gt.png)
 
 
-### OverlapNet output (64x64) after 50k steps
+### OverlapNet output (64x64) after 50k steps (From top to bottom: input / output / ground truth)
 
 ![ov_rl_64x64_50k_in](./asset/ov_rl_64x64_50k_in.png)
 ![ov_rl_64x64_50k](./asset/ov_rl_64x64_50k_out.png)

@@ -133,23 +133,24 @@ class Tester(object):
     def predict(self, file_path):
         # convert svg to raster image
         img, num_paths, path_list = self.batch_manager.read_svg(file_path)
+        file_name = os.path.splitext(os.path.basename(file_path))[0]
+        input_img_path = os.path.join(self.model_dir, '%s_0_input.png' % file_name)
+        save_image((1-img[np.newaxis,:,:,np.newaxis])*255, input_img_path, padding=0)
 
         # # debug
         # print(num_paths)
         # plt.imshow(img, cmap=plt.cm.gray)
         # plt.show()
 
-
         pm = Param()
 
         # predict paths through pathnet
         start_time = time.time()
         paths, path_pixels = self.extract_path(img)        
-        file_name = os.path.splitext(os.path.basename(file_path))[0]
-        path0_img_path = os.path.join(self.model_dir, '%s_0_path.png' % file_name)
         num_path_pixels = len(path_pixels[0])
         pids = self.rng.randint(num_path_pixels, size=8)
-        save_image((1 - paths[pids,:,:,:])*255, path0_img_path, padding=0)
+        path_img_path = os.path.join(self.model_dir, '%s_1_path.png' % file_name)
+        save_image((1 - paths[pids,:,:,:])*255, path_img_path, padding=0)
         
         # # debug
         # plt.imshow(paths[0,:,:,0], cmap=plt.cm.gray)
@@ -169,7 +170,7 @@ class Tester(object):
             start_time = time.time()
             ov = self.overlap(img)
 
-            overlap_img_path = os.path.join(self.model_dir, '%s_1_overlap.png' % file_name)
+            overlap_img_path = os.path.join(self.model_dir, '%s_2_overlap.png' % file_name)
             ov_img = ov[np.newaxis,:,:,np.newaxis]
             save_image((1-ov_img)*255, overlap_img_path, padding=0)
 

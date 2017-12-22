@@ -49,11 +49,14 @@ To vectorize random lines:
 
 ### Vectorization output (64x64)
 
-![vect_45080_gt](./asset/vect_45080_gt.jpg)
+From left to right: input / raster / transparent / overlap / vector / ground truth
+
+![vect_45080_input](./asset/vect_45080_input.png)
 ![vect_45080_8.00_0.70_4_4_0.99](./asset/vect_45080_8.00_0.70_4_4_0.99.png)
 ![vect_45080_8.00_0.70_4_4_0.99_t](./asset/vect_45080_8.00_0.70_4_4_0.99_t.png)
-![vect_45080_1_overlap](./asset/vect_45080_1_overlap.jpg)
+![vect_45080_1_overlap](./asset/vect_45080_1_overlap.png)
 ![vect_45080_4_4_0.99](./asset/vect_45080_4_4_0.99.svg)
+![vect_45080_gt](./asset/vect_45080_gt.jpg)
 
 
 ## Reference

@@ -5,7 +5,6 @@ import multiprocessing
 import signal
 import sys
 from datetime import datetime
-import platform
 
 import tensorflow as tf
 import numpy as np
@@ -193,7 +192,7 @@ class BatchManager(object):
                     svg_one = svg_one[:id_start] + svg_one[id_end:]
 
             # leave only one path
-            y_png = cairosvg.svg2png(bytestring=svg_one)
+            y_png = cairosvg.svg2png(bytestring=svg_one.encode('utf-8'))
             y_img = Image.open(io.BytesIO(y_png))
             path = (np.array(y_img)[:,:,3] > 0)            
             path_list.append(path)
@@ -243,7 +242,7 @@ def preprocess_path(file_path, w, h, rng):
             svg_one = svg_one[:id_start] + svg_one[id_end:]
 
     # leave only one path
-    y_png = cairosvg.svg2png(bytestring=svg_one)
+    y_png = cairosvg.svg2png(bytestring=svg_one.encode('utf-8'))
     y_img = Image.open(io.BytesIO(y_png))
     y = np.array(y_img)[:,:,3].astype(np.float) / max_intensity # [0,1]
 
@@ -320,7 +319,7 @@ def preprocess_overlap(file_path, w, h, rng):
                 svg_one = svg_one[:id_start] + svg_one[id_end:]
 
         # leave only one path
-        y_png = cairosvg.svg2png(bytestring=svg_one)
+        y_png = cairosvg.svg2png(bytestring=svg_one.encode('utf-8'))
         y_img = Image.open(io.BytesIO(y_png))
         path = (np.array(y_img)[:,:,3] > 0)            
         path_list.append(path)

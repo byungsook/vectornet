@@ -191,6 +191,9 @@ class Trainer(object):
                         acc = np.average(y_I_sum[nonzero_id] / y_U_sum[nonzero_id])
                     iou += acc
 
+                    if nb > 500:
+                        break
+
                 l1 /= float(nb)
                 l2 /= float(nb)
                 iou /= float(nb)

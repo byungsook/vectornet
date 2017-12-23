@@ -185,24 +185,23 @@ def preprocess_path(file_path, w, h, rng):
     max_intensity = np.amax(s)
     s = s / max_intensity
 
-    # while True:
-    svg_xml = et.fromstring(svg)
-    num_paths = svg.count('polyline')
-    path_id = rng.randint(1,num_paths+1)
-    svg_xml[1] = svg_xml[path_id]
-    del svg_xml[2:]
-    svg_one = et.tostring(svg_xml, method='xml')        
+    while True:
+        svg_xml = et.fromstring(svg)
+        num_paths = svg.count('polyline')
+        path_id = rng.randint(1,num_paths+1)
+        svg_xml[1] = svg_xml[path_id]
+        del svg_xml[2:]
+        svg_one = et.tostring(svg_xml, method='xml')
 
-    # leave only one path
-    y_png = cairosvg.svg2png(bytestring=svg_one)
-    y_img = Image.open(io.BytesIO(y_png))
-    y = np.array(y_img)[:,:,3].astype(np.float) / max_intensity # [0,1]
+        # leave only one path
+        y_png = cairosvg.svg2png(bytestring=svg_one)
+        y_img = Image.open(io.BytesIO(y_png))
+        y = np.array(y_img)[:,:,3].astype(np.float) / max_intensity # [0,1]
 
-    pixel_ids = np.nonzero(y)
-    # if len(pixel_ids[0]) == 0:
-    #     continue
-    # else:
-    #     break            
+        pixel_ids = np.nonzero(y)
+        # assert len(pixel_ids[0]) > 0, '%s: no stroke px' % file_path
+        if len(pixel_ids[0]) > 0:
+            break
 
     # select arbitrary marking pixel
     point_id = rng.randint(len(pixel_ids[0]))
@@ -237,7 +236,6 @@ def preprocess_overlap(file_path, w, h, rng):
     max_intensity = np.amax(s)
     s = s / max_intensity
 
-    # while True:
     path_list = []        
     num_paths = svg.count('polyline')
 

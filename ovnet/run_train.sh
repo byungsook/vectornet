@@ -1,5 +1,7 @@
-python ovnet_train_sketch.py --train_on=qdraw --log_dir=log/l2_128/qdraw/chandelier --max_steps=10 --image_width=128 --image_height=128 --batch_size=16 --initial_learning_rate=0.005 --data_dir=../data/qdraw_chandelier_128 --use_iou=False
-python ovnet_train_sketch.py --train_on=qdraw --log_dir=log/l2_128/qdraw/elephant   --max_steps=10 --image_width=128 --image_height=128 --batch_size=16 --initial_learning_rate=0.005 --data_dir=../data/qdraw_elephant_128   --use_iou=False
+python ovnet_train.py --train_on=line    --log_dir=log/64/line --max_steps=50000 --transform=False --image_width=64 --image_height=64 --batch_size=8 --use_iou=False --path_type=2 --num_paths=4 --max_stroke_width=4 --initial_learning_rate=0.005 
+
+# python ovnet_train_sketch.py --train_on=qdraw --log_dir=log/l2_128/qdraw/chandelier --max_steps=10 --image_width=128 --image_height=128 --batch_size=16 --initial_learning_rate=0.005 --data_dir=../data/qdraw_chandelier_128 --use_iou=False
+# python ovnet_train_sketch.py --train_on=qdraw --log_dir=log/l2_128/qdraw/elephant   --max_steps=10 --image_width=128 --image_height=128 --batch_size=16 --initial_learning_rate=0.005 --data_dir=../data/qdraw_elephant_128   --use_iou=False
 # python ovnet_train_sketch.py --train_on=qdraw --log_dir=log/l2_128/qdraw/mix        --max_steps=50000 --image_width=128 --image_height=128 --batch_size=16 --initial_learning_rate=0.005 --data_dir=../data/qdraw_mix_128        --use_iou=False
 
 # qdraw

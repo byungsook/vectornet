@@ -34,13 +34,11 @@ from ovnet.ovnet_manager import OvnetManager
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('test_dir', 'log/test_big',
+tf.app.flags.DEFINE_string('test_dir', 'log/test_big_noov_k8',
                            """Directory where to write event logs """
                            """and checkpoint.""")
-tf.app.flags.DEFINE_string('data_dir', 'data/fidelity/png_256_small',
+tf.app.flags.DEFINE_string('data_dir', 'data/fidelity/cleanup/256',
                            """Data directory""")
-tf.app.flags.DEFINE_string('file_list', 'test.txt',
-                           """file_list""")
 tf.app.flags.DEFINE_integer('num_test_files', 15,
                            """num_test_files""")
 tf.app.flags.DEFINE_integer('image_width', 256,
@@ -51,17 +49,17 @@ tf.app.flags.DEFINE_integer('max_num_labels', 128,
                            """the maximum number of labels""")
 tf.app.flags.DEFINE_integer('label_cost', 0,
                            """label cost""")
-tf.app.flags.DEFINE_float('neighbor_sigma', 16, # 48 - 8, 64 - 10.67?
+tf.app.flags.DEFINE_float('neighbor_sigma', 8, # 48 - 8, 64 - 10.67?
                            """neighbor sigma""")
 tf.app.flags.DEFINE_float('prediction_sigma', 0.7,
                            """prediction sigma""")
 tf.app.flags.DEFINE_boolean('compile', False,
                             """whether compile gco or not""")
-tf.app.flags.DEFINE_boolean('find_overlap', True,
+tf.app.flags.DEFINE_boolean('find_overlap', False,
                             """whether to find overlap or not""")
-tf.app.flags.DEFINE_integer('pathnet_crop_radius', 64,
+tf.app.flags.DEFINE_integer('pathnet_crop_radius', 32,
                            """pathnet_crop_radius""")
-tf.app.flags.DEFINE_integer('pathnet_batch_size', 128,
+tf.app.flags.DEFINE_integer('pathnet_batch_size', 512,
                            """batch size""")
 tf.app.flags.DEFINE_integer('ovnet_crop_radius', 32,
                            """ovnet_crop_radius""")
@@ -475,7 +473,7 @@ def test():
     
     # run with multiprocessing
     queue = multiprocessing.JoinableQueue()
-    num_cpus = multiprocessing.cpu_count()
+    num_cpus = int(multiprocessing.cpu_count()*0.5) # 4
     pool = multiprocessing.Pool(num_cpus, vectorize_mp, (queue,))
 
     num_files = 0

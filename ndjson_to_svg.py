@@ -2,16 +2,16 @@
 
 import svgwrite
 import simplejson as json
+import jsonlines
 import sys
 import os.path
-import jsonlines
 
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
 
-os.chdir('/home/kimby/dev/vectornet')
+os.chdir('/home/kimby/polybox/dev/vectornet')
 
 # output = 'data/qdraw_baseball_64'
 # f = open(os.path.join(output,'test.txt'), 'w')
@@ -23,8 +23,9 @@ os.chdir('/home/kimby/dev/vectornet')
 # f.close()
 
 img_size = 128
-category = 'bicycle' # 'baseball' 'stitches' 'cat' 'elephant'
-output = 'data/qdraw_{cat}_{img_size}'.format(cat=category, img_size=img_size)
+category = 'cat' # 'baseball' 'stitches' 'cat' 'elephant'
+data_dir = '/media/kimby/Data/Polybox/dev/vectornet/data' # '.'
+output = os.path.join(data_dir, 'qdraw_{cat}_{img_size}'.format(cat=category, img_size=img_size))
 
 if os.path.exists(output):
     import shutil
@@ -36,7 +37,7 @@ bbox_pad = 20
 cmap = plt.get_cmap('jet')
 need = 200
 
-with jsonlines.open('data/{cat}.ndjson'.format(cat=category)) as reader:
+with jsonlines.open(os.path.join(data_dir,'{cat}.ndjson'.format(cat=category))) as reader:
     for count, obj in enumerate(reader):
         # print obj
         fn = output + '/' + obj['key_id'] + '.svg'
@@ -82,8 +83,8 @@ with jsonlines.open('data/{cat}.ndjson'.format(cat=category)) as reader:
             dwg.viewbox(0, 0, img_size, img_size)
             dwg.save()
 
-        if count >= need:
-            break
+        # if count >= need:
+        #     break
 
 # split dataset
 file_list = []

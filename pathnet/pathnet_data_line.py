@@ -39,7 +39,7 @@ flags.DEFINE_integer('image_width', 64,
                      """Image Width.""")
 flags.DEFINE_integer('image_height', 64,
                      """Image Height.""")
-flags.DEFINE_integer('num_threads', 16,
+flags.DEFINE_integer('num_threads', 8,
                      """# of threads for batch generation.""")
 flags.DEFINE_integer('min_length', 10,
                      """minimum length of a line.""")
@@ -65,8 +65,8 @@ SVG_END_TEMPLATE = """</g></svg>"""
 
 def _create_a_line(id, image_height, image_width, min_length, max_stroke_width):
     stroke_color = np.random.randint(240, size=3)
-    # stroke_width = np.random.rand() * max_stroke_width + 1
-    stroke_width = max_stroke_width
+    stroke_width = np.random.rand() * max_stroke_width + 1
+    # stroke_width = max_stroke_width
     while True:
         x = np.random.randint(low=0, high=image_width, size=2)
         y = np.random.randint(low=0, high=image_height, size=2)
@@ -87,8 +87,8 @@ def _create_a_cubic_bezier_curve(id, image_height, image_width, min_length, max_
     x = np.random.randint(low=0, high=image_width, size=4)
     y = np.random.randint(low=0, high=image_height, size=4)
     stroke_color = np.random.randint(240, size=3)
-    # stroke_width = np.random.rand() * max_stroke_width + 1
-    stroke_width = max_stroke_width
+    stroke_width = np.random.rand() * max_stroke_width + 1
+    # stroke_width = max_stroke_width
 
     return SVG_CUBIC_BEZIER_TEMPLATE.format(
         id=id,
@@ -118,7 +118,7 @@ class BatchManager(object):
         self.num_examples_per_epoch = 1000
         self.num_epoch = 1
 
-        FLAGS.num_threads = np.amin([FLAGS.num_threads, multiprocessing.cpu_count()*2])
+        FLAGS.num_threads = np.amin([FLAGS.batch_size, FLAGS.num_threads, multiprocessing.cpu_count()*2])
 
         image_shape = [FLAGS.image_height, FLAGS.image_width, 1]
         input_shape = [FLAGS.image_height, FLAGS.image_width, 2]

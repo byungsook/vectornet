@@ -31,7 +31,7 @@ tf.app.flags.DEFINE_string('checkpoint_dir', '',
                            """If specified, restore this pretrained model """
                            """before beginning any training.
                            e.g. log/second_train""")
-tf.app.flags.DEFINE_integer('max_steps', 10,
+tf.app.flags.DEFINE_integer('max_steps', 1000,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_integer('decay_steps', 30000,
                             """Decay steps""")
@@ -51,7 +51,7 @@ tf.app.flags.DEFINE_integer('summary_steps', 100,
                             """summary steps.""")
 tf.app.flags.DEFINE_integer('save_steps', 5000,
                             """save steps""")
-tf.app.flags.DEFINE_string('train_on', 'qdraw',
+tf.app.flags.DEFINE_string('train_on', 'line',
                            """specify training data""")
 tf.app.flags.DEFINE_boolean('transform', False,
                             """Whether to transform character.""")

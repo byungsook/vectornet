@@ -20,7 +20,7 @@ import pathnet.pathnet_model
 
 # parameters
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('pathnet_ckpt', 'pathnet/model/no_trans_64/line/pathnet.ckpt-50000',
+tf.app.flags.DEFINE_string('pathnet_ckpt', 'pathnet/log/64/line/pathnet.ckpt-50000',
                            """pathnet checkpoint file path.""")
 tf.app.flags.DEFINE_boolean('use_two_channels', True,
                             """use two channels for input""")

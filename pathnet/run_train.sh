@@ -1,4 +1,8 @@
-python pathnet_train.py --train_on=line    --log_dir=log/64/line --max_steps=50000 --image_width=64 --image_height=64 --batch_size=8 --initial_learning_rate=0.010 --max_stroke_width=2 --num_paths=4
+python pathnet_train.py --train_on=line    --log_dir=log/64/line --max_steps=50000 --image_width=64 --image_height=64 --batch_size=8 --initial_learning_rate=0.005 --max_stroke_width=4 --num_paths=4
+
+# python pathnet_train.py --train_on=line    --log_dir=log/128/line --max_steps=20000 --decay_steps=12000 --image_width=128 --image_height=128 --batch_size=8 --initial_learning_rate=0.010 --max_stroke_width=4 --num_paths=4
+
+# python pathnet_train.py --train_on=line    --log_dir=log/64/line --max_steps=50000 --image_width=64 --image_height=64 --batch_size=8 --initial_learning_rate=0.010 --max_stroke_width=2 --num_paths=4
 
 # python pathnet_train.py --train_on=qdraw --log_dir=log/128/qdraw/chandelier --max_steps=10 --image_width=128 --image_height=128 --batch_size=16 --initial_learning_rate=0.005 --data_dir=../data/qdraw_chandelier_128
 # python pathnet_train.py --train_on=qdraw --log_dir=log/128/qdraw/elephant   --max_steps=10 --image_width=128 --image_height=128 --batch_size=16 --initial_learning_rate=0.005 --data_dir=../data/qdraw_elephant_128

@@ -29,7 +29,7 @@ net_arg.add_argument('--archi', type=str, default='path',
 data_arg = add_argument_group('Data')
 data_arg.add_argument('--data_dir', type=str, default='data') #'/home/kimby/polybox/dev/vectornet2/data')
 data_arg.add_argument('--dataset', type=str, default='line',
-                      choices=['line','chinese'])
+                      choices=['line','ch','kanji','baseball','cat','multi'])
 data_arg.add_argument('--batch_size', type=int, default=8)
 data_arg.add_argument('--num_worker', type=int, default=4)
 # line
@@ -40,7 +40,7 @@ data_arg.add_argument('--max_stroke_width', type=int, default=4)
 
 # Training / test parameters
 train_arg = add_argument_group('Training')
-train_arg.add_argument('--is_train', type=str2bool, default=False)
+train_arg.add_argument('--is_train', type=str2bool, default=True)
 train_arg.add_argument('--use_gpu', type=str2bool, default=True)
 train_arg.add_argument('--gpu_id', type=str, default='0')
 train_arg.add_argument('--start_step', type=int, default=0)

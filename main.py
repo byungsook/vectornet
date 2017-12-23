@@ -12,6 +12,14 @@ def main(config):
         from trainer import Trainer
         if config.dataset == 'line':
             from data_line import BatchManager
+        elif config.dataset == 'ch':
+            from data_ch import BatchManager
+        elif config.dataset == 'kanji':
+            from data_kanji import BatchManager
+        elif config.dataset == 'baseball' or\
+             config.dataset == 'cat' or\
+             config.dataset == 'multi':
+            from data_qdraw import BatchManager
 
         batch_manager = BatchManager(config)
         trainer = Trainer(config, batch_manager)
@@ -20,6 +28,14 @@ def main(config):
         from tester import Tester
         if config.dataset == 'line':
             from data_line import BatchManager
+        elif config.dataset == 'ch':
+            from data_ch import BatchManager
+        elif config.dataset == 'kanji':
+            from data_kanji import BatchManager
+        elif config.dataset == 'baseball' or\
+             config.dataset == 'cat' or\
+             config.dataset == 'multi':
+            from data_qdraw import BatchManager
         
         batch_manager = BatchManager(config)
         tester = Tester(config, batch_manager)

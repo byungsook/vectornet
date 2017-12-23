@@ -34,7 +34,6 @@ class Trainer(object):
         self.use_norm = config.use_norm
 
         self.model_dir = config.model_dir
-        self.load_path = config.load_path
 
         self.use_gpu = config.use_gpu
         self.data_format = config.data_format

@@ -2,6 +2,8 @@ Tensorflow implementation of [Semantic Segmentation for Line Drawing Vectorizati
 
 ## Requirements
 
+* Tested on Windows 10 and Ubuntu 16.04
+
 - [anaconda3 / python3.6](https://www.anaconda.com/download/#linux)
 - [TensorFlow 1.4](https://github.com/tensorflow/tensorflow)
 - [CairoSVG 2.1.2](http://cairosvg.org/)
@@ -24,12 +26,11 @@ To train OverlapNet on random lines:
 
 To vectorize random lines:
 
-    Linux: cd gco/gco_src; make gco_linenet
-    Windows: go to gco/gco_vs2015 and build
+    $ .\build_win.bat or ./build_linux.sh
 
     Then,
 
-    $ python main.py --is_train=False --dataset=line --load_pathnet=log/path/line_0000 --load_overlapnet=log/overlap/line_0000 
+    $ python main.py --is_train=False --dataset=line --load_pathnet=log/path/MODEL_DIR--load_overlapnet=log/overlap/MODEL_DIR
 
 ## Results
 

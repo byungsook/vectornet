@@ -156,6 +156,8 @@ class BatchManager(object):
         img = Image.open(io.BytesIO(img))
         s = np.array(img)[:,:,3].astype(np.float) # / 255.0
         max_intensity = np.amax(s)
+        if max_intensity == 0:            
+            return s, 0, []
         s = s / max_intensity
 
         path_list = []        
@@ -183,6 +185,10 @@ def preprocess_path(file_path, w, h, rng):
     img = Image.open(io.BytesIO(img))
     s = np.array(img)[:,:,3].astype(np.float) # / 255.0
     max_intensity = np.amax(s)
+    if max_intensity == 0:
+        x = np.zeros([h, w, 2])
+        y = np.zeros([h, w, 1])
+        return x, y
     s = s / max_intensity
 
     while True:
@@ -234,6 +240,10 @@ def preprocess_overlap(file_path, w, h, rng):
     img = Image.open(io.BytesIO(img))
     s = np.array(img)[:,:,3].astype(np.float) # / 255.0
     max_intensity = np.amax(s)
+    if max_intensity == 0:
+        x = np.zeros([h, w, 1])
+        y = np.zeros([h, w, 1])
+        return x, y
     s = s / max_intensity
 
     path_list = []        

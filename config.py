@@ -27,7 +27,7 @@ net_arg.add_argument('--archi', type=str, default='path',
 
 # Data
 data_arg = add_argument_group('Data')
-data_arg.add_argument('--data_dir', type=str, default='/media/kimby/Data/Polybox/dev/vectornet2/data') # data
+data_arg.add_argument('--data_dir', type=str, default='data') # /media/kimby/Data/Polybox/dev/vectornet2/data
 data_arg.add_argument('--dataset', type=str, default='line',
                       choices=['line','ch','kanji','baseball','cat','multi'])
 data_arg.add_argument('--batch_size', type=int, default=8)
@@ -36,7 +36,7 @@ data_arg.add_argument('--num_worker', type=int, default=4)
 data_arg.add_argument('--num_strokes', type=int, default=4)
 data_arg.add_argument('--stroke_type', type=int, default=2)
 data_arg.add_argument('--min_length', type=int, default=10)
-data_arg.add_argument('--max_stroke_width', type=int, default=4)
+data_arg.add_argument('--max_stroke_width', type=int, default=2) # 4 for varying w.
 
 # Training / test parameters
 train_arg = add_argument_group('Training')

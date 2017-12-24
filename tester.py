@@ -66,7 +66,11 @@ class Tester(object):
 
         self.model_dir = config.model_dir
         self.data_path = config.data_path
-        self.build_model()
+        
+        # self.build_model()
+        self.model_dir = '/media/kimby/Data/Polybox/dev/vectornet2/log/vect/line_1222_192237_test'
+        self.stat()
+
 
     def build_model(self):
         pathnet_graph = tf.Graph()
@@ -128,6 +132,8 @@ class Tester(object):
             q.join()
             pool.terminate()
             pool.join()
+
+        self.stat()
 
 
     def predict(self, file_path):
@@ -231,6 +237,7 @@ class Tester(object):
                 nb_ids = np.concatenate((rng[1][0],far_ids))
             else:
                 nb_ids = rng[1][0]
+            
             for rj, j in enumerate(nb_ids): # ids
                 if j <= i:
                     continue                
@@ -321,6 +328,54 @@ class Tester(object):
             y_b = to_nhwc_numpy(y_b)
         return (y_b[0,:,:,0] >= self.overlap_threshold)
 
+    def stat(self):
+        from glob import glob
+        stat_paths = sorted(glob("{}/*{}".format(self.model_dir, '_stat.txt')))
+        diff = []
+        abs_diff = []
+        acc = []
+        d_pred = []
+        d_ov = []
+        d_map = []
+        d_vec = []
+        duration = []
+
+        # print(len(stat_paths))
+        for path in stat_paths:            
+            with open(path, 'r') as f:
+                stat = f.readline()                 
+            # print(stat)
+            stat = stat.split()
+            # file_path, num_labels, pm.num_paths, acc_avg,
+            # duration_pred, duration_ov, duration_map, 
+            # duration_vect, duration
+            num_labels = int(stat[1])
+            gt_labels = int(stat[2])
+            acc_ = float(stat[3])
+            dpred = float(stat[4])
+            dov = float(stat[5])
+            dmap = float(stat[6])
+            dvec = float(stat[7])
+            d = float(stat[8])
+            
+            diff.append(num_labels-gt_labels)
+            abs_diff.append(abs(num_labels-gt_labels))
+            acc.append(acc_)
+            d_pred.append(dpred)
+            d_ov.append(dov)
+            d_map.append(dmap)
+            d_vec.append(dvec)
+            duration.append(d)
+
+        stat_path = os.path.join(self.model_dir, 'summary.txt')
+        with open(stat_path, 'w') as f:
+            f.write('label abs diff: {}\n'.format(np.average(abs_diff)))
+            f.write('acc: {}\n'.format(np.average(acc)))
+            f.write('duration for prediction: {}\n'.format(np.average(d_pred)))
+            f.write('duration for overlap: {}\n'.format(np.average(d_ov)))
+            f.write('duration for mapping: {}\n'.format(np.average(d_map)))
+            f.write('duration for vectorization: {}\n'.format(np.average(d_vec)))
+            f.write('duration total: {}\n'.format(np.average(duration)))
 
 def vectorize(pm):
     start_time = time.time()
@@ -367,19 +422,15 @@ def vectorize(pm):
 def label(file_name, pm):
     start_time = time.time()
     working_path = os.getcwd()
-    gco_path = os.path.join(working_path, 'gco/gco_src')
+    gco_path = os.path.join(working_path, 'gco/build')
     os.chdir(gco_path)
 
+    pred_file_path = os.path.join(working_path, pm.model_dir, 'tmp', file_name + '.pred')        
     sys_name = platform.system()
     if sys_name == 'Windows':
-        pred_file_path = os.path.join(working_path, pm.model_dir, 'tmp', file_name + '.pred')
-        call(['../gco_vs2015/x64/Release/gco_vs2015.exe', pred_file_path])
+        call(['Release/gco.exe', pred_file_path])
     else:
-        os.environ['LD_LIBRARY_PATH'] = os.getcwd()
-        pred_file_path = os.path.join(pm.model_dir, 'tmp', file_name + '.pred')
-        if pred_file_path[0] != '/': # relative path
-            pred_file_path = '../../' + pred_file_path
-        call(['./gco_linenet', pred_file_path])
+        call(['./gco', pred_file_path])
     os.chdir(working_path)
 
     # read graphcut result

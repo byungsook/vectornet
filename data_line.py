@@ -201,7 +201,8 @@ class BatchManager(object):
 
 def draw_line(id, w, h, min_length, max_stroke_width, rng):
     stroke_color = rng.randint(240, size=3)
-    stroke_width = rng.randint(low=1, high=max_stroke_width+1)
+    # stroke_width = rng.randint(low=1, high=max_stroke_width+1)
+    stroke_width = max_stroke_width
     while True:
         x = rng.randint(w, size=2)
         y = rng.randint(h, size=2)
@@ -219,7 +220,8 @@ def draw_line(id, w, h, min_length, max_stroke_width, rng):
 
 def draw_cubic_bezier_curve(id, w, h, min_length, max_stroke_width, rng):
     stroke_color = rng.randint(240, size=3)
-    stroke_width = rng.randint(low=1, high=max_stroke_width+1)
+    # stroke_width = rng.randint(low=1, high=max_stroke_width+1)
+    stroke_width = max_stroke_width
     x = rng.randint(w, size=4)
     y = rng.randint(h, size=4)
 

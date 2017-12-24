@@ -9,6 +9,4 @@
 log/
 data/
 potrace/
-gco/gco_vs2015/x64
-gco/gco_src/gco_linenet
-gco/gco_src/libgco.so
+gco/build

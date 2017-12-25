@@ -67,10 +67,9 @@ class Tester(object):
         self.model_dir = config.model_dir
         self.data_path = config.data_path
         
-        # self.build_model()
-        self.model_dir = '/media/kimby/Data/Polybox/dev/vectornet2/log/vect/line_1222_192237_test'
-        self.stat()
-
+        self.build_model()
+        # self.model_dir = '/media/kimby/Data/Polybox/dev/vectornet2/log/vect/line_1222_192237_test'
+        # self.stat()
 
     def build_model(self):
         pathnet_graph = tf.Graph()
@@ -93,23 +92,24 @@ class Tester(object):
             saver.restore(self.sp, os.path.join(self.load_pathnet, ckpt_name))
             print('%s: Pre-trained model restored from %s' % (datetime.now(), self.load_pathnet))
 
-        overlapnet_graph = tf.Graph()
-        self.so = tf.Session(config=sess_config, graph=overlapnet_graph)
-        with overlapnet_graph.as_default():
-            self.xo = tf.placeholder(tf.float32, shape=[None, self.height, self.width, 1])
-            if self.data_format == 'NCHW':
-                self.xo = nhwc_to_nchw(self.xo)
+        if self.find_overlap:
+            overlapnet_graph = tf.Graph()
+            self.so = tf.Session(config=sess_config, graph=overlapnet_graph)
+            with overlapnet_graph.as_default():
+                self.xo = tf.placeholder(tf.float32, shape=[None, self.height, self.width, 1])
+                if self.data_format == 'NCHW':
+                    self.xo = nhwc_to_nchw(self.xo)
 
-            self.yo, _ = VDSR(self.xo, self.conv_hidden_num, self.repeat_num,
-                self.data_format, self.use_norm, train=False)
-            show_all_variables()
+                self.yo, _ = VDSR(self.xo, self.conv_hidden_num, self.repeat_num,
+                    self.data_format, self.use_norm, train=False)
+                show_all_variables()
 
-            saver = tf.train.Saver()
-            ckpt = tf.train.get_checkpoint_state(self.load_overlapnet)
-            assert(ckpt and self.load_overlapnet)
-            ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
-            saver.restore(self.so, os.path.join(self.load_overlapnet, ckpt_name))
-            print('%s: Pre-trained model restored from %s' % (datetime.now(), self.load_overlapnet))
+                saver = tf.train.Saver()
+                ckpt = tf.train.get_checkpoint_state(self.load_overlapnet)
+                assert(ckpt and self.load_overlapnet)
+                ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
+                saver.restore(self.so, os.path.join(self.load_overlapnet, ckpt_name))
+                print('%s: Pre-trained model restored from %s' % (datetime.now(), self.load_overlapnet))
 
     def test(self):
         if self.mp:
@@ -198,6 +198,8 @@ class Tester(object):
             print('%s: %s, predict overlap (#:%d) through ovnet (%.3f sec)' % (datetime.now(), file_name, dup_id-num_path_pixels, duration))
             pm.duration_ov = duration
             pm.duration += duration
+        else:
+            pm.duration_ov = 0
 
         # write config file for graphcut
         start_time = time.time()
@@ -367,6 +369,14 @@ class Tester(object):
             d_vec.append(dvec)
             duration.append(d)
 
+        print('label abs diff: {}'.format(np.average(abs_diff)))
+        print('acc: {}'.format(np.average(acc)))
+        print('duration for prediction: {}'.format(np.average(d_pred)))
+        print('duration for overlap: {}'.format(np.average(d_ov)))
+        print('duration for mapping: {}'.format(np.average(d_map)))
+        print('duration for vectorization: {}'.format(np.average(d_vec)))
+        print('duration total: {}'.format(np.average(duration)))
+        
         stat_path = os.path.join(self.model_dir, 'summary.txt')
         with open(stat_path, 'w') as f:
             f.write('label abs diff: {}\n'.format(np.average(abs_diff)))

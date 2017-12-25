@@ -60,7 +60,7 @@ class Tester(object):
         self.neighbor_sample = config.neighbor_sample
 
         self.num_test = config.num_test
-        self.test_paths = self.batch_manager.test_paths[:self.num_test]
+        self.test_paths = self.rng.choice(self.batch_manager.test_paths, self.num_test)
         self.mp = config.mp
         self.num_worker = config.num_worker
 
@@ -228,7 +228,7 @@ class Tester(object):
             p1 = np.array([path_pixels[0][i], path_pixels[1][i]])
             pred_p1 = np.reshape(paths[i,:,:,:], [self.height, self.width])
 
-            # see close neighbors and some far neighbors (stochastic sampling)        
+            # see close neighbors and some far neighbors (stochastic sampling)
             rng = nb.radius_neighbors([p1])
             num_close = len(rng[1][0])
             far = np.setdiff1d(range(i+1,num_path_pixels),rng[1][0])
@@ -247,7 +247,7 @@ class Tester(object):
                 if rj < num_close: d12 = rng[0][0][rj]
                 else: d12 = np.linalg.norm(p1-p2, 2)            
 
-            # for j in xrange(i+1, num_path_pixels): # see entire neighbors
+            # for j in range(i+1, num_path_pixels): # see entire neighbors
             #     p2 = np.array([path_pixels[0][j], path_pixels[1][j]])
             #     d12 = np.linalg.norm(p1-p2, 2)
                 

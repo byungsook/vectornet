@@ -31,7 +31,7 @@ data_arg.add_argument('--data_dir', type=str, default='data') # /media/kimby/Dat
 data_arg.add_argument('--dataset', type=str, default='line',
                       choices=['line','ch','kanji','baseball','cat','multi'])
 data_arg.add_argument('--batch_size', type=int, default=8)
-data_arg.add_argument('--num_worker', type=int, default=4)
+data_arg.add_argument('--num_worker', type=int, default=8)
 # line
 data_arg.add_argument('--num_strokes', type=int, default=4)
 data_arg.add_argument('--stroke_type', type=int, default=2)
@@ -61,7 +61,7 @@ vect_arg.add_argument('--max_label', type=int, default=128)
 vect_arg.add_argument('--label_cost', type=int, default=0)
 vect_arg.add_argument('--sigma_neighbor', type=float, default=8.0)
 vect_arg.add_argument('--sigma_predict', type=float, default=0.7)
-vect_arg.add_argument('--neighbor_sample', type=float, default=0.02)
+vect_arg.add_argument('--neighbor_sample', type=float, default=1)
 vect_arg.add_argument('--find_overlap', type=str2bool, default=True)
 vect_arg.add_argument('--overlap_threshold', type=float, default=0.5)
 vect_arg.add_argument('--test_batch_size', type=int, default=512)

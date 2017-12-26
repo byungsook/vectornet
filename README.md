@@ -1,8 +1,11 @@
+# Semantic Segmentation for Line Drawing Vectorization Using Neural Networks in Tensorflow
+
 Tensorflow implementation of [Semantic Segmentation for Line Drawing Vectorization Using Neural Networks](http://www.byungsoo.me).
+
 
 ## Requirements
 
-* Tested on Windows 10 and Ubuntu 16.04
+This code is tested on Windows 10 and Ubuntu 16.04 with the following requirements:
 
 - [anaconda3 / python3.6](https://www.anaconda.com/download/#linux)
 - [TensorFlow 1.4](https://github.com/tensorflow/tensorflow)
@@ -12,16 +15,16 @@ Tensorflow implementation of [Semantic Segmentation for Line Drawing Vectorizati
 - [tqdm](https://github.com/tqdm/tqdm)
 - [Potrace](http://potrace.sourceforge.net/)
 
-Run 'pip install tensorflow-gpu cairosvg matplotlib imageio tqdm'
+After installing anaconda, run `pip install tensorflow-gpu cairosvg matplotlib imageio tqdm` and `sudo apt-get install potrace` (Ubuntu)
 
 ## Usage
 
 Download preprocessed datasets first.
 
 - [Random Lines](http://www.byungsoo.me)
-- [Chinese](http://www.byungsoo.me), [(source)](https://github.com/skishore/makemeahanzi)
-- [Kanji](http://www.byungsoo.me), [(source)](https://github.com/KanjiVG/kanjivg/releases)
-- [Quick Draw!](http://www.byungsoo.me), [(source)](https://github.com/googlecreativelab/quickdraw-dataset)
+- [Chinese](http://www.byungsoo.me) [(source)](https://github.com/skishore/makemeahanzi)
+- [Kanji](http://www.byungsoo.me) [(source)](https://github.com/KanjiVG/kanjivg/releases)
+- [Quick Draw!](http://www.byungsoo.me) [(source)](https://github.com/googlecreativelab/quickdraw-dataset)
 
 To train PathNet on random lines:
     

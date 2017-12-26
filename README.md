@@ -16,6 +16,13 @@ Run 'pip install tensorflow-gpu cairosvg matplotlib imageio tqdm'
 
 ## Usage
 
+Download preprocessed datasets first.
+
+- [Random Lines](http://www.byungsoo.me)
+- [Chinese](http://www.byungsoo.me), [(source)](https://github.com/skishore/makemeahanzi)
+- [Kanji](http://www.byungsoo.me), [(source)](https://github.com/KanjiVG/kanjivg/releases)
+- [Quick Draw!](http://www.byungsoo.me), [(source)](https://github.com/googlecreativelab/quickdraw-dataset)
+
 To train PathNet on random lines:
     
     $ python main.py --is_train=True --archi=path --dataset=line
@@ -27,9 +34,6 @@ To train OverlapNet on random lines:
 To vectorize random lines:
 
     $ .\build_win.bat or ./build_linux.sh
-
-    Then,
-
     $ python main.py --is_train=False --dataset=line --load_pathnet=log/path/MODEL_DIR--load_overlapnet=log/overlap/MODEL_DIR
 
 ## Results
@@ -62,8 +66,8 @@ From left to right: input / raster / transparent / overlap / vector / ground tru
 
 ## Reference
 
-- Tensorflow Framework: [carpedm20](https://github.com/carpedm20/BEGAN-tensorflow)
 - Multi-label Optimization: [gco](http://vision.csd.uwo.ca/code/gco-v3.0.zip), [qpbo](http://pub.ist.ac.at/~vnk/software/QPBO-v1.3.src.tar.gz)
+- Tensorflow Framework: [carpedm20](https://github.com/carpedm20/BEGAN-tensorflow)
 
 ## Author
 

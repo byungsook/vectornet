@@ -15,29 +15,29 @@ This code is tested on Windows 10 and Ubuntu 16.04 with the following requiremen
 - [tqdm](https://github.com/tqdm/tqdm)
 - [Potrace](http://potrace.sourceforge.net/)
 
-After installing anaconda, run `pip install tensorflow-gpu cairosvg matplotlib imageio tqdm` and `sudo apt-get install potrace` (Ubuntu)
+After installing anaconda, run `pip install tensorflow-gpu cairosvg matplotlib imageio tqdm`. In case of Potrace, unzip it `(i.e. potrace/potrace.exe)` on Windows or run `sudo apt-get install potrace` on Ubuntu.
 
 ## Usage
 
-Download preprocessed datasets first.
+Download a preprocessed dataset first and unzip it `(i.e. data/ch/train)`.
 
-- [Random Lines](http://www.byungsoo.me)
 - [Chinese](http://www.byungsoo.me) [(source)](https://github.com/skishore/makemeahanzi)
 - [Kanji](http://www.byungsoo.me) [(source)](https://github.com/KanjiVG/kanjivg/releases)
 - [Quick Draw!](http://www.byungsoo.me) [(source)](https://github.com/googlecreativelab/quickdraw-dataset)
+- [Random Lines](http://www.byungsoo.me)
 
-To train PathNet on random lines:
+To train PathNet on Chinese characters:
     
-    $ python main.py --is_train=True --archi=path --dataset=line
+    $ python main.py --is_train=True --archi=path --dataset=ch
 
-To train OverlapNet on random lines:
+To train OverlapNet on Chinese characters:
     
-    $ python main.py --is_train=True --archi=overlap --dataset=line
+    $ python main.py --is_train=True --archi=overlap --dataset=ch
 
-To vectorize random lines:
+To vectorize Chinese characters:
 
     $ .\build_win.bat or ./build_linux.sh
-    $ python main.py --is_train=False --dataset=line --load_pathnet=log/path/MODEL_DIR--load_overlapnet=log/overlap/MODEL_DIR
+    $ python main.py --is_train=False --dataset=ch --load_pathnet=log/path/MODEL_DIR--load_overlapnet=log/overlap/MODEL_DIR
 
 ## Results
 

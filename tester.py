@@ -31,6 +31,7 @@ def vectorize_mp(q):
             break
         
         vectorize(pm)
+        print('%s: qsize %d' % (datetime.now(), q.qsize()))
         q.task_done()
 
 

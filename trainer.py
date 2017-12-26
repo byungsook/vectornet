@@ -83,6 +83,7 @@ class Trainer(object):
         self.yt_, _ = VDSR(
                 self.xt, self.conv_hidden_num, self.repeat_num, self.data_format, self.use_norm,
                 train=False, reuse=True)
+        self.yt_ = tf.clip_by_value(self.yt_, 0, 1)
         self.yt_img = denorm_img(self.yt_, self.data_format)
 
         show_all_variables()        

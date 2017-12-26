@@ -11,7 +11,7 @@ def VDSR(x, hidden_num, repeat_num, data_format, use_norm, name='VDSR',
             if use_norm:
                 x = batch_norm(x, train, data_format, act=tf.nn.relu)
 
-        out = conv2d(x, 1, data_format, k=k, s=1)
+        out = conv2d(x, 1, data_format, k=k, s=1, act=tf.nn.relu)
         if use_norm:
             out = batch_norm(out, train, data_format, act=tf.nn.relu)
     variables = tf.contrib.framework.get_variables(vs)

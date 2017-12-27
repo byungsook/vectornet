@@ -107,11 +107,11 @@ class Trainer(object):
             self.loss = self.loss_l1
 
         # test loss
-        self.tl1 = tf.reduce_mean(tf.abs(self.yt_ - self.yt))
-        self.tl2 = tf.reduce_mean(tf.squared_difference(self.yt_, self.yt))
-        self.test_loss_l1 = tf.placeholder(tf.float32)
-        self.test_loss_l2 = tf.placeholder(tf.float32)
-        self.test_loss_iou = tf.placeholder(tf.float32)
+        self.tl1 = 1 - tf.reduce_mean(tf.abs(self.yt_ - self.yt))
+        self.tl2 = 1 - tf.reduce_mean(tf.squared_difference(self.yt_, self.yt))
+        self.test_acc_l1 = tf.placeholder(tf.float32)
+        self.test_acc_l2 = tf.placeholder(tf.float32)
+        self.test_acc_iou = tf.placeholder(tf.float32)
 
         self.optim = optimizer.minimize(self.loss, global_step=self.step, var_list=self.var)
  
@@ -136,9 +136,9 @@ class Trainer(object):
         self.summary_once = tf.summary.merge(summary) # call just once
 
         summary = [
-            tf.summary.scalar("loss/test_loss_l1", self.test_loss_l1),
-            tf.summary.scalar("loss/test_loss_l2", self.test_loss_l2),
-            tf.summary.scalar("loss/test_loss_iou", self.test_loss_iou),
+            tf.summary.scalar("loss/test_acc_l1", self.test_acc_l1),
+            tf.summary.scalar("loss/test_acc_l2", self.test_acc_l2),
+            tf.summary.scalar("loss/test_acc_iou", self.test_acc_iou),
         ]
 
         self.summary_test = tf.summary.merge(summary)
@@ -180,9 +180,9 @@ class Trainer(object):
                     nb += 1
 
                     # iou
-                    y_I = np.logical_and(y, y_)
+                    y_I = np.logical_and(y>0, y_>0)
                     y_I_sum = np.sum(y_I, axis=(1, 2, 3))
-                    y_U = np.logical_or(y, y_)
+                    y_U = np.logical_or(y>0, y_>0)
                     y_U_sum = np.sum(y_U, axis=(1, 2, 3))
                     # print(y_I_sum, y_U_sum)
                     nonzero_id = np.where(y_U_sum != 0)[0]
@@ -200,7 +200,7 @@ class Trainer(object):
                 iou /= float(nb)
                     
                 summary_test = self.sess.run(self.summary_test, 
-                              {self.test_loss_l1: l1, self.test_loss_l2: l2, self.test_loss_iou: iou})
+                              {self.test_acc_l1: l1, self.test_acc_l2: l2, self.test_acc_iou: iou})
                 self.summary_writer.add_summary(summary_test, step)
                 self.summary_writer.flush()
 

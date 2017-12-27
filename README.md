@@ -2,7 +2,7 @@
 
 Tensorflow implementation of [Semantic Segmentation for Line Drawing Vectorization Using Neural Networks](http://www.byungsoo.me).
 
-![vectornet](./asset/vectornet.png)
+![vectornet](./asset/teaser.png)
 
 ## Requirements
 

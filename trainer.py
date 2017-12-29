@@ -156,7 +156,7 @@ class Trainer(object):
         summary_once = self.sess.run(self.summary_once)
         self.summary_writer.add_summary(summary_once, 0)
         self.summary_writer.flush()
-        
+
         for step in trange(self.start_step, self.max_step):
             fetch_dict = {
                 "optim": self.optim,
@@ -213,7 +213,7 @@ class Trainer(object):
                 loss = result['loss']
                 assert not np.isnan(loss), 'Model diverged with loss = NaN'
 
-                print("[{}/{}] Loss: {:.6f}".format(step, self.max_step, loss))
+                print("\n[{}/{}] Loss: {:.6f}".format(step, self.max_step, loss))
 
             if step % (self.log_step * 10) == 0 or step == self.max_step-1:
                 self.generate(x_list, self.model_dir, idx=step)

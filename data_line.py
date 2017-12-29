@@ -58,13 +58,13 @@ class BatchManager(object):
             feature_dim = [self.height, self.width, 1]
             label_dim = [self.height, self.width, 1]
 
-        min_after_dequeue = 5000
-        capacity = min_after_dequeue + 3 * self.batch_size
-        self.q = tf.FIFOQueue(capacity, [tf.float32, tf.float32], [feature_dim, label_dim])
+        self.capacity = 10000
+        self.q = tf.FIFOQueue(self.capacity, [tf.float32, tf.float32], [feature_dim, label_dim])
         self.x = tf.placeholder(dtype=tf.float32, shape=feature_dim)
         self.y = tf.placeholder(dtype=tf.float32, shape=label_dim)
         self.enqueue = self.q.enqueue([self.x, self.y])
-        self.num_threads = np.amin([config.num_worker, multiprocessing.cpu_count(), self.batch_size])
+        self.num_threads = config.num_worker
+        # np.amin([config.num_worker, multiprocessing.cpu_count(), self.batch_size])
 
     def __del__(self):
         try:
@@ -119,6 +119,14 @@ class BatchManager(object):
         # Start the threads and wait for all of them to stop.
         for t in self.threads:
             t.start()
+
+        # dirty way to bypass graph finilization error
+        g = tf.get_default_graph()
+        g._finalized = False
+        qs = 0        
+        while qs < (self.capacity*0.8):
+            qs = self.sess.run(self.q.size())
+        print('%s: q size %d' % (datetime.now(), qs))
 
     def stop_thread(self):
         # dirty way to bypass graph finilization error

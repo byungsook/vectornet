@@ -31,7 +31,7 @@ data_arg.add_argument('--data_dir', type=str, default='data') # /media/kimby/Dat
 data_arg.add_argument('--dataset', type=str, default='line',
                       choices=['line','ch','kanji','baseball','cat','multi'])
 data_arg.add_argument('--batch_size', type=int, default=8)
-data_arg.add_argument('--num_worker', type=int, default=8)
+data_arg.add_argument('--num_worker', type=int, default=16)
 # line
 data_arg.add_argument('--num_strokes', type=int, default=4)
 data_arg.add_argument('--stroke_type', type=int, default=2)
@@ -44,10 +44,10 @@ train_arg.add_argument('--is_train', type=str2bool, default=True)
 train_arg.add_argument('--use_gpu', type=str2bool, default=True)
 train_arg.add_argument('--gpu_id', type=str, default='0')
 train_arg.add_argument('--start_step', type=int, default=0)
-train_arg.add_argument('--max_step', type=int, default=2000) # 50000
+train_arg.add_argument('--max_step', type=int, default=50000) # 2000
 train_arg.add_argument('--lr_update_step', type=int, default=20000)
-train_arg.add_argument('--lr', type=float, default=0.005) 
-train_arg.add_argument('--lr_lower_boundary', type=float, default=0.0001)
+train_arg.add_argument('--lr', type=float, default=0.001) 
+train_arg.add_argument('--lr_lower_boundary', type=float, default=0.00001)
 train_arg.add_argument('--optimizer', type=str, default='adam')
 train_arg.add_argument('--beta1', type=float, default=0.5)
 train_arg.add_argument('--beta2', type=float, default=0.999)
@@ -69,7 +69,7 @@ vect_arg.add_argument('--mp', type=str2bool, default=True)
 
 # Misc
 misc_arg = add_argument_group('Misc')
-misc_arg.add_argument('--log_step', type=int, default=20) # 100
+misc_arg.add_argument('--log_step', type=int, default=100)
 misc_arg.add_argument('--test_step', type=int, default=1000) # 10000
 misc_arg.add_argument('--save_sec', type=int, default=900)
 misc_arg.add_argument('--log_dir', type=str, default='log')

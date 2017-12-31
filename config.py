@@ -46,7 +46,7 @@ train_arg.add_argument('--gpu_id', type=str, default='0')
 train_arg.add_argument('--start_step', type=int, default=0)
 train_arg.add_argument('--max_step', type=int, default=50000) # 2000
 train_arg.add_argument('--lr_update_step', type=int, default=20000)
-train_arg.add_argument('--lr', type=float, default=0.001) 
+train_arg.add_argument('--lr', type=float, default=0.005)
 train_arg.add_argument('--lr_lower_boundary', type=float, default=0.00001)
 train_arg.add_argument('--optimizer', type=str, default='adam')
 train_arg.add_argument('--beta1', type=float, default=0.5)
@@ -70,7 +70,7 @@ vect_arg.add_argument('--mp', type=str2bool, default=True)
 # Misc
 misc_arg = add_argument_group('Misc')
 misc_arg.add_argument('--log_step', type=int, default=100)
-misc_arg.add_argument('--test_step', type=int, default=1000) # 10000
+misc_arg.add_argument('--test_step', type=int, default=10000) # 1000
 misc_arg.add_argument('--save_sec', type=int, default=900)
 misc_arg.add_argument('--log_dir', type=str, default='log')
 misc_arg.add_argument('--tag', type=str, default='test')

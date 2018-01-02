@@ -43,8 +43,9 @@ class BatchManager(object):
 
             self.paths = gen_data(data_dir, config, self.rng,
                                     num_train=45000, num_test=5000)
-        assert(len(self.paths) > 0)
+        
         self.test_paths = sorted(glob("{}/test/*.{}".format(self.root, 'svg_pre')))
+        assert(len(self.paths) > 0 and len(self.test_paths) > 0)
 
         self.batch_size = config.batch_size
         self.height = config.height

@@ -44,28 +44,31 @@ To vectorize Chinese characters:
 
 ### PathNet output (64x64) after 50k steps (From top to bottom: input / output / ground truth)
 
-![path_rl_64x64_50k_in](./asset/path_rl_64x64_50k_in.png)
-![path_rl_64x64_50k](./asset/path_rl_64x64_50k_out.png)
-![path_rl_64x64_50k_gt](./asset/path_rl_64x64_50k_gt.png)
+![path_ch_in](./asset/path_ch_in.png)
+
+![path_ch_50k](./asset/path_ch_50k.png)
+
+![path_ch_gt](./asset/path_ch_gt.png)
 
 
 ### OverlapNet output (64x64) after 50k steps (From top to bottom: input / output / ground truth)
 
-![ov_rl_64x64_50k_in](./asset/ov_rl_64x64_50k_in.png)
-![ov_rl_64x64_50k](./asset/ov_rl_64x64_50k_out.png)
-![ov_rl_64x64_50k_gt](./asset/ov_rl_64x64_50k_gt.png)
+![ov_ch_in](./asset/ov_ch_in.png)
+
+![ov_ch_50k](./asset/ov_ch_50k.png)
+
+![ov_ch_gt](./asset/ov_ch_gt.png)
 
 
 ### Vectorization output (64x64)
 
-From left to right: input / raster / transparent / overlap / vector / ground truth
+From left to right: input / raster / transparent / overlap / vector
 
-![vect_45080_0_input](./asset/vect_45080_0_input.png)
-![vect_45080_8.00_0.70_4_4_0.99](./asset/vect_45080_8.00_0.70_4_4_0.99.png)
-![vect_45080_8.00_0.70_4_4_0.99_t](./asset/vect_45080_8.00_0.70_4_4_0.99_t.png)
-![vect_45080_1_overlap](./asset/vect_45080_1_overlap.png)
-![vect_45080_4_4_0.99](./asset/vect_45080_4_4_0.99.svg)
-![vect_45080_gt](./asset/vect_45080_gt.jpg)
+![vec_39693_in](./asset/vec_39693_in.png)
+![vec_39693_out](./asset/vec_39693_out.png)
+![vec_39693_t](./asset/vec_39693_t.png)
+![vec_39693_overlap](./asset/vec_39693_overlap.png)
+![vec_39693](./asset/vec_39693.svg)
 
 
 ## Reference

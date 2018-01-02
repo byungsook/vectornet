@@ -23,7 +23,8 @@ class BatchManager(object):
 
         self.paths = sorted(glob("{}/train/*.{}".format(self.root, 'svg')))
         self.test_paths = sorted(glob("{}/test/*.{}".format(self.root, 'svg')))
-        assert(len(self.paths) > 0 and len(self.test_paths) > 0)
+        self.vec_paths = sorted(glob("{}/vec/*.{}".format(self.root, 'svg')))
+        assert(len(self.paths) > 0 and len(self.test_paths) > 0 and len(self.vec_paths) > 0)
 
         self.batch_size = config.batch_size
         self.height = config.height

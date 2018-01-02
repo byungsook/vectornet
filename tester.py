@@ -61,7 +61,12 @@ class Tester(object):
         self.neighbor_sample = config.neighbor_sample
 
         self.num_test = config.num_test
-        self.test_paths = self.rng.choice(self.batch_manager.test_paths, self.num_test)
+        self.test_paths = self.batch_manager.test_paths
+        if config.dataset == 'baseball' or config.dataset == 'cat' or\
+           config.dataset == 'multi':
+            self.test_paths = self.batch_manager.vec_paths
+        if self.num_test < len(self.test_paths):
+            self.test_paths = self.rng.choice(self.test_paths, self.num_test, replace=False)
         self.mp = config.mp
         self.num_worker = config.num_worker
 
@@ -69,8 +74,6 @@ class Tester(object):
         self.data_path = config.data_path
         
         self.build_model()
-        # self.model_dir = '/media/kimby/Data/Polybox/dev/vectornet2/log/vect/line_1222_192237_test'
-        # self.stat()
 
     def build_model(self):
         pathnet_graph = tf.Graph()
@@ -120,7 +123,7 @@ class Tester(object):
         # preprocess first
         for i in trange(self.num_test):
             file_path = self.test_paths[i]
-            print('[{}/{}] start prediction, path: {}'.format(i+1,self.num_test,file_path))
+            print('\n[{}/{}] start prediction, path: {}'.format(i+1,self.num_test,file_path))
 
             param = self.predict(file_path)
 

@@ -35,7 +35,7 @@ def prepare_dirs_and_logger(config):
             config.dataset, get_time(), config.tag))
         config.model_dir = os.path.join(config.log_dir, model_name)    
     else:
-        model_name = os.path.join('vect', '{}_{}_{}'.format(
+        model_name = os.path.join('vec', '{}_{}_{}'.format(
             config.dataset, get_time(), config.tag))
         config.model_dir = os.path.join(config.log_dir, model_name)
 

@@ -5,6 +5,7 @@ import multiprocessing
 import signal
 import sys
 from datetime import datetime
+import platform
 
 import tensorflow as tf
 import numpy as np
@@ -17,36 +18,15 @@ import matplotlib.pyplot as plt
 from ops import *
 
 
-SVG_START_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg width="{w}" height="{h}" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" version="1.1">
-<g fill="none">\n"""
-SVG_LINE_TEMPLATE = """<path id="{id}" d="M {x1} {y1} L{x2} {y2}" stroke="rgb({r},{g},{b})" stroke-width="{sw}"/>"""
-SVG_CUBIC_BEZIER_TEMPLATE = """<path id="{id}" d="M {sx} {sy} C {cx1} {cy1} {cx2} {cy2} {tx} {ty}" stroke="rgb({r},{g},{b})" stroke-width="{sw}"/>"""
-SVG_END_TEMPLATE = """</g>\n</svg>"""
-
-
 class BatchManager(object):
     def __init__(self, config):
         self.root = config.data_path
         self.rng = np.random.RandomState(config.random_seed)
 
         self.paths = sorted(glob("{}/train/*.{}".format(self.root, 'svg_pre')))
-        if len(self.paths) == 0:
-            # create line dataset
-            data_dir = os.path.join(config.data_dir, config.dataset)
-            train_dir = os.path.join(data_dir, 'train')
-            if not os.path.exists(train_dir):
-                os.makedirs(train_dir)
-            test_dir = os.path.join(data_dir, 'test')
-            if not os.path.exists(test_dir):
-                os.makedirs(test_dir)
-
-            self.paths = gen_data(data_dir, config, self.rng,
-                                    num_train=45000, num_test=5000)
-        
         self.test_paths = sorted(glob("{}/test/*.{}".format(self.root, 'svg_pre')))
         assert(len(self.paths) > 0 and len(self.test_paths) > 0)
-
+        
         self.batch_size = config.batch_size
         self.height = config.height
         self.width = config.width
@@ -124,7 +104,7 @@ class BatchManager(object):
         # dirty way to bypass graph finilization error
         g = tf.get_default_graph()
         g._finalized = False
-        qs = 0        
+        qs = 0
         while qs < (self.capacity*0.8):
             qs = self.sess.run(self.q.size())
         print('%s: q size %d' % (datetime.now(), qs))
@@ -182,7 +162,22 @@ class BatchManager(object):
         with open(file_path, 'r') as f:
             svg = f.read()
 
-        svg = svg.format(w=self.width, h=self.height)
+        r = 0
+        s = [1, -1]
+        t = [0, -900]
+        # if transform:
+        #     r = rng.randint(-45, 45)
+        #     # s_sign = rng.choice([1, -1], 1)[0]
+        #     s_sign = -1
+        #     s = 1.75 * rng.random_sample(2) + 0.25 # [0.25, 2)
+        #     s[1] = s[1] * s_sign
+        #     t = rng.randint(-100, 100, 2)
+        #     if s_sign == 1:
+        #         t[1] = t[1] + 124
+        #     else:
+        #         t[1] = t[1] - 900
+
+        svg = svg.format(w=self.width, h=self.height, r=r, sx=s[0], sy=s[1], tx=t[0], ty=t[1])
         img = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
         img = Image.open(io.BytesIO(img))
         s = np.array(img)[:,:,3].astype(np.float) # / 255.0
@@ -191,12 +186,21 @@ class BatchManager(object):
 
         path_list = []        
         svg_xml = et.fromstring(svg)
-        num_paths = len(svg_xml[0])
+
+        sys_name = platform.system()
+        if sys_name == 'Windows':
+            num_paths = len(svg_xml[0]._children)
+        else:
+            num_paths = len(svg_xml[0])
 
         for i in range(num_paths):
             svg_xml = et.fromstring(svg)
-            svg_xml[0][0] = svg_xml[0][i]
-            del svg_xml[0][1:]
+
+            if sys_name == 'Windows':
+                svg_xml[0]._children = [svg_xml[0]._children[i]]
+            else:
+                svg_xml[0][0] = svg_xml[0][i]
+                del svg_xml[0][1:]
             svg_one = et.tostring(svg_xml, method='xml')
 
             # leave only one path
@@ -207,127 +211,26 @@ class BatchManager(object):
 
         return s, num_paths, path_list
 
-
-def draw_line(id, w, h, min_length, max_stroke_width, rng):
-    stroke_color = rng.randint(240, size=3)
-    # stroke_width = rng.randint(low=1, high=max_stroke_width+1)
-    stroke_width = max_stroke_width
-    while True:
-        x = rng.randint(w, size=2)
-        y = rng.randint(h, size=2)
-        if x[0] - x[1] + y[0] - y[1] < min_length:
-            continue
-        break
-
-    return SVG_LINE_TEMPLATE.format(
-        id=id,
-        x1=x[0], y1=y[0],
-        x2=x[1], y2=y[1],
-        r=stroke_color[0], g=stroke_color[1], b=stroke_color[2], 
-        sw=stroke_width
-    )
-
-def draw_cubic_bezier_curve(id, w, h, min_length, max_stroke_width, rng):
-    stroke_color = rng.randint(240, size=3)
-    # stroke_width = rng.randint(low=1, high=max_stroke_width+1)
-    stroke_width = max_stroke_width
-    x = rng.randint(w, size=4)
-    y = rng.randint(h, size=4)
-
-    return SVG_CUBIC_BEZIER_TEMPLATE.format(
-        id=id,
-        sx=x[0], sy=y[0],
-        cx1=x[1], cy1=y[1],
-        cx2=x[2], cy2=y[2],
-        tx=x[3], ty=y[3],
-        r=stroke_color[0], g=stroke_color[1], b=stroke_color[2], 
-        sw=stroke_width
-    )
-
-def draw_path(stroke_type, id, w, h, min_length, max_stroke_width, rng):
-    if stroke_type == 2:
-        stroke_type = rng.randint(2)
-
-    path_selector = {
-        0: draw_line,
-        1: draw_cubic_bezier_curve
-    }
-
-    return path_selector[stroke_type](id, w, h,min_length, max_stroke_width, rng)
-
-def gen_data(data_dir, config, rng, num_train, num_test):
-    file_list = []
-    num = num_train + num_test
-    for file_id in range(num):
-        while True:
-            svg = SVG_START_TEMPLATE.format(
-                        w=config.width,
-                        h=config.height,
-                    )
-            svgpre = SVG_START_TEMPLATE
-
-            for i in range(config.num_strokes):
-                path = draw_path(
-                        stroke_type=config.stroke_type,
-                        id=i, 
-                        w=config.width,
-                        h=config.height,
-                        min_length=config.min_length,
-                        max_stroke_width=config.max_stroke_width,
-                        rng=rng,
-                    )
-                svg += path + '\n'
-                svgpre += path + '\n'
-
-            svg += SVG_END_TEMPLATE
-            svgpre += SVG_END_TEMPLATE
-            s_png = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
-            s_img = Image.open(io.BytesIO(s_png))
-            s = np.array(s_img)[:,:,3].astype(np.float) # / 255.0
-            max_intensity = np.amax(s)
-            
-            if max_intensity == 0:
-                continue
-            else:
-                s = s / max_intensity # [0,1]
-            break
-
-        if file_id < num_train:
-            cat = 'train'
-        else:
-            cat = 'test'
-        
-        # svgpre
-        svgpre_file_path = os.path.join(data_dir, cat, '%d.svg_pre' % file_id)
-        print(svgpre_file_path)
-        with open(svgpre_file_path, 'w') as f:
-            f.write(svgpre)
-        
-        # svg and jpg for reference
-        svg_dir = os.path.join(data_dir, 'svg')
-        if not os.path.exists(svg_dir):
-            os.makedirs(svg_dir)
-        jpg_dir = os.path.join(data_dir, 'jpg')
-        if not os.path.exists(jpg_dir):
-            os.makedirs(jpg_dir)
-        
-        svg_file_path = os.path.join(data_dir, 'svg', '%d.svg' % file_id)
-        jpg_file_path = os.path.join(data_dir, 'jpg', '%d.jpg' % file_id)
-        
-        with open(svg_file_path, 'w') as f:
-            f.write(svg)
-        s_img.convert('RGB').save(jpg_file_path)
-
-        if file_id < num_train:
-            file_list.append(svgpre_file_path)
-
-    return file_list
-
 def preprocess_path(file_path, w, h, rng):
     with open(file_path, 'r') as f:
         svg = f.read()
 
-    svg = svg.format(w=w, h=h)
+    r = 0
+    s = [1, -1]
+    t = [0, -900]
+    # if transform:
+    #     r = rng.randint(-45, 45)
+    #     # s_sign = rng.choice([1, -1], 1)[0]
+    #     s_sign = -1
+    #     s = 1.75 * rng.random_sample(2) + 0.25 # [0.25, 2)
+    #     s[1] = s[1] * s_sign
+    #     t = rng.randint(-100, 100, 2)
+    #     if s_sign == 1:
+    #         t[1] = t[1] + 124
+    #     else:
+    #         t[1] = t[1] - 900
+
+    svg = svg.format(w=w, h=h, r=r, sx=s[0], sy=s[1], tx=t[0], ty=t[1])
     img = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
     img = Image.open(io.BytesIO(img))
     s = np.array(img)[:,:,3].astype(np.float) # / 255.0
@@ -336,10 +239,16 @@ def preprocess_path(file_path, w, h, rng):
 
     # while True:
     svg_xml = et.fromstring(svg)
-    path_id = rng.randint(len(svg_xml[0]))
-    svg_xml[0][0] = svg_xml[0][path_id]
-    del svg_xml[0][1:]
-    svg_one = et.tostring(svg_xml, method='xml')        
+
+    sys_name = platform.system()
+    if sys_name == 'Windows':
+        path_id = rng.randint(len(svg_xml[0]._children))
+        svg_xml[0]._children = [svg_xml[0]._children[path_id]]
+    else:
+        path_id = rng.randint(len(svg_xml[0]))
+        svg_xml[0][0] = svg_xml[0][path_id]
+        del svg_xml[0][1:]
+    svg_one = et.tostring(svg_xml, method='xml')
 
     # leave only one path
     y_png = cairosvg.svg2png(bytestring=svg_one)
@@ -378,7 +287,23 @@ def preprocess_path(file_path, w, h, rng):
 def preprocess_overlap(file_path, w, h, rng):
     with open(file_path, 'r') as f:
         svg = f.read()
-    svg = svg.format(w=w, h=h)
+    
+    r = 0
+    s = [1, -1]
+    t = [0, -900]
+    # if transform:
+    #     r = rng.randint(-45, 45)
+    #     # s_sign = rng.choice([1, -1], 1)[0]
+    #     s_sign = -1
+    #     s = 1.75 * rng.random_sample(2) + 0.25 # [0.25, 2)
+    #     s[1] = s[1] * s_sign
+    #     t = rng.randint(-100, 100, 2)
+    #     if s_sign == 1:
+    #         t[1] = t[1] + 124
+    #     else:
+    #         t[1] = t[1] - 900
+
+    svg = svg.format(w=w, h=h, r=r, sx=s[0], sy=s[1], tx=t[0], ty=t[1])
     img = cairosvg.svg2png(bytestring=svg.encode('utf-8'))
     img = Image.open(io.BytesIO(img))
     s = np.array(img)[:,:,3].astype(np.float) # / 255.0
@@ -388,12 +313,21 @@ def preprocess_overlap(file_path, w, h, rng):
     # while True:
     path_list = []        
     svg_xml = et.fromstring(svg)
-    num_paths = len(svg_xml[0])
+
+    sys_name = platform.system()
+    if sys_name == 'Windows':
+        num_paths = len(svg_xml[0]._children)
+    else:
+        num_paths = len(svg_xml[0])
 
     for i in range(num_paths):
         svg_xml = et.fromstring(svg)
-        svg_xml[0][0] = svg_xml[0][i]
-        del svg_xml[0][1:]
+
+        if sys_name == 'Windows':
+            svg_xml[0]._children = [svg_xml[0]._children[i]]
+        else:
+            svg_xml[0][0] = svg_xml[0][i]
+            del svg_xml[0][1:]
         svg_one = et.tostring(svg_xml, method='xml')
 
         # leave only one path
@@ -426,8 +360,8 @@ def preprocess_overlap(file_path, w, h, rng):
 def main(config):
     prepare_dirs_and_logger(config)
     batch_manager = BatchManager(config)
-    # preprocess_path('data/line/train/0.svg_pre', 64, 64, batch_manager.rng)
-    # preprocess_overlap('data/line/train/0.svg_pre', 64, 64, batch_manager.rng)
+    preprocess_path('data/ch/train/11904.svg_pre', 64, 64, batch_manager.rng)
+    preprocess_overlap('data/ch/train/11904.svg_pre', 64, 64, batch_manager.rng)
 
     # thread test
     sess_config = tf.ConfigProto()
@@ -474,7 +408,7 @@ if __name__ == "__main__":
 
     config, unparsed = get_config()
     setattr(config, 'archi', 'path') # overlap
-    setattr(config, 'dataset', 'line')
+    setattr(config, 'dataset', 'ch')
     setattr(config, 'width', 64)
     setattr(config, 'height', 64)
 

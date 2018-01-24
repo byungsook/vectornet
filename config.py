@@ -27,9 +27,9 @@ net_arg.add_argument('--archi', type=str, default='path',
 
 # Data
 data_arg = add_argument_group('Data')
-data_arg.add_argument('--data_dir', type=str, default='data') # /media/kimby/Data/Polybox/dev/vectornet2/data
+data_arg.add_argument('--data_dir', type=str, default='data')
 data_arg.add_argument('--dataset', type=str, default='line',
-                      choices=['line','ch','kanji','baseball','cat','multi'])
+                      choices=['line','ch','kanji','baseball','cat'])
 data_arg.add_argument('--batch_size', type=int, default=8)
 data_arg.add_argument('--num_worker', type=int, default=16)
 # line
@@ -80,9 +80,9 @@ misc_arg.add_argument('--random_seed', type=int, default=123)
 def get_config():
     config, unparsed = parser.parse_known_args()
     
-    import os
-    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID" # so the IDs match nvidia-smi
-    os.environ["CUDA_VISIBLE_DEVICES"] = config.gpu_id # "0, 1" for multiple
+    # import os
+    # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID" # so the IDs match nvidia-smi
+    # os.environ["CUDA_VISIBLE_DEVICES"] = config.gpu_id # "0, 1" for multiple
 
     if config.use_gpu:
         data_format = 'NCHW'

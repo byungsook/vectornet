@@ -17,8 +17,7 @@ def main(config):
         elif config.dataset == 'kanji':
             from data_kanji import BatchManager
         elif config.dataset == 'baseball' or\
-             config.dataset == 'cat' or\
-             config.dataset == 'multi':
+             config.dataset == 'cat':
             from data_qdraw import BatchManager
 
         batch_manager = BatchManager(config)
@@ -33,8 +32,7 @@ def main(config):
         elif config.dataset == 'kanji':
             from data_kanji import BatchManager
         elif config.dataset == 'baseball' or\
-             config.dataset == 'cat' or\
-             config.dataset == 'multi':
+             config.dataset == 'cat':
             from data_qdraw import BatchManager
         
         batch_manager = BatchManager(config)

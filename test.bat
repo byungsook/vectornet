@@ -1,5 +1,3 @@
-
-
 python main.py --is_train=False --dataset=ch --load_pathnet=log/path/ch_1231_170036_win --find_overlap=False --tag=nv
 python main.py --is_train=False --dataset=ch --load_pathnet=log/path/ch_1231_170036_win --load_overlapnet=log/overlap/ch_0101_012450_win --tag=ov
 
@@ -14,6 +12,3 @@ python main.py --is_train=False --dataset=baseball --load_pathnet=log/path/baseb
 
 python main.py --is_train=False --dataset=cat --load_pathnet=log/path/cat_1231_205036_win --find_overlap=False --tag=nv --height=128 --width=128 --neighbor_sample=0.02 --test_batch_size=256
 python main.py --is_train=False --dataset=cat --load_pathnet=log/path/cat_1231_205036_win --load_overlapnet=log/overlap/cat_0101_104304_win --tag=ov --height=128 --width=128 --neighbor_sample=0.02 --test_batch_size=256
-
-python main.py --is_train=False --dataset=multi --load_pathnet=log/path/multi_1231_224545_win --find_overlap=False --tag=nv --height=128 --width=128 --neighbor_sample=0.02 --test_batch_size=256
-python main.py --is_train=False --dataset=multi --load_pathnet=log/path/multi_1231_224545_win --load_overlapnet=log/overlap/multi_0101_124432_win --tag=ov --height=128 --width=128 --neighbor_sample=0.02 --test_batch_size=256

@@ -18,27 +18,6 @@ def VDSR(x, hidden_num, repeat_num, data_format, use_norm, name='VDSR',
     variables = tf.contrib.framework.get_variables(vs)
     return out, variables
         
-def EDSR(x, hidden_num, repeat_num, data_format, k=3, scale_factor=0.1, name='EDSR',
-         train=True, reuse=False):
-    ''' EDSR without upsampling '''
-    with tf.variable_scope(name, reuse=reuse) as vs:
-        x = conv2d(x, hidden_num, data_format, k=3, s=1)
-        x_in = x
-
-        # res. blocks
-        for _ in range(repeat_num):
-            x_ = x
-            x = conv2d(x, hidden_num, data_format, k=3, s=1, act=tf.nn.relu)
-            x = conv2d(x, hidden_num, data_format, k=3, s=1)*scale_factor
-            x += x_
-
-        x = conv2d(x, hidden_num, data_format, k=3, s=1)
-        x += x_in
-
-        out = conv2d(x, 1, data_format, k=3, s=1)
-    variables = tf.contrib.framework.get_variables(vs)
-    return out, variables
-
 def main(_):
     b_num = 16
     h = 64

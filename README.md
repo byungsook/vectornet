@@ -1,8 +1,15 @@
-# Semantic Segmentation for Line Drawing Vectorization Using Neural Networks in Tensorflow
+# Semantic Segmentation for Line Drawing Vectorization Using Neural Networks
 
 Tensorflow implementation of [Semantic Segmentation for Line Drawing Vectorization Using Neural Networks](http://www.byungsoo.me/project/vectornet).
 
+[Byungsoo Kim](http://www.byungsoo.me), [Oliver Wang](http://www.oliverwang.info), [Cengiz Öztireli](https://graphics.ethz.ch/~cengizo), [Markus Gross](https://graphics.ethz.ch/people/grossm)
+
+ETH Zurich, Adobe Research, Disney Research
+
+Computer Graphics Forum (Proceedings of Eurographics 2018)
+
 ![vectornet](./asset/teaser.png)
+
 
 ## Requirements
 
@@ -75,10 +82,6 @@ From left to right: input / raster / transparent / overlap / vector
 
 - Multi-label Optimization: [gco](http://vision.csd.uwo.ca/code/gco-v3.0.zip), [qpbo](http://pub.ist.ac.at/~vnk/software/QPBO-v1.3.src.tar.gz)
 - Tensorflow Framework: [carpedm20](https://github.com/carpedm20/BEGAN-tensorflow)
-
-## Author
-
-Byungsoo Kim / [@kimby](http://www.byungsoo.me)
 
 <!-- 
 ## Useful Settings

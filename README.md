@@ -2,9 +2,9 @@
 
 Tensorflow implementation of [Semantic Segmentation for Line Drawing Vectorization Using Neural Networks](http://www.byungsoo.me/project/vectornet).
 
-[Byungsoo Kim](http://www.byungsoo.me), [Oliver Wang](http://www.oliverwang.info), [Cengiz Öztireli](https://graphics.ethz.ch/~cengizo), [Markus Gross](https://graphics.ethz.ch/people/grossm)
+[Byungsoo Kim¹](http://www.byungsoo.me), [Oliver Wang²](http://www.oliverwang.info), [Cengiz Öztireli¹](https://graphics.ethz.ch/~cengizo), [Markus Gross¹](https://graphics.ethz.ch/people/grossm)
 
-ETH Zurich, Adobe Research, Disney Research
+¹ETH Zurich, ²Adobe Research
 
 Computer Graphics Forum (Proceedings of Eurographics 2018)
 

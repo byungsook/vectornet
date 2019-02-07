@@ -72,7 +72,7 @@ def preprocess_qdraw():
     stroke_width = 2
     bbox_pad = 20
     cmap = plt.get_cmap('jet')
-    need = 200
+    need = 200000
 
     with jsonlines.open('data/{cat}.ndjson'.format(cat=category)) as reader:
         for count, obj in enumerate(reader):
@@ -131,12 +131,12 @@ def preprocess_qdraw():
 
     num_files = len(file_list)
     ids = np.random.permutation(num_files)
-    # train_id = int(num_files * 0.9)
-    # with open(os.path.join(output,'train.txt'), 'w') as f: 
-    #     for id in ids[:train_id]:
-    #         f.write(file_list[id] + '\n')
+    train_id = int(num_files * 0.9)
+    with open(os.path.join(output,'train.txt'), 'w') as f: 
+        for id in ids[:train_id]:
+            f.write(file_list[id] + '\n')
     with open(os.path.join(output,'test.txt'), 'w') as f: 
-        for id in ids:
+        for id in ids[train_id:]:
             f.write(file_list[id] + '\n')
 
 

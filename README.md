@@ -29,10 +29,10 @@ After installing anaconda, run `pip install tensorflow-gpu cairosvg matplotlib i
 
 Download a preprocessed dataset first and unzip it `(i.e. data/ch/train)`.
 
-- [Chinese](http://www.byungsoo.me/project/vectornet/ch.7z) [(source)](https://github.com/skishore/makemeahanzi)
-- [Kanji](http://www.byungsoo.me/project/vectornet/kanji.7z) [(source)](https://github.com/KanjiVG/kanjivg/releases)
-- [Quick Draw](http://www.byungsoo.me/project/vectornet/qdraw.7z) [(source)](https://github.com/googlecreativelab/quickdraw-dataset)
-- [Random Lines](http://www.byungsoo.me/project/vectornet/line.7z)
+- [Chinese](http://gofile.me/6tGZC/zbws8gqEK) [(source)](https://github.com/skishore/makemeahanzi)
+- [Kanji](http://gofile.me/6tGZC/R7FWjODa2) [(source)](https://github.com/KanjiVG/kanjivg/releases)
+- [Quick Draw](http://gofile.me/6tGZC/VIH81NZJH) [(source)](https://github.com/googlecreativelab/quickdraw-dataset)
+- [Random Lines](http://gofile.me/6tGZC/GEoKSdiDc)
 
 To train PathNet on Chinese characters:
     
